@@ -207,6 +207,7 @@ class MEM2RB extends Bundle{
     val dst_d   = Output(UInt(DATA_WIDTH.W))
     val dst_en  = Output(Bool())
     val special = Output(UInt(2.W))
+    val is_mmio = Output(Bool())
     val drop    = Input(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())

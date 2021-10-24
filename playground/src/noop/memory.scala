@@ -5,6 +5,8 @@ import chisel3.util._
 import noop.param.common._
 import noop.param.cache_config._
 import noop.param.decode_config._
+import noop.clint._
+import noop.clint.clint_config._
 import noop.datapath._
 import noop.tlb._
 
@@ -13,33 +15,53 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         val dataRW  = new DcacheRW
         val mmio    = Flipped(new DcacheRW)
         val dcRW    = Flipped(new DcacheRW)
+        val clintIO = Flipped(new DataRWD)
     })
     dontTouch(io)
-    val pre_mem = RegInit(false.B)
-    val inp_mem = io.dataRW.addr(PADDR_WIDTH-1)
+    val pre_type    = RegInit(0.U(2.W))
+    val time_r      = RegInit(0.U(DATA_WIDTH.W))
+    val time_valid  = RegInit(false.B)
+    val is_clint    = io.dataRW.addr === MTIME || io.dataRW.addr === MTIMECMP
+    val inp_mem     = io.dataRW.addr(PADDR_WIDTH-1)
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
     io.dcRW.addr    := io.dataRW.addr
     io.dcRW.wdata   := io.dataRW.wdata
+    io.clintIO.addr    := io.dataRW.addr
+    io.clintIO.wdata   := io.dataRW.wdata
     io.dcRW.dc_mode := mode_NOP
     io.mmio.dc_mode := mode_NOP
     io.dataRW.ready := false.B
-    when(io.dataRW.dc_mode =/= mode_NOP){
-        pre_mem := inp_mem
-        when(inp_mem){
+    io.clintIO.wvalid := false.B
+    when(io.dataRW.dc_mode =/= mode_NOP){ // 0: mmio, 1: mem, 2: clint
+        when(is_clint){
+            pre_type            := 2.U
+            io.clintIO.wvalid   := io.dataRW.dc_mode(DC_S_BIT)
+            time_r              := io.clintIO.rdata
+            time_valid          := true.B
+        }.elsewhen(inp_mem){
+            pre_type        := 1.U
             io.dcRW.dc_mode := io.dataRW.dc_mode
             io.dataRW.ready := io.dcRW.ready
         }.otherwise{
+            pre_type        := 0.U
             io.mmio.dc_mode := io.dataRW.dc_mode
             io.dataRW.ready := io.mmio.ready
         }
     }
-    when(pre_mem){
+    when(pre_type === 2.U && time_valid){
+        io.dataRW.rdata     := time_r
+        io.dataRW.rvalid    := true.B
+        time_valid          := false.B
+    }.elsewhen(pre_type === 1.U){
         io.dataRW.rdata     := io.dcRW.rdata
         io.dataRW.rvalid    := io.dcRW.rvalid
-    }.otherwise{
+    }.elsewhen(pre_type === 0.U){
         io.dataRW.rdata     := io.mmio.rdata
         io.dataRW.rvalid    := io.mmio.rvalid
+    }.otherwise{
+        io.dataRW.rdata     := 0.U
+        io.dataRW.rvalid    := false.B
     }
 }
 
@@ -57,7 +79,9 @@ class Memory extends Module{
     val drop2_r = RegInit(false.B)
     val drop3_r = RegInit(false.B)
     drop2_r := false.B; drop1_r := false.B; drop3_r := false.B
-    val drop1_in = drop1_r || drop2_r
+    val drop3_in    = drop3_r || io.mem2rb.drop
+    val drop2_in    = drop2_r || drop3_in
+    val drop1_in    = drop1_r || drop2_in
     io.ex2mem.drop := drop1_in
 // stage 1
     val inst1_r     = RegInit(0.U(INST_WIDTH.W))
@@ -137,7 +161,6 @@ class Memory extends Module{
         io.d_mem1.state := d_invalid
     }
     // stage 2 (icache)
-    val drop2_in    = drop2_r || drop3_r
     val inst2_r     = RegInit(0.U(INST_WIDTH.W))
     val pc2_r       = RegInit(0.U(VADDR_WIDTH.W))
     val next_pc2_r  = RegInit(0.U(VADDR_WIDTH.W))
@@ -151,7 +174,6 @@ class Memory extends Module{
     val csr_d2_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en2_r   = RegInit(false.B)
     val special2_r  = RegInit(0.U(2.W))
-
     val paddr2_r    = RegInit(0.U(PADDR_WIDTH.W))
     val valid2_r    = RegInit(false.B)
 
@@ -199,7 +221,7 @@ class Memory extends Module{
             valid2_r := false.B
         }
     }.otherwise{
-        valid1_r := false.B
+        valid2_r := false.B
         drop_dc  := is_dc_r && !io.dataRW.rvalid
     }
 
@@ -215,7 +237,6 @@ class Memory extends Module{
         io.d_mem2.state := d_invalid
     }
 
-    val drop3_in    = drop3_r || io.mem2rb.drop
     val inst3_r     = RegInit(0.U(INST_WIDTH.W))
     val pc3_r       = RegInit(0.U(VADDR_WIDTH.W))
     val next_pc3_r  = RegInit(0.U(VADDR_WIDTH.W))
@@ -227,7 +248,7 @@ class Memory extends Module{
     val csr_d3_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en3_r   = RegInit(false.B)
     val special3_r  = RegInit(0.U(2.W))
-
+    val is_mmio_r   = RegInit(false.B)
     val valid3_r    = RegInit(false.B)
 
     when(hs2){
@@ -242,6 +263,7 @@ class Memory extends Module{
         csr_d3_r    := csr_d2_r
         csr_en3_r   := csr_en2_r
         special3_r  := special2_r
+        is_mmio_r   := ctrl2_r.dcMode =/= mode_NOP && paddr2_r < "h80000000".U
     }
     when(io.dataRW.rvalid){
         drop_dc := false.B
@@ -263,18 +285,19 @@ class Memory extends Module{
     }.otherwise{
         valid3_r := false.B
     }
-    io.mem2rb.inst     := inst3_r
-    io.mem2rb.pc       := pc3_r
-    io.mem2rb.next_pc  := next_pc3_r
-    io.mem2rb.excep    := excep3_r
-    io.mem2rb.csr_id   := csr_id3_r
-    io.mem2rb.csr_d    := csr_d3_r
-    io.mem2rb.csr_en   := csr_en3_r
-    io.mem2rb.dst      := dst3_r
-    io.mem2rb.dst_d    := dst_d3_r
-    io.mem2rb.dst_en   := dst_en3_r
-    io.mem2rb.special  := special3_r
-    io.mem2rb.valid    := valid3_r
+    io.mem2rb.inst      := inst3_r
+    io.mem2rb.pc        := pc3_r
+    io.mem2rb.next_pc   := next_pc3_r
+    io.mem2rb.excep     := excep3_r
+    io.mem2rb.csr_id    := csr_id3_r
+    io.mem2rb.csr_d     := csr_d3_r
+    io.mem2rb.csr_en    := csr_en3_r
+    io.mem2rb.dst       := dst3_r
+    io.mem2rb.dst_d     := dst_d3_r
+    io.mem2rb.dst_en    := dst_en3_r
+    io.mem2rb.special   := special3_r
+    io.mem2rb.valid     := valid3_r
+    io.mem2rb.is_mmio   := is_mmio_r
 
     io.d_mem3.id   := dst3_r
     io.d_mem3.data := dst_d3_r

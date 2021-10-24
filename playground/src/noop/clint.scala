@@ -14,7 +14,7 @@ object clint_config{
 class CLINT extends Module{
     val io = IO(new Bundle{
         val rw    = new DataRWD
-        val intr        = Output(Bool())
+        val intr  = Output(Bool())
     })
     val mtime = RegInit(0.U(DATA_WIDTH.W))
     val mtimecmp = RegInit(0.U(DATA_WIDTH.W))
@@ -22,6 +22,7 @@ class CLINT extends Module{
     when(count === 0.U){
         mtime := mtime + 10.U
     }
+    io.intr := mtime > mtimecmp
     io.rw.rdata := 0.U
     when(io.rw.addr === MTIME){
         io.rw.rdata    := mtime
