@@ -5,12 +5,9 @@ import noop.param.common._
 import noop.param.decode_config._
 
 class MULIO extends Bundle{
-    val alu64 = Input(Bool())
-    val is_hi = Input(Bool())
     val a     = Input(UInt(DATA_WIDTH.W))
-    val a_sign = Input(Bool())
     val b     = Input(UInt(DATA_WIDTH.W))
-    val b_sign = Input(Bool())
+    val aluop = Input(UInt(ALUOP_WIDTH.W))
     val en    = Input(Bool())
     val ready = Output(Bool())
     val out   = Output(UInt(DATA_WIDTH.W))
@@ -20,45 +17,35 @@ class MULIO extends Bundle{
 class MUL extends Module{
     val io = IO(new MULIO)
 
-    val accumulator = RegInit(0.U(128.W))
-    val val1        = RegInit(0.U(128.W))
+    val out_r       = RegInit(0.U(DATA_WIDTH.W))
+    val val1        = RegInit(0.U(DATA_WIDTH.W))
     val val2        = RegInit(0.U(DATA_WIDTH.W))
-    val sign        = RegInit(false.B)
-    val is_hi       = RegInit(false.B)
-    val iter = RegInit(0.U(7.W))
+    val aluop_r        = RegInit(0.U(ALUOP_WIDTH.W))
+    val valid_r     = RegInit(false.B)
     val sIdle :: sBusy :: sFin :: Nil = Enum(3)
     val state = RegInit(sIdle)
     io.ready := state === sIdle
-    io.out := 0.U
-    io.valid := false.B
+    io.out := out_r
+    io.valid := valid_r
     switch(state){
         is(sIdle){
+            valid_r := false.B
             when(io.en){
                 state := sBusy
-                val1 := Cat(Fill(64, Mux(io.a_sign, io.a(63), 0.U(1.W))), io.a)
+                val1 := io.a
                 val2 := io.b
-                sign := io.b_sign
-                is_hi := io.is_hi
-                iter := 0.U
-                accumulator := 0.U
+                aluop_r := io.aluop
             }
         }
         is(sBusy){
-            when(iter < DATA_WIDTH.U - 1.U){
-                when(val2(iter) === 1.U){
-                    accumulator := accumulator + (val1 << iter)
-                }
-                iter := iter + 1.U
-            }.elsewhen(iter === DATA_WIDTH.U - 1.U){
-                when(val2(iter) === 1.U){
-                    accumulator := Mux(sign, accumulator + (~(val1 << iter) + 1.U), accumulator + (val1 << iter))
-                }
-                iter := iter + 1.U
-            }.otherwise{
-                io.valid := true.B
-                io.out := Mux(is_hi, accumulator(127, 64), accumulator(63, 0))
-                state := sIdle
-            }
+            out_r := MuxLookup(aluop_r, 0.U(DATA_WIDTH.W), Seq(
+            alu_MUL     -> (val1 * val2)(63, 0),
+            alu_MULH    -> ((val1.asSInt * val2.asSInt)(127,64)).asUInt,
+            alu_MULHU   -> ((val1 * val2)(127, 64)),
+            alu_MULHSU  -> (val1.asSInt * val2)(127, 64).asSInt.asUInt,
+            ))
+            valid_r := true.B
+            state := sIdle
         }
     }
 }

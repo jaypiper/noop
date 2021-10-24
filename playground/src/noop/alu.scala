@@ -43,14 +43,10 @@ class ALU extends Module{
     val pre_aluop = RegInit(0.U(ALUOP_WIDTH.W))
     val state = RegInit(sIdle)
 
-    val mul_type = ListLookup(io.alu_op, mul_default, mul_decode)
-    multiplier.io.alu64 := io.alu64
-    multiplier.io.is_hi := mul_type(0)
     multiplier.io.a     := io.val1
-    multiplier.io.a_sign := mul_type(1)
     multiplier.io.b     := io.val2
-    multiplier.io.b_sign := mul_type(2)
     multiplier.io.en    := false.B
+    multiplier.io.aluop  := io.alu_op
     val div_type = ListLookup(io.alu_op, div_default, div_decode)
     divider.io.alu64    := io.alu64
     divider.io.a        := io.val1
@@ -108,7 +104,7 @@ class ALU extends Module{
             }
         }
     }
-    dontTouch(divider.io)
+    // dontTouch(divider.io)
 }
 
 class BranchALUIO extends Bundle{
