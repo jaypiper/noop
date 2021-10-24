@@ -67,9 +67,10 @@ class Writeback extends Module{
             }
         }
     }
+    val is_mmio_r   = RegNext(io.mem2rb.is_mmio)
     val instFinish = Module(new InstFinish)
     instFinish.io.clock     := clock
-    instFinish.io.is_mmio   := false.B
+    instFinish.io.is_mmio   := is_mmio_r
     instFinish.io.valid     := valid_r
     instFinish.io.pc        := pc_r
     instFinish.io.inst      := inst_r

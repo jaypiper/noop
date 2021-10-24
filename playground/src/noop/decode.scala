@@ -45,7 +45,7 @@ class Decode extends Module{
     val dType = instType(0)
     val jmp_indi = instType(5) === true.B
     val rs2_is_csr = instType(6) === true.B
-    val rs2_is_imm = instType(8) === true.B
+    val rs1_is_imm = instType(8) === true.B
     val imm = Wire(SInt(DATA_WIDTH.W))
     imm := 0.S
     switch(dType){
@@ -84,6 +84,10 @@ class Decode extends Module{
                 jmp_type_r  := JMP_UNCOND
                 rrs1_r      := true.B
                 rs2_d_r     := io.if2id.pc + 4.U
+            }.elsewhen(rs2_is_csr){
+                rs1_d_r     := inst_in(19,15)
+                rrs1_r      := !rs1_is_imm
+                rrs2_r      := true.B
             }.otherwise{
                 rrs1_r      := true.B
                 rs2_d_r     := imm.asUInt

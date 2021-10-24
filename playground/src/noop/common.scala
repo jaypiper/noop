@@ -420,7 +420,7 @@ object decode_config extends DeType with ALUOP with BrType
         with priv_encoding with dataForw{
     val IS_ALU64 = 0.U
     val IS_ALU32 = 1.U
-                            // decode      aluop             alu-w    ram-mode           |write-reg|跳转信号|csr-read|csr-write|rs2-imm
+                            // decode aluop    alu-w    ram-mode|write-reg|跳转信号|csr-read|csr-write|rs1-imm
     val decodeDefault = List(EMPTY, alu_NOP,   IS_ALU64,  mode_NOP, false.B, false.B, false.B, false.B, false.B)
     val decodeTable = Array(   
         Insts.LUI    -> List(UType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
@@ -490,7 +490,7 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.SLLW   -> List(RType, alu_SLL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.SRLW   -> List(RType, alu_SRL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.SRAW   -> List(RType, alu_SRA,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-                                                                                        //|write-reg|跳转信号|csr-read|csr-write|rs2-imm
+                                                                //|write-reg|跳转信号|csr-read|csr-write|rs1-imm
         Insts.CSRRW  -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
         Insts.CSRRS  -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
         Insts.CSRRC  -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
