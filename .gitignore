@@ -4,4 +4,16 @@ out/
 .idea/
 .idea_modules/
 test_run_dir/
+.metals/
+target/
 build/
+obj_dir/
+test_run_dir/
+fpga/
+nanos-lite/
+.vscode/
+diagram.drawio
+*.fst
+bin/
+issue
+test_output/
