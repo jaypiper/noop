@@ -17,16 +17,8 @@ extern "C" void update_pc(long long pc, int inst){
     state.inst = (uint32_t)inst;
 }
 
-int csr_lookup[] = {
-    SEPC_ID, STVEC_ID, SCAUSE_ID, STVAL_ID, SSCRATCH_ID, SSTATUS_ID,
-    SATP_ID, SIE_ID, SIP_ID, MTVEC_ID, MEPC_ID, MCAUSE_ID, MIE_ID, MIP_ID, MTVAL_ID,
-    MSCRATCH_ID, MSTATUS_ID, MHARTID, MEDELEG_ID, MIDELEG_ID
-};
-
 extern "C" void update_csr(int id, long long val){
-    if(id >= sizeof(csr_lookup) / sizeof(int)) return;
-    int csr_id = csr_lookup[id];
-    state.csr[csr_id] = val;
+    state.csr[id] = val;
 }
 
 extern "C" void update_priv(int priv){

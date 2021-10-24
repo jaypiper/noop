@@ -23,8 +23,8 @@ const char *regs[] = {
 };
 
 const char *csrs[] = {
-  "sepc", "stvec", "scause", "stval", "sscratch", "sstatus", "satp", "sie", "sip",
-  "mtvec", "mepc", "mcause", "mie", "mip", "mtval", "mscratch", "mstatus", "mhartid", "medeleg", "mideleg"
+  "sepc", "stvec", "scause", "stval", "sscratch", "satp",
+  "mtvec", "mepc", "mcause", "mie", "mip", "mtval", "mscratch", "mstatus", "medeleg", "mideleg"
 };
 
 extern "C" void flash_memcpy(uint8_t* src, size_t len);

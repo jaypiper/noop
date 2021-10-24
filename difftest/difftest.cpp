@@ -111,12 +111,12 @@ void disp_ipc(){
 }
 
 static int diff_csrs[] = {
-    SEPC_ID, STVEC_ID, SCAUSE_ID, STVAL_ID, SSCRATCH_ID, SSTATUS_ID,
-    SATP_ID, SIE_ID, SIP_ID, MTVEC_ID, MEPC_ID, MCAUSE_ID, MIE_ID, MIP_ID, MTVAL_ID,
-    MSCRATCH_ID, MSTATUS_ID, MHARTID, MEDELEG_ID, MIDELEG_ID
+    SEPC_ID, STVEC_ID, SCAUSE_ID, STVAL_ID, SSCRATCH_ID,
+    SATP_ID, MTVEC_ID, MEPC_ID, MCAUSE_ID, MIE_ID, MIP_ID, MTVAL_ID,
+    MSCRATCH_ID, MSTATUS_ID, MEDELEG_ID, MIDELEG_ID
 };
 
-static int csr_num = 0;//sizeof(diff_csrs)/sizeof(int);
+static int csr_num = sizeof(diff_csrs)/sizeof(int);
 
 void print_info(CPU_state* ref_r){
     if(ref_r){

@@ -301,15 +301,57 @@ class Csrs extends Module{
     }.otherwise{
 
     }
+    val updateCsrs = Module(new UpdateCsrs)
+    updateCsrs.io.priv      := priv
+    updateCsrs.io.mstatus   := Cat(CSR_MSTATUS,mstatus)
+    updateCsrs.io.mepc      := Cat(CSR_MEPC,mepc)
+    updateCsrs.io.mtval     := Cat(CSR_MTVAL,mtval)
+    updateCsrs.io.mscratch  := Cat(CSR_MSCRATCH,mscratch)
+    updateCsrs.io.mcause    := Cat(CSR_MCAUSE,mcause)
+    updateCsrs.io.mtvec     := Cat(CSR_MTVEC,mtvec)
+    updateCsrs.io.mie       := Cat(CSR_MIE,mie)
+    updateCsrs.io.mip       := Cat(CSR_MIP,mip)
+    updateCsrs.io.medeleg   := Cat(CSR_MEDELEG,medeleg)
+    updateCsrs.io.mideleg   := Cat(CSR_MIDELEG,mideleg)
+    updateCsrs.io.sepc      := Cat(CSR_SEPC,sepc)
+    updateCsrs.io.stval     := Cat(CSR_STVAL,stval)
+    updateCsrs.io.sscratch  := Cat(CSR_SSCRATCH,sscratch)
+    updateCsrs.io.stvec     := Cat(CSR_STVEC,stvec)
+    updateCsrs.io.satp      := Cat(CSR_SATP,satp)
+    updateCsrs.io.scause    := Cat(CSR_SCAUSE,scause)
+    updateCsrs.io.clock     := clock
 }
 
 class UpdateRegs extends BlackBox with HasBlackBoxPath{
     val io = IO(new Bundle{
         val regs_data   = Input(UInt((32*DATA_WIDTH).W))
-        // val csrs_data   = Input(UInt((32*DATA_WIDTH).W))
-        // val priv        = Input(UInt(PRIV_WIDTH.W))
         val clock       = Input(Clock())
 
     })
     addPath("playground/src/interface/UpdateRegs.v")
+}
+
+class UpdateCsrs extends BlackBox with HasBlackBoxPath{
+    val io = IO(new Bundle{
+        val priv        = Input(UInt(2.W))
+        val mstatus     = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mepc        = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mtval       = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mscratch    = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mcause      = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mtvec       = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mie         = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mip         = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val medeleg     = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val mideleg     = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val sepc        = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val stval       = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val sscratch    = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val stvec       = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val satp        = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val scause      = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val clock       = Input(Clock())
+
+    })
+    addPath("playground/src/interface/UpdateCsrs.v")
 }
