@@ -19,7 +19,7 @@ class Decode extends Module{
     io.if2id.drop := drop_r || io.id2df.drop
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc_r   = RegInit(0.U(VADDR_WIDTH.W))
+    val br_next_pc_r = RegInit(0.U(VADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val is_target_r = RegInit(false.B)
     val target_r    = RegInit(0.U(VADDR_WIDTH.W))
@@ -58,7 +58,7 @@ class Decode extends Module{
     when(hs_in){
         inst_r          := io.if2id.inst
         pc_r            := io.if2id.pc
-        next_pc_r       := io.if2id.next_pc
+        br_next_pc_r    := io.if2id.br_next_pc
         excep_r         := io.if2id.excep
         is_target_r     := io.if2id.is_target
         target_r        := io.if2id.target
@@ -162,7 +162,7 @@ class Decode extends Module{
     }
     io.id2df.inst       := inst_r
     io.id2df.pc         := pc_r
-    io.id2df.next_pc    := next_pc_r
+    io.id2df.br_next_pc := br_next_pc_r
     io.id2df.excep      := excep_r
     io.id2df.is_target  := is_target_r
     io.id2df.target     := target_r

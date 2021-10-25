@@ -26,7 +26,6 @@ class Execute extends Module{
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc_r   = RegInit(0.U(VADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val mem_addr_r  = RegInit(0.U(VADDR_WIDTH.W))
@@ -76,7 +75,6 @@ class Execute extends Module{
     when(hs_in){
         inst_r      := io.rr2ex.inst
         pc_r        := io.rr2ex.pc
-        next_pc_r   := io.rr2ex.next_pc
         excep_r     := io.rr2ex.excep
         ctrl_r      := io.rr2ex.ctrl
         mem_addr_r  := alu_out
@@ -152,7 +150,7 @@ class Execute extends Module{
         when(hs_in && io.rr2ex.jmp_type =/= NO_JMP){
             bpu_r.valid := true.B
         }
-        when(hs_in && io.rr2ex.next_pc =/= real_target && io.rr2ex.jmp_type =/= NO_JMP){
+        when(hs_in && io.rr2ex.br_next_pc =/= real_target && io.rr2ex.jmp_type =/= NO_JMP){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
             drop_r  := true.B
@@ -176,7 +174,6 @@ class Execute extends Module{
     // out
     io.ex2mem.inst      := inst_r
     io.ex2mem.pc        := pc_r
-    io.ex2mem.next_pc   := next_pc_r
     io.ex2mem.excep     := excep_r
     io.ex2mem.ctrl      := ctrl_r
     io.ex2mem.mem_addr  := mem_addr_r

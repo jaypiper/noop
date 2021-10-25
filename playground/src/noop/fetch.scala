@@ -64,7 +64,7 @@ class Fetch extends Module{
     restart := false.B
 // stage 1
     val pc1_r = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc1_r = RegInit(0.U(VADDR_WIDTH.W))
+    val br_next_pc1_r = RegInit(0.U(VADDR_WIDTH.W))
     
     val handshake12 = Wire(Bool())
     val handshake23 = Wire(Bool())
@@ -84,7 +84,7 @@ class Fetch extends Module{
             (true.B,                        cur_pc)))
     pc := next_pc
     pc1_r := cur_pc
-    next_pc1_r := next_pc
+    br_next_pc1_r := next_pc
     // bpu
     io.bpuSearch.vaddr := cur_pc
     io.bpuSearch.va_valid := !io.if2id.drop 
@@ -95,7 +95,7 @@ class Fetch extends Module{
 
 // stage 2
     val pc2_r       = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc2_r  = RegInit(0.U(VADDR_WIDTH.W))
+    val br_next_pc2_r  = RegInit(0.U(VADDR_WIDTH.W))
     val paddr2_r    = RegInit(0.U(PADDR_WIDTH.W))
     val valid2_r    = RegInit(false.B)
     val excep2_r    = RegInit(0.U.asTypeOf(new Exception))
@@ -117,11 +117,11 @@ class Fetch extends Module{
             handshake12 := true.B
         }
         when(handshake12){
-            valid2_r    := true.B
-            pc2_r       := pc1_r
-            next_pc2_r  := next_pc1_r
-            is_target2_r := io.bpuSearch.is_target
-            target2_r   := io.bpuSearch.target
+            valid2_r        := true.B
+            pc2_r           := pc1_r
+            br_next_pc2_r   := br_next_pc1_r
+            is_target2_r    := io.bpuSearch.is_target
+            target2_r       := io.bpuSearch.target
         }.elsewhen(handshake23){
             valid2_r := false.B
         }
@@ -141,13 +141,13 @@ class Fetch extends Module{
     io.instRead.addr := Mux(handshake12, io.va2pa.paddr, paddr2_r)
     io.instRead.arvalid := (handshake12 || valid2_r) && !io.if2id.drop
 // stage 3
-    val pc3_r       = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc3_r  = RegInit(0.U(VADDR_WIDTH.W))
-    val valid3_r    = RegInit(false.B)
-    val excep3_r    = RegInit(0.U.asTypeOf(new Exception))
-    val is_target3_r = RegInit(false.B)
-    val target3_r   = RegInit(0.U(VADDR_WIDTH.W))
-    val inst_r      = RegInit(0.U(INST_WIDTH.W))
+    val pc3_r           = RegInit(0.U(VADDR_WIDTH.W))
+    val br_next_pc3_r   = RegInit(0.U(VADDR_WIDTH.W))
+    val valid3_r        = RegInit(false.B)
+    val excep3_r        = RegInit(0.U.asTypeOf(new Exception))
+    val is_target3_r    = RegInit(false.B)
+    val target3_r       = RegInit(0.U(VADDR_WIDTH.W))
+    val inst_r          = RegInit(0.U(INST_WIDTH.W))
 
     val reset_ic    = RegInit(false.B)
     when(io.instRead.rvalid){
@@ -168,7 +168,7 @@ class Fetch extends Module{
         when(handshake23){
             valid3_r := true.B
             pc3_r := pc2_r
-            next_pc3_r := next_pc2_r
+            br_next_pc3_r := br_next_pc2_r
             excep3_r := excep2_r
             is_target3_r := is_target2_r
             target3_r   := target2_r
@@ -180,11 +180,11 @@ class Fetch extends Module{
         reset_ic := valid2_r && !excep2_r.en && !io.instRead.rvalid
     }
 
-    io.if2id.inst := inst_r
-    io.if2id.pc   := pc3_r
-    io.if2id.next_pc  := next_pc3_r
-    io.if2id.excep    := excep3_r
-    io.if2id.is_target := is_target3_r
-    io.if2id.target   := target3_r
-    io.if2id.valid    := valid3_r
+    io.if2id.inst       := inst_r
+    io.if2id.pc         := pc3_r
+    io.if2id.br_next_pc := br_next_pc3_r
+    io.if2id.excep      := excep3_r
+    io.if2id.is_target  := is_target3_r
+    io.if2id.target     := target3_r
+    io.if2id.valid      := valid3_r
 }

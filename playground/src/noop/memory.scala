@@ -86,7 +86,6 @@ class Memory extends Module{
 // stage 1
     val inst1_r     = RegInit(0.U(INST_WIDTH.W))
     val pc1_r       = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc1_r  = RegInit(0.U(VADDR_WIDTH.W))
     val excep1_r    = RegInit(0.U.asTypeOf(new Exception))
     val ctrl1_r     = RegInit(0.U.asTypeOf(new Ctrl))   // necessary ??
     val mem_addr1_r = RegInit(0.U(VADDR_WIDTH.W))
@@ -112,7 +111,6 @@ class Memory extends Module{
     when(hs_in){
         inst1_r     := io.ex2mem.inst
         pc1_r       := io.ex2mem.pc
-        next_pc1_r  := io.ex2mem.next_pc
         excep1_r    := io.ex2mem.excep
         ctrl1_r     := io.ex2mem.ctrl
         mem_addr1_r := io.ex2mem.mem_addr
@@ -163,7 +161,6 @@ class Memory extends Module{
     // stage 2 (icache)
     val inst2_r     = RegInit(0.U(INST_WIDTH.W))
     val pc2_r       = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc2_r  = RegInit(0.U(VADDR_WIDTH.W))
     val excep2_r    = RegInit(0.U.asTypeOf(new Exception))
     val ctrl2_r     = RegInit(0.U.asTypeOf(new Ctrl))
     val mem_data2_r = RegInit(0.U(DATA_WIDTH.W))
@@ -184,7 +181,6 @@ class Memory extends Module{
     when(hs1){
         inst2_r     := inst1_r
         pc2_r       := pc1_r
-        next_pc2_r  := next_pc1_r
         excep2_r    := excep1_r
         mem_data2_r := mem_data1_r
         ctrl2_r     := ctrl1_r
@@ -239,7 +235,6 @@ class Memory extends Module{
 
     val inst3_r     = RegInit(0.U(INST_WIDTH.W))
     val pc3_r       = RegInit(0.U(VADDR_WIDTH.W))
-    val next_pc3_r  = RegInit(0.U(VADDR_WIDTH.W))
     val excep3_r    = RegInit(0.U.asTypeOf(new Exception))
     val dst3_r      = RegInit(0.U(REG_WIDTH.W))
     val dst_d3_r    = RegInit(0.U(DATA_WIDTH.W))
@@ -254,7 +249,6 @@ class Memory extends Module{
     when(hs2){
         inst3_r     := inst2_r
         pc3_r       := pc2_r
-        next_pc3_r  := next_pc2_r
         excep3_r    := excep2_r
         dst3_r      := dst2_r
         dst_d3_r    := dst_d2_r
@@ -287,7 +281,6 @@ class Memory extends Module{
     }
     io.mem2rb.inst      := inst3_r
     io.mem2rb.pc        := pc3_r
-    io.mem2rb.next_pc   := next_pc3_r
     io.mem2rb.excep     := excep3_r
     io.mem2rb.csr_id    := csr_id3_r
     io.mem2rb.csr_d     := csr_d3_r

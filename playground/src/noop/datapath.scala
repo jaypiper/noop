@@ -103,7 +103,7 @@ class ForceJmp extends Bundle{
 class IF2ID extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val next_pc = Output(UInt(DATA_WIDTH.W))
+    val br_next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
     val is_target = Output(Bool())
     val target  = Output(UInt(VADDR_WIDTH.W))
@@ -125,7 +125,7 @@ class Ctrl extends Bundle{
 class ID2DF extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val next_pc = Output(UInt(DATA_WIDTH.W))
+    val br_next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
     val is_target = Output(Bool())
     val target  = Output(UInt(VADDR_WIDTH.W))
@@ -159,7 +159,7 @@ class DF2RR extends ID2DF{
 class RR2EX extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val next_pc = Output(UInt(DATA_WIDTH.W))
+    val br_next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
     val is_target = Output(Bool())
     val target  = Output(UInt(VADDR_WIDTH.W))
@@ -180,7 +180,6 @@ class RR2EX extends Bundle{
 class EX2MEM extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
     val ctrl    = Output(new Ctrl)
     val mem_addr = Output(UInt(VADDR_WIDTH.W))
@@ -198,7 +197,6 @@ class EX2MEM extends Bundle{
 class MEM2RB extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
     val csr_id  = Output(UInt(CSR_WIDTH.W))
     val csr_d   = Output(UInt(DATA_WIDTH.W))
