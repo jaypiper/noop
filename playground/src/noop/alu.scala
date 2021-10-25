@@ -104,7 +104,6 @@ class ALU extends Module{
             }
         }
     }
-    // dontTouch(divider.io)
 }
 
 class BranchALUIO extends Bundle{

@@ -12,17 +12,18 @@ import noop.alu._
 
 class Execute extends Module{
     val io = IO(new Bundle{
-        val rr2ex   = Flipped(new RR2EX)
-        val ex2mem  = new EX2MEM
-        val d_ex    = Output(new RegForward)
-        val bpuUpdate = Output(new BPUUpdate)
-        val ex2if   = Output(new ForceJmp)
+        val rr2ex       = Flipped(new RR2EX)
+        val ex2mem      = new EX2MEM
+        val d_ex        = Output(new RegForward)
+        val bpuUpdate   = Output(new BPUUpdate)
+        val ex2if       = Output(new ForceJmp)
     })
-    dontTouch(io)
     val drop_r = RegInit(false.B)
-    drop_r := false.B
+    val stall_r = RegInit(false.B)
+    drop_r := false.B;  stall_r := false.B
     val drop_in = drop_r || io.ex2mem.drop
-    io.rr2ex.drop := drop_in
+    io.rr2ex.drop   := drop_in
+    io.rr2ex.stall  := io.ex2mem.stall || (stall_r && !io.ex2mem.drop)
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
@@ -36,7 +37,8 @@ class Execute extends Module{
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val special_r   = RegInit(0.U(2.W))
     val alu64_r     = RegInit(false.B)
-
+    val next_pc_r   = RegInit(0.U(VADDR_WIDTH.W))  // for intr; updated by branch
+    val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)    
 
 
@@ -85,6 +87,10 @@ class Execute extends Module{
         dst_d_r     := wdata
         special_r   := io.rr2ex.special
         alu64_r     := alu64
+        recov_r     := io.rr2ex.recov
+        when(io.rr2ex.excep.cause(63)){
+            excep_r.pc := next_pc_r
+        }
     }
     io.rr2ex.ready  := false.B
     val sIdle :: sWaitAlu :: Nil = Enum(2)
@@ -145,6 +151,7 @@ class Execute extends Module{
         bpu_r.vaddr     := io.rr2ex.pc
         bpu_r.target    := real_target
         bpu_r.is_target := real_is_target
+        next_pc_r       := real_target      // for intr
     }
     when(!drop_in){
         when(hs_in && io.rr2ex.jmp_type =/= NO_JMP){
@@ -184,4 +191,5 @@ class Execute extends Module{
     io.ex2mem.dst_d     := dst_d_r
     io.ex2mem.special   := special_r
     io.ex2mem.valid     := valid_r
+    io.ex2mem.recov     := recov_r
 }

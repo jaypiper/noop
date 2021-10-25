@@ -273,5 +273,5 @@ class DataCache extends Module{
     io.dataAxi.wd.bits.last  := axiWdataLast
     //wr
     io.dataAxi.wr.ready      := true.B
-    dontTouch(io.dataAxi)
+
 }

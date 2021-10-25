@@ -2,6 +2,7 @@ package noop.memory
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.BundleLiterals._
 import noop.param.common._
 import noop.param.cache_config._
 import noop.param.decode_config._
@@ -17,7 +18,6 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         val dcRW    = Flipped(new DcacheRW)
         val clintIO = Flipped(new DataRWD)
     })
-    dontTouch(io)
     val pre_type    = RegInit(0.U(2.W))
     val time_r      = RegInit(0.U(DATA_WIDTH.W))
     val time_valid  = RegInit(false.B)
@@ -80,11 +80,19 @@ class Memory extends Module{
     val drop1_r = RegInit(false.B)
     val drop2_r = RegInit(false.B)
     val drop3_r = RegInit(false.B)
-    drop2_r := false.B; drop1_r := false.B; drop3_r := false.B
+    val stall1_r = RegInit(false.B)
+    val stall2_r = RegInit(false.B)
+    val stall3_r = RegInit(false.B)
+    drop2_r := false.B; drop1_r := false.B; drop3_r := false.B;
+    stall1_r := false.B; stall2_r := false.B; stall3_r := false.B
     val drop3_in    = drop3_r || io.mem2rb.drop
     val drop2_in    = drop2_r || drop3_in
     val drop1_in    = drop1_r || drop2_in
-    io.ex2mem.drop := drop1_in
+    val stall3_in = (stall3_r && !io.mem2rb.drop) || io.mem2rb.stall
+    val stall2_in = (stall2_r && !drop3_in) || stall3_in
+    val stall1_in = (stall1_r && !drop2_in) || stall2_in
+    io.ex2mem.drop  := drop1_in
+    io.ex2mem.stall := stall1_in
 // stage 1
     val inst1_r     = RegInit(0.U(INST_WIDTH.W))
     val pc1_r       = RegInit(0.U(VADDR_WIDTH.W))
@@ -99,8 +107,13 @@ class Memory extends Module{
     val csr_d1_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en1_r   = RegInit(false.B)
     val special1_r  = RegInit(0.U(2.W))
+    val recov1_r    = RegInit(false.B)
 
     val valid1_r    = RegInit(false.B)
+
+    def stall_pipe1()={
+        drop1_r := true.B; stall1_r := true.B; recov1_r := true.B
+    }
 
     val is_tlb_r    = RegInit(false.B)
     val drop_tlb    = RegInit(false.B)
@@ -125,6 +138,7 @@ class Memory extends Module{
         csr_en1_r   := io.ex2mem.ctrl.writeCSREn
         ctrl1_r     := io.ex2mem.ctrl
         special1_r  := io.ex2mem.special
+        recov1_r    := io.ex2mem.recov
     }
     val access_tlb  = io.ex2mem.ctrl.dcMode =/= mode_NOP
     io.va2pa.vaddr  := Mux(hs_in, io.ex2mem.mem_addr, mem_addr1_r)
@@ -137,6 +151,8 @@ class Memory extends Module{
         }.elsewhen(io.ex2mem.valid){
             io.ex2mem.ready := true.B
         }
+    }
+    when(!drop2_in){
         when(hs_in){
             valid1_r := true.B
             is_tlb_r := access_tlb
@@ -160,7 +176,7 @@ class Memory extends Module{
     }.otherwise{
         io.d_mem1.state := d_invalid
     }
-    // stage 2 (icache)
+    // stage 2 (dcache)
     val inst2_r     = RegInit(0.U(INST_WIDTH.W))
     val pc2_r       = RegInit(0.U(VADDR_WIDTH.W))
     val excep2_r    = RegInit(0.U.asTypeOf(new Exception))
@@ -174,7 +190,13 @@ class Memory extends Module{
     val csr_en2_r   = RegInit(false.B)
     val special2_r  = RegInit(0.U(2.W))
     val paddr2_r    = RegInit(0.U(PADDR_WIDTH.W))
+    val recov2_r    = RegInit(false.B)
     val valid2_r    = RegInit(false.B)
+    val dc_hs_r     = RegInit(false.B)
+
+    def stall_pipe2()={
+        drop2_r := true.B; stall2_r := true.B; recov2_r := true.B
+    }
 
     when(io.va2pa.pvalid && drop_tlb){
         drop_tlb := false.B
@@ -192,8 +214,8 @@ class Memory extends Module{
         csr_id2_r   := csr_id1_r
         csr_d2_r    := csr_d1_r
         csr_en2_r   := csr_en1_r
-        ctrl2_r     := ctrl1_r
         special2_r  := special1_r
+        recov2_r    := recov1_r
         paddr2_r    := io.va2pa.paddr
     }
     val is_dc_r     = RegInit(false.B)
@@ -201,22 +223,45 @@ class Memory extends Module{
     io.dataRW.dc_mode := mode_NOP
     io.dataRW.addr    := Mux(hs1, io.va2pa.paddr, paddr2_r)
     io.dataRW.wdata   := Mux(hs1, mem_data1_r, mem_data2_r)
-    val tlb_valid2  = !is_tlb_r || (io.va2pa.pvalid && !drop_tlb)
+    io.dataRW.amo     := Mux(hs1, inst1_r(31, 27), inst2_r(31,27))
+    val inp_tlb_valid2 = io.va2pa.pvalid || io.va2pa.tlb_excep.en
+    // val cur_excep_en = Mux(hs1, io.va2pa.tlb_excep.en, excep2_r.en)
+    // val access_dc    = !drop3_in && !cur_excep_en
+    io.dataRW.dc_mode := Mux(hs1, ctrl1_r.dcMode, Mux(valid2_r && !dc_hs_r, ctrl2_r.dcMode, mode_NOP))
+    val tlb_valid2  = !is_tlb_r || (inp_tlb_valid2 && !drop_tlb)
+    val dc_hs = io.dataRW.dc_mode =/= mode_NOP && io.dataRW.ready
+    when(dc_hs){    // need to access dcache later 
+        dc_hs_r := true.B
+    }
     when(!drop2_in){
         when(valid2_r && !hs2){
         }.elsewhen(valid1_r && tlb_valid2){
             hs1 := true.B
         }
+    }
+    when(!drop3_in){
         when(hs1){
             valid2_r := true.B
-            when(ctrl1_r.dcMode =/= mode_NOP){
-                io.dataRW.dc_mode := ctrl1_r.dcMode
+            when(io.va2pa.tlb_excep.en){
+                excep2_r.cause  := io.va2pa.tlb_excep.cause
+                excep2_r.tval   := io.va2pa.tlb_excep.tval
+                excep2_r.en     := true.B
+                excep2_r.pc     := pc1_r
+                excep2_r.etype  := 0.U
+                ctrl2_r     := 0.U.asTypeOf(new Ctrl)
+                is_dc_r     := false.B
+                dst_en2_r   := false.B
+                csr_en2_r   := false.B
+                stall_pipe2()
+            }.elsewhen(ctrl1_r.dcMode =/= mode_NOP){
                 is_dc_r := true.B
+                dc_hs_r := dc_hs
             }.otherwise{
                 is_dc_r := false.B
             }
         }.elsewhen(hs2){
             valid2_r := false.B
+            dc_hs_r  := false.B
         }
     }.otherwise{
         valid2_r := false.B
@@ -246,7 +291,12 @@ class Memory extends Module{
     val csr_en3_r   = RegInit(false.B)
     val special3_r  = RegInit(0.U(2.W))
     val is_mmio_r   = RegInit(false.B)
+    val recov3_r    = RegInit(false.B)
     val valid3_r    = RegInit(false.B)
+
+    def stall_pipe3()={
+        drop3_r := true.B; stall3_r := true.B; recov3_r := true.B;
+    }
 
     when(hs2){
         inst3_r     := inst2_r
@@ -259,6 +309,7 @@ class Memory extends Module{
         csr_d3_r    := csr_d2_r
         csr_en3_r   := csr_en2_r
         special3_r  := special2_r
+        recov3_r    := recov2_r
         is_mmio_r   := ctrl2_r.dcMode =/= mode_NOP && paddr2_r < "h80000000".U
     }
     when(io.dataRW.rvalid){
@@ -270,7 +321,9 @@ class Memory extends Module{
         }.elsewhen(valid2_r && dc_valid3){
             hs2 := true.B
         }
-        when(hs2){
+    }
+    when(!io.mem2rb.drop){
+         when(hs2){
             valid3_r := true.B
             when(is_dc_r){
                 dst_d3_r := io.dataRW.rdata
@@ -291,8 +344,9 @@ class Memory extends Module{
     io.mem2rb.dst_d     := dst_d3_r
     io.mem2rb.dst_en    := dst_en3_r
     io.mem2rb.special   := special3_r
-    io.mem2rb.valid     := valid3_r
     io.mem2rb.is_mmio   := is_mmio_r
+    io.mem2rb.recov     := recov3_r
+    io.mem2rb.valid     := valid3_r
 
     io.d_mem3.id   := dst3_r
     io.d_mem3.data := dst_d3_r

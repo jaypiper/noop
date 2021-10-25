@@ -96,9 +96,4 @@ class CrossBar extends Module{
         }
     }
 
-    dontTouch(io.icAxi)
-    dontTouch(io.flashAxi)
-    dontTouch(io.memAxi)
-    dontTouch(io.mmioAxi)
-    dontTouch(io.outAxi)
 }

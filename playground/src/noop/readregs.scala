@@ -2,10 +2,10 @@ package noop.decode
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.BundleLiterals._
 import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
-
 class ReadRegs extends Module{
     val io = IO(new Bundle{
         val df2rr = Flipped(new DF2RR)
@@ -15,10 +15,17 @@ class ReadRegs extends Module{
         val csrRead = Flipped(new CSRRead)
         val d_rr    = Output(new RegForward)
     })
-    dontTouch(io)
     val drop_r      = RegInit(false.B)
-    drop_r := false.B
-    io.df2rr.drop := io.rr2ex.drop || drop_r
+    drop_r          := false.B
+    val stall_r     = RegInit(false.B)
+    stall_r         := false.B
+    val recov_r     = RegInit(false.B)
+    def stall_pipe() = {
+        drop_r := true.B;   stall_r := true.B;  recov_r := true.B
+    }
+    val drop_in     = io.rr2ex.drop || drop_r
+    io.df2rr.drop   := drop_in
+    io.df2rr.stall  := (stall_r && !io.rr2ex.drop) || io.rr2ex.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
     val br_next_pc_r = RegInit(0.U(VADDR_WIDTH.W))
@@ -69,13 +76,27 @@ class ReadRegs extends Module{
         dst_d_r     := idx2reg(io.df2rr.swap(1,0))
         jmp_type_r  := io.df2rr.jmp_type
         special_r   := io.df2rr.special
+        recov_r     := io.df2rr.recov
+        when(io.df2rr.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
+            excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
+            excep_r.tval    := io.df2rr.inst
+            excep_r.en      := true.B
+            excep_r.pc      := io.df2rr.pc
+            excep_r.etype   := 0.U
+            stall_pipe()
+            ctrl_r      := 0.U.asTypeOf(new Ctrl)
+            jmp_type_r  := 0.U
+            special_r   := 0.U
+        }
     }
     io.df2rr.ready := false.B
-    when(!io.df2rr.drop){
+    when(!drop_in){
         when(valid_r && !hs_out){
         }.elsewhen(io.df2rr.valid){
             io.df2rr.ready := true.B
         }
+    }
+    when(!io.df2rr.drop){
         when(hs_in){
             valid_r := true.B
         }.elsewhen(hs_out){
@@ -99,6 +120,7 @@ class ReadRegs extends Module{
     io.rr2ex.dst_d      := dst_d_r
     io.rr2ex.jmp_type   := jmp_type_r
     io.rr2ex.special    := special_r
+    io.rr2ex.recov      := recov_r
     io.rr2ex.valid      := valid_r
 
     io.d_rr.id      := dst_r

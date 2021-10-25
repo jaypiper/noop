@@ -16,10 +16,11 @@ class Forwarding extends Module{
         val d_mem2  = Input(new RegForward)
         val d_mem3  = Input(new RegForward)
     })
-    dontTouch(io)
     val drop_r      = RegInit(false.B)
+    val stall_r     = RegInit(false.B)
     drop_r := false.B
-    io.id2df.drop := drop_r || io.df2rr.drop
+    io.id2df.drop   := drop_r || io.df2rr.drop
+    io.id2df.stall  := (stall_r && !io.df2rr.drop) || io.df2rr.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
     val br_next_pc_r = RegInit(0.U(VADDR_WIDTH.W))
@@ -37,8 +38,8 @@ class Forwarding extends Module{
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
     val special_r   = RegInit(0.U(2.W))
-    val swap_r      = RegInit(0.U(2.W))
-
+    val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
+    val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
 
     val pre_dst     = RegInit(0.U(REG_WIDTH.W))
@@ -167,6 +168,7 @@ class Forwarding extends Module{
         jmp_type_r  := io.id2df.jmp_type
         special_r   := io.id2df.special
         swap_r      := io.id2df.swap
+        recov_r     := io.id2df.recov
     }
 
     when(hs_in || (state =/= sIdle)){
@@ -234,5 +236,6 @@ class Forwarding extends Module{
     io.df2rr.jmp_type   := jmp_type_r
     io.df2rr.special    := special_r
     io.df2rr.swap       := swap_r
+    io.df2rr.recov      := recov_r
     io.df2rr.valid      := valid_r
 }

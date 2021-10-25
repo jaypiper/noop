@@ -56,7 +56,7 @@ class CPUIO extends Bundle{
 
 class CPU extends Module{
     val io = IO(new CPUIO)
-
+    dontTouch(io)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
     val forwading   = Module(new Forwarding)
@@ -90,8 +90,10 @@ class CPU extends Module{
     fetch.io.intr_in    <> csrs.io.intr_out
     fetch.io.branchFail <> execute.io.ex2if
     fetch.io.if2id      <> decode.io.if2id
+    fetch.io.recov      <> writeback.io.recov
 
     decode.io.id2df     <> forwading.io.id2df
+    decode.io.idState   <> csrs.io.idState
     forwading.io.df2rr  <> readregs.io.df2rr
     forwading.io.d_rr   <> readregs.io.d_rr
     forwading.io.d_ex   <> execute.io.d_ex

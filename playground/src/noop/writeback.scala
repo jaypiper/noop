@@ -13,12 +13,15 @@ class Writeback extends Module{
         val wCsr    = Flipped(new CSRWrite)
         val excep   = Output(new Exception)
         val wb2if   = Output(new ForceJmp)
+        val recov   = Output(Bool())
         val flush_tlb = Output(Bool())
         val flush_cache = Output(Bool())
     })
     dontTouch(io)
-    val drop_r = RegInit(false.B)
-    drop_r := false.B
+    val drop_r      = RegInit(false.B)
+    val recov_r     = RegInit(false.B)
+    val stall_r     = RegInit(false.B)
+    drop_r := false.B; recov_r := false.B;  stall_r := false.B
     val forceJmp    = RegInit(0.U.asTypeOf(new ForceJmp))
     val tlb_r       = RegInit(false.B)
     val cache_r     = RegInit(false.B)
@@ -29,6 +32,7 @@ class Writeback extends Module{
     forceJmp.valid  := false.B
 
     io.mem2rb.drop  := drop_r
+    io.recov        := recov_r
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
     io.wReg.id      := io.mem2rb.dst
@@ -43,6 +47,7 @@ class Writeback extends Module{
     io.flush_cache  := cache_r
     io.wb2if        := forceJmp
     io.mem2rb.ready := false.B
+    io.mem2rb.stall := stall_r
     when(!drop_r){
         when(io.mem2rb.valid){
             io.mem2rb.ready := true.B
@@ -52,16 +57,13 @@ class Writeback extends Module{
             valid_r := true.B
             inst_r  := io.mem2rb.inst
             pc_r    := io.mem2rb.pc
-            when(io.mem2rb.excep.en){
-                drop_r := true.B
-            }
-            when(io.mem2rb.special =/= 0.U){
-                drop_r := true.B
+            recov_r := io.mem2rb.recov
+            when(io.mem2rb.special =/= 0.U || (io.mem2rb.recov && !io.mem2rb.excep.en)){
                 forceJmp.valid  := true.B
-                forceJmp.seq_pc := io.mem2rb.next_pc
+                forceJmp.seq_pc := io.mem2rb.pc + 4.U
                 when(io.mem2rb.special === SPECIAL_FENCE_I){
                     cache_r := true.B
-                }.otherwise{
+                }.elsewhen(io.mem2rb.special === SPECIAL_SFENCE_VMA){
                     tlb_r   := true.B
                 }
             }

@@ -109,6 +109,8 @@ class IF2ID extends Bundle{
     val is_target = Output(Bool())
     val target  = Output(UInt(VADDR_WIDTH.W))
     val drop    = Input(Bool())
+    val stall   = Input(Bool())
+    val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
 }
@@ -143,6 +145,8 @@ class ID2DF extends Bundle{
     val special = Output(UInt(2.W))
     val swap    = Output(UInt(SWAP_WIDTH.W))
     val drop    = Input(Bool())
+    val stall   = Input(Bool())
+    val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
 }
@@ -174,6 +178,8 @@ class RR2EX extends Bundle{
     val jmp_type = Output(UInt(2.W))
     val special = Output(UInt(2.W))
     val drop    = Input(Bool())
+    val stall   = Input(Bool())
+    val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
 }
@@ -191,6 +197,8 @@ class EX2MEM extends Bundle{
     val dst_d   = Output(UInt(DATA_WIDTH.W))
     val special = Output(UInt(2.W))
     val drop    = Input(Bool())
+    val stall   = Input(Bool())
+    val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
 }
@@ -208,6 +216,8 @@ class MEM2RB extends Bundle{
     val special = Output(UInt(2.W))
     val is_mmio = Output(Bool())
     val drop    = Input(Bool())
+    val stall   = Input(Bool())
+    val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
 }

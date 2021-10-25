@@ -12,18 +12,19 @@ class Decode extends Module{
         val if2id   = Flipped(new IF2ID)
         val id2df   = new ID2DF
     })
-    dontTouch(io)
     // from if
     val drop_r      = RegInit(false.B)
-    drop_r  := false.B
-    io.if2id.drop := drop_r || io.id2df.drop
+    val stall_r     = RegInit(false.B)
+    drop_r := false.B;  stall_r := false.B
+    val drop_in     = drop_r || io.id2df.drop
+    io.if2id.drop   := drop_in
+    io.if2id.stall  := (stall_r && !io.id2df.drop) || io.id2df.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
     val br_next_pc_r = RegInit(0.U(VADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val is_target_r = RegInit(false.B)
     val target_r    = RegInit(0.U(VADDR_WIDTH.W))
-
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val rs1_r       = RegInit(0.U(REG_WIDTH.W))
     val rrs1_r      = RegInit(false.B)
@@ -35,8 +36,13 @@ class Decode extends Module{
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
     val special_r   = RegInit(0.U(2.W))
-    val swap_r      = RegInit(0.U(2.W))
+    val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
+    val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
+
+    def stall_pipe() = {
+        stall_r := true.B;  drop_r := true.B;   recov_r := true.B
+    }
 
     val hs_out = io.id2df.ready && io.id2df.valid
     val hs_in  = io.if2id.ready && io.if2id.valid
@@ -75,6 +81,7 @@ class Decode extends Module{
         jmp_type_r      := NO_JMP
         special_r       := 0.U
         swap_r          := NO_SWAP
+        recov_r         := io.if2id.recov
         when(dType === RType){
             rrs1_r  := true.B
             rrs2_r  := true.B
@@ -90,6 +97,7 @@ class Decode extends Module{
                 rs1_d_r     := inst_in(19,15)
                 rrs1_r      := !rs1_is_imm
                 rrs2_r      := true.B
+                stall_pipe()
             }.otherwise{
                 rrs1_r      := true.B
                 rs2_d_r     := imm.asUInt
@@ -131,6 +139,7 @@ class Decode extends Module{
             excep_r.etype := ETYPE_SRET
             excep_r.cause := 0.U
             excep_r.tval  := 0.U
+            stall_pipe()
         }
         when(inst_in === Insts.MRET){
             excep_r.pc  := io.if2id.pc
@@ -138,21 +147,26 @@ class Decode extends Module{
             excep_r.etype := ETYPE_MRET
             excep_r.cause := 0.U
             excep_r.tval  := 0.U
+            stall_pipe()
         }
         when(inst_in === Insts.FENCE_I){
             special_r := SPECIAL_FENCE_I
+            stall_pipe()
         }
         when(inst_in === Insts.SFENCE_VMA){
             special_r := SPECIAL_SFENCE_VMA
+            stall_pipe()
         }
     }
     
     io.if2id.ready := false.B
+    when(!drop_in){
+        when(valid_r && !hs_out){
+        }.elsewhen(io.if2id.valid){
+            io.if2id.ready := true.B
+        }
+    }
     when(!io.id2df.drop){
-       when(valid_r && !hs_out){
-       }.elsewhen(io.if2id.valid){
-           io.if2id.ready := true.B
-       }
        when(hs_in){
            valid_r := true.B
        }.elsewhen(hs_out){
@@ -180,5 +194,6 @@ class Decode extends Module{
     io.id2df.jmp_type   := jmp_type_r
     io.id2df.special    := special_r
     io.id2df.swap       := swap_r
+    io.id2df.recov      := recov_r
     io.id2df.valid      := valid_r
 }
