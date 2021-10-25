@@ -239,7 +239,7 @@ class DataCache extends Module{
                 when(io.dataAxi.wd.bits.last){
                     state := sIdle
                     axiWdataEn := false.B
-                    valid(matchWay_r)(pre_blockIdx) := true.B
+                    valid(matchWay_r)(pre_blockIdx) := false.B
                     dirty(matchWay_r)(pre_blockIdx) := false.B
                 }
             }
