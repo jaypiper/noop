@@ -27,10 +27,12 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     io.mmio.wdata   := io.dataRW.wdata
     io.dcRW.addr    := io.dataRW.addr
     io.dcRW.wdata   := io.dataRW.wdata
+    io.dcRW.amo     := io.dataRW.amo
     io.clintIO.addr    := io.dataRW.addr
     io.clintIO.wdata   := io.dataRW.wdata
     io.dcRW.dc_mode := mode_NOP
     io.mmio.dc_mode := mode_NOP
+    io.mmio.amo     := io.dataRW.amo
     io.dataRW.ready := false.B
     io.clintIO.wvalid := false.B
     when(io.dataRW.dc_mode =/= mode_NOP){ // 0: mmio, 1: mem, 2: clint

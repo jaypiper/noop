@@ -29,6 +29,7 @@ class DcacheSelector extends Module{
     io.select.addr      := 0.U
     io.select.wdata     := 0.U
     io.select.dc_mode   := 0.U
+    io.select.amo       := 0.U
     io.mem2dc.ready     := 0.U
     when(busy && !io.select.rvalid){
     }.elsewhen(io.mem2dc.dc_mode =/= mode_NOP){
@@ -37,6 +38,7 @@ class DcacheSelector extends Module{
         io.select.addr      := io.mem2dc.addr
         io.select.wdata     := io.mem2dc.wdata
         io.select.dc_mode   := io.mem2dc.dc_mode
+        io.select.amo       := io.mem2dc.amo
         io.mem2dc.ready     := io.select.ready
     }.elsewhen(io.tlb_mem2dc.dc_mode =/= mode_NOP){
         pre_idx := 1.U
@@ -44,6 +46,7 @@ class DcacheSelector extends Module{
         io.select.addr      := io.tlb_mem2dc.addr
         io.select.wdata     := io.tlb_mem2dc.wdata
         io.select.dc_mode   := io.tlb_mem2dc.dc_mode
+        io.select.amo       := io.tlb_mem2dc.amo
         io.tlb_mem2dc.ready := io.select.ready
     }.elsewhen(io.tlb_if2dc.dc_mode =/= mode_NOP){
         pre_idx :=2.U
@@ -51,6 +54,7 @@ class DcacheSelector extends Module{
         io.select.addr      := io.tlb_if2dc.addr
         io.select.wdata     := io.tlb_if2dc.wdata
         io.select.dc_mode   := io.tlb_if2dc.dc_mode
+        io.select.amo       := io.tlb_if2dc.amo
         io.tlb_if2dc.ready  := io.select.ready
     }
     when(io.select.rvalid){
@@ -81,6 +85,7 @@ class DataCache extends Module{
     val valid_r     = RegInit(false.B)
     val mode_r      = RegInit(0.U(DC_MODE_WIDTH.W))
     val wdata_r     = RegInit(0.U(DATA_WIDTH.W))
+    val amo_r       = RegInit(0.U(AMO_WIDTH.W))
     valid_r := false.B
     val valid_in    = (io.dcRW.dc_mode =/= mode_NOP) && !io.flush
     val hs_in       = io.dcRW.dc_mode =/= mode_NOP && io.dcRW.ready
@@ -96,13 +101,13 @@ class DataCache extends Module{
     val cache_hit_vec   = VecInit((0 until CACHE_WAY_NUM).map(i => tag(i)(blockIdx) === cur_tag && valid(i)(blockIdx)))
     val cacheHit        = cache_hit_vec.asUInt().orR
     val matchWay        = Mux(cacheHit, OHToUInt(cache_hit_vec), Mux(hs_in, LFSR(2), matchWay_r))
-
     val is_dirty        = dirty(matchWay)(blockIdx)  // can get dirty bit concurrently with cacheHit, matchWay
     when(hs_in){
         addr_r := io.dcRW.addr
         matchWay_r := matchWay
         mode_r  := io.dcRW.dc_mode
         wdata_r := io.dcRW.wdata
+        amo_r   := io.dcRW.amo
     }
     when(io.flush){
         valid   := VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B))))
@@ -123,13 +128,10 @@ class DataCache extends Module{
     val cur_mode_l  = cur_mode(DC_L_BIT)
     val wen     = Wire(Bool())
     val mask    = Wire(UInt(RAM_MASK_WIDTH.W))
-    // val wdata   = Wire(UInt(DATA_WIDTH.W))
-    // val atomic_write    = Wire(UInt(DATA_WIDTH.W))
 // atomic
-    val pre_amo = RegInit(0.U(AMO_WIDTH.W))  // TODO
     val amo_rdata = signTruncateData(mode_r(1,0), rdata64)
     val amo_imm = signTruncateData(mode_r(1,0), wdata_r)
-    val amo_alu = MuxLookup(pre_amo, 0.U(DATA_WIDTH.W), Seq(
+    val amo_alu = MuxLookup(amo_r, 0.U(DATA_WIDTH.W), Seq(
         amoSwap -> (amo_imm),
         amoAdd  -> (amo_imm + amo_rdata),
         amoXor  -> (amo_imm ^ amo_rdata),
@@ -179,7 +181,7 @@ class DataCache extends Module{
             }.elsewhen(cacheHit){
                 when(cur_mode_sl === 3.U){
                     state := sAtomic
-                    valid_r := false.B
+                    valid_r := true.B
                     wait_r := true.B
                 }.otherwise{
                     wen := cur_mode(DC_S_BIT)
@@ -247,6 +249,7 @@ class DataCache extends Module{
         is(sAtomic){
             wen     := true.B
             wait_r  := false.B
+            state   := sIdle
         }
     }
     io.dataAxi.init()

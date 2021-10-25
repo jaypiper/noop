@@ -18,7 +18,7 @@ class FetchCrossBar extends Module{
     val pre_mem = RegInit(false.B)
     val inp_mem = io.instIO.addr(PADDR_WIDTH-1)
     io.flashRead.addr   := io.instIO.addr
-    io.flashRead.wdata  := 0.U
+    io.flashRead.wdata  := 0.U; io.flashRead.amo := 0.U
     io.flashRead.dc_mode := mode_NOP
     io.icRead.addr      := io.instIO.addr
     io.icRead.arvalid   := false.B

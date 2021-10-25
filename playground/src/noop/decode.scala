@@ -78,6 +78,7 @@ class Decode extends Module{
         when(dType === RType){
             rrs1_r  := true.B
             rrs2_r  := true.B
+            swap_r  := COPY_2_d
         }
         when(dType === IType){
             when(jmp_indi){
@@ -96,7 +97,7 @@ class Decode extends Module{
         when(dType === SType){
             rrs1_r      := true.B
             rrs2_r      := true.B
-            swap_r      := SWAP_2d
+            swap_r      := SWAP_2_d
             dst_d_r     := imm.asUInt
         }
         when(dType === BType){

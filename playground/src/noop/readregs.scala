@@ -46,6 +46,13 @@ class ReadRegs extends Module{
     val rs1_bef = Mux(io.df2rr.rrs1, io.rs1Read.data, io.df2rr.rs1_d)
     val rs2_bef = Mux(io.df2rr.ctrl.writeCSREn, io.csrRead.data, Mux(io.df2rr.rrs2, io.rs2Read.data, io.df2rr.rs2_d))
     val dst_bef = io.df2rr.dst_d
+    def idx2reg(idx: UInt)={
+        MuxLookup(idx, 0.U, Seq(
+            "b01".U     -> rs1_bef,
+            "b10".U     -> rs2_bef,
+            "b11".U     -> dst_bef
+        ))
+    }
     when(hs_in){
         inst_r      := io.df2rr.inst
         pc_r        := io.df2rr.pc
@@ -55,11 +62,11 @@ class ReadRegs extends Module{
         target_r    := io.df2rr.target
         ctrl_r      := io.df2rr.ctrl
         rs1_r       := io.df2rr.rs1
-        rs1_d_r     := rs1_bef
+        rs1_d_r     := idx2reg(io.df2rr.swap(5,4))
         rs2_r       := io.df2rr.rs2
-        rs2_d_r     := Mux(io.df2rr.swap === SWAP_2d, dst_bef, rs2_bef)
+        rs2_d_r     := idx2reg(io.df2rr.swap(3,2))
         dst_r       := io.df2rr.dst
-        dst_d_r     := Mux(io.df2rr.swap === SWAP_2d, rs2_bef, dst_bef)
+        dst_d_r     := idx2reg(io.df2rr.swap(1,0))
         jmp_type_r  := io.df2rr.jmp_type
         special_r   := io.df2rr.special
     }

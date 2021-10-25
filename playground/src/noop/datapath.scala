@@ -74,6 +74,7 @@ class DcacheRW extends Bundle{
     val rvalid  = Output(Bool())
     val wdata   = Input(UInt(DATA_WIDTH.W))
     val dc_mode = Input(UInt(DC_MODE_WIDTH.W))
+    val amo     = Input(UInt(AMO_WIDTH.W))
     val ready   = Output(Bool())
 }
 
@@ -140,7 +141,7 @@ class ID2DF extends Bundle{
     val dst_d   = Output(UInt(DATA_WIDTH.W))
     val jmp_type = Output(UInt(2.W))
     val special = Output(UInt(2.W))
-    val swap    = Output(UInt(2.W))
+    val swap    = Output(UInt(SWAP_WIDTH.W))
     val drop    = Input(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())

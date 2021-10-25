@@ -542,8 +542,10 @@ object decode_config extends DeType with ALUOP with BrType
     val SPECIAL_FENCE_I = 1.U(2.W)
     val SPECIAL_SFENCE_VMA = 2.U(2.W)
 
-    val NO_SWAP = 0.U(2.W)
-    val SWAP_2d = 1.U(2.W)
+    val SWAP_WIDTH  = 6
+    val NO_SWAP     = "b011011".U(6.W)
+    val SWAP_2_d    = "b011110".U(6.W)
+    val COPY_2_d    = "b011010".U(6.W)
 }
 
 object noop_tools{
