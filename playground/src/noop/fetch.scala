@@ -177,7 +177,7 @@ class Fetch extends Module{
         }
     }.otherwise{
         valid3_r := false.B
-        reset_ic := valid2_r && !excep2_r.en && !io.instRead.rvalid
+        reset_ic := reset_ic || (valid2_r && !excep2_r.en && !io.instRead.rvalid)
     }
 
     io.if2id.inst       := inst_r
