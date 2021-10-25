@@ -159,7 +159,7 @@ class DataCache extends Module{
     data(cur_way).mask  := mask
     wen     := false.B
     mask    := Fill(RAM_MASK_WIDTH, 1.U(1.W))
-    when(wen && state === sIdle){
+    when(wen && (state === sIdle || state === sAtomic)){
         dirty(cur_way)(blockIdx) := true.B
     }
 // axi signal
