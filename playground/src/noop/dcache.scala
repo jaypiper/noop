@@ -142,10 +142,8 @@ class DataCache extends Module{
         amoMinU -> Mux(amo_imm > amo_rdata, amo_rdata, amo_imm),
         amoMaxU -> Mux(amo_imm > amo_rdata, amo_imm, amo_rdata)
     ))
-    val amo_wdata = zeroTruncateData(mode_r(1,0), amo_alu)
+    val amo_wdata = zeroTruncateData(mode_r(1,0), amo_alu) << (Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
 
-     
-    // wd_mask := Ignore(wtype(0) << (Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W))))
     val inp_wdata   = cur_wdata<<(Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
     val inp_mask    = MuxLookup(cur_mode(1,0), 0.U(RAM_MASK_WIDTH.W), Seq(
                         0.U   ->"hff".U(RAM_MASK_WIDTH.W),
@@ -248,6 +246,7 @@ class DataCache extends Module{
         }
         is(sAtomic){
             wen     := true.B
+            mask    := inp_mask
             wait_r  := false.B
             state   := sIdle
         }
