@@ -49,7 +49,7 @@ CFLAGS = -O3 -Og -pthread $(shell sdl2-config --cflags) -fPIE -g
 TRACE?=0
 SIM?=1
 FLASH?=0
-DIFF?=0
+DIFF?=1
 
 ifeq ($(FLASH),1)
 	CFLAGS += -DFLASH
@@ -83,8 +83,7 @@ compile-verilator:
 difftest:
 	make compile-verilator
 	time ./obj_dir/V$(NAME) $(PROGRAM_DIR)/$(BIN).bin ${mainargs}
-# copy:
-# 	cp $(BUILD_DIR)/CPU.v ./peripheral/core/
+
 
 nemu:
 	make -C ./nemu ISA=riscv64 SHARE=1 FLASH=$(FLASH)
