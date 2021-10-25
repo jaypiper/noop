@@ -85,6 +85,7 @@ class Decode extends Module{
                 jmp_type_r  := JMP_UNCOND
                 rrs1_r      := true.B
                 rs2_d_r     := io.if2id.pc + 4.U
+                dst_d_r     := imm.asUInt
             }.elsewhen(rs2_is_csr){
                 rs1_d_r     := inst_in(19,15)
                 rrs1_r      := !rs1_is_imm
@@ -114,7 +115,7 @@ class Decode extends Module{
         when(dType === JType){
             rs1_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(VADDR_WIDTH-1,0).asUInt
             rs2_d_r     := io.if2id.pc + 4.U
-            dst_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(VADDR_WIDTH-1,0).asUInt
+            dst_d_r     := 0.U
             jmp_type_r := JMP_UNCOND
         }
         when(inst_in === Insts.ECALL){
