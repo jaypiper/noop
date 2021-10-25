@@ -31,6 +31,9 @@ class DcacheSelector extends Module{
     io.select.dc_mode   := 0.U
     io.select.amo       := 0.U
     io.mem2dc.ready     := 0.U
+    when(io.select.rvalid){
+        busy := false.B
+    }
     when(busy && !io.select.rvalid){
     }.elsewhen(io.mem2dc.dc_mode =/= mode_NOP){
         pre_idx := 0.U
@@ -56,9 +59,6 @@ class DcacheSelector extends Module{
         io.select.dc_mode   := io.tlb_if2dc.dc_mode
         io.select.amo       := io.tlb_if2dc.amo
         io.tlb_if2dc.ready  := io.select.ready
-    }
-    when(io.select.rvalid){
-        busy := false.B
     }
     io.mem2dc.rvalid        := io.select.rvalid && pre_idx === 0.U
     io.tlb_mem2dc.rvalid    := io.select.rvalid && pre_idx === 1.U
