@@ -147,7 +147,59 @@ trait priv_encoding{
     val ETYPE_MRET  = 3.U(2.W)
 }
 
-object regs_config extends priv_encoding{}
+trait csr_config extends priv_encoding{
+    val CSR_SEPC        = 0x141.U
+    val CSR_STVEC       = 0x105.U
+    val CSR_SCAUSE      = 0x142.U
+    val CSR_STVAL       = 0x143.U
+    val CSR_SSCRATCH    = 0x140.U
+    val CSR_SSTATUS     = 0x100.U
+    val CSR_SATP        = 0x180.U
+    val CSR_SIE         = 0x104.U
+    val CSR_SIP         = 0x144.U
+    val CSR_MTVEC       = 0x305.U
+    val CSR_MEPC        = 0x341.U
+    val CSR_MCAUSE      = 0x342.U
+    val CSR_MIE         = 0x304.U
+    val CSR_MIP         = 0x344.U
+    val CSR_MTVAL       = 0x343.U
+    val CSR_MSCRATCH    = 0x340.U
+    val CSR_MSTATUS     = 0x300.U
+    val CSR_MHARTID     = 0xf14.U
+    val CSR_MEDELEG     = 0x302.U
+    val CSR_MIDELEG     = 0x303.U
+    val CSR_PMPADDR0    = 0x3b0.U
+    val CSR_PMPADDR1    = 0x3b1.U
+    val CSR_PMPADDR2    = 0x3b2.U
+    val CSR_PMPADDR3    = 0x3b3.U
+    val CSR_PMPCFG0     = 0x3a0.U
+    val CSR_USCRATCH    = 0x40.U
+    val CSR_MISA        = 0x301.U
+    val CSR_SCOUNTEREN  = 0x106.U
+    val CSR_MCOUNTEREN  = 0x306.U
+
+    val MEDELEG_MASK = ((1 << CAUSE_MISALIGNED_FETCH) | (1 << CAUSE_BREAKPOINT) |
+                    (1 << CAUSE_USER_ECALL) | (1 << CAUSE_SUPERVISOR_ECALL) |
+                    (1 << CAUSE_FETCH_PAGE_FAULT) | (1 << CAUSE_LOAD_PAGE_FAULT) |
+                    (1 << CAUSE_STORE_PAGE_FAULT)).U(DATA_WIDTH.W)
+
+    val SUP_INTS = MIP_SSIP | MIP_STIP | MIP_SEIP
+
+    val SSTATUS_MASK = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP | SSTATUS_FS |
+                        SSTATUS_XS | SSTATUS_SUM | SSTATUS_MXR | SSTATUS64_SD
+    val MSTATUS_MASK = MSTATUS_MIE | MSTATUS_MPIE | MSTATUS_MPRV | MSTATUS_SIE | MSTATUS_SPIE |
+                        MSTATUS_TW | MSTATUS_TSR | MSTATUS_MXR | MSTATUS_SUM | MSTATUS_TVM |
+                        MSTATUS_FS | MSTATUS_VS | MSTATUS_SPP | MSTATUS_MPP
+    val PMPADDR_MASK = "h3fffffffffffff".U(DATA_WIDTH.W)
+    val W_SATP_MASK = "hf0000fffffffffff".U(DATA_WIDTH.W)
+
+    def set_partial_val(preVal: UInt, mask: UInt, newVal: UInt) = {
+        (preVal & ~mask) | (newVal & mask)
+    }
+
+}
+
+object regs_config extends csr_config{}
 
 trait pte_encoding{
     val PTE_V       = 0x001.U(10.W) /* Valid */
@@ -170,7 +222,7 @@ trait pte_encoding{
 }
 
 object tlb_config extends satp_mode with mem_access_mode 
-        with pte_encoding with priv_encoding{
+        with pte_encoding with csr_config{
     val TLB_ENTRY_WIDTH = 4
     val TLB_ENTRY_NUM   = 1 << TLB_ENTRY_WIDTH
     val TLB_TAG_WIDTH   = VADDR_WIDTH - PAGE_WIDTH
@@ -417,7 +469,7 @@ trait BrType{
 }
 
 object decode_config extends DeType with ALUOP with BrType 
-        with priv_encoding with dataForw{
+        with csr_config with dataForw{
     val IS_ALU64 = 0.U
     val IS_ALU32 = 1.U
                             // decode aluop    alu-w    ram-mode|write-reg|跳转信号|csr-read|csr-write|rs1-imm
