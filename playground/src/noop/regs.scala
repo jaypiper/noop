@@ -229,7 +229,7 @@ class Csrs extends Module{
     }.elsewhen(io.rs.id === CSR_PMPCFG0){
         io.rs.data := pmpaddr3
     }.elsewhen(io.rs.id === CSR_USCRATCH){
-        io.rs.data := pmpaddr3
+        io.rs.data := uscratch
     }.elsewhen(io.rs.id === CSR_MHARTID){
         io.rs.data := mhartid
     }.otherwise{
@@ -280,7 +280,7 @@ class Csrs extends Module{
     }.elsewhen(io.rd.id === CSR_SSTATUS){
         mstatus := set_partial_val(mstatus, SSTATUS_MASK, io.rd.data)
     }.elsewhen(io.rd.id === CSR_SIE){
-        mie := set_partial_val(mie, medeleg, io.rd.data)
+        mie := set_partial_val(mie, mideleg, io.rd.data)
     }.elsewhen(io.rd.id === CSR_SIP){
         mip := set_partial_val(mip, SUP_INTS, io.rd.data)
     }.elsewhen(io.rd.id === CSR_PMPADDR0){
