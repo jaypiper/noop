@@ -82,7 +82,8 @@ class Csrs extends Module{
         val rd      = new CSRWrite
         val excep   = Input(new Exception)
         val mmuState = Output(new MmuState)
-        val reg2if  = Output(new ForceJmp) // TODO
+        val idState = Output(new IdState)
+        val reg2if  = Output(new ForceJmp)
         val intr_out = new RaiseIntr // TODO
     })
     val priv        = RegInit(PRV_M)
@@ -117,59 +118,57 @@ class Csrs extends Module{
     io.mmuState.priv    := priv
     io.mmuState.mstatus := mstatus
     io.mmuState.satp    := satp
+    io.idState.priv    := priv
     io.intr_out.en      := false.B
     io.intr_out.cause   := 0.U
-    io.reg2if.seq_pc    := 0.U
-    io.reg2if.valid     := false.B
-    val cause = PriorityMux(Seq(
-        (io.excep.etype === ETYPE_ECALL && priv === PRV_U,      CAUSE_USER_ECALL.U),
-        (io.excep.etype === ETYPE_ECALL && priv === PRV_S,      CAUSE_SUPERVISOR_ECALL.U),
-        (io.excep.etype === ETYPE_ECALL && priv === PRV_M,      CAUSE_MACHINE_ECALL.U),
-        (true.B,                                                    io.excep.cause)))
+    val forceJmp        = RegInit(0.U.asTypeOf(new ForceJmp))
+    io.reg2if           := forceJmp
+    forceJmp.valid      := false.B
+    val cause = io.excep.cause
 
     when(io.excep.en){
         when(io.excep.etype === ETYPE_SRET){ //sret
-            io.reg2if.seq_pc    := sepc
-            io.reg2if.valid     := true.B
-            val ss              = sstatus
-            priv                := Cat(0.U(1.W), ss(8))
-            val new_sstatus     = Cat(ss(63,9), 0.U(1.W), ss(7,6), 1.U(1.W), ss(4,2), ss(5), ss(0))
-            mstatus             := set_partial_val(mstatus, SSTATUS_MASK, new_sstatus)
+            forceJmp.seq_pc := sepc
+            forceJmp.valid  := true.B
+            val ss          = sstatus
+            priv            := Cat(0.U(1.W), ss(8))
+            val new_sstatus = Cat(ss(63,9), 0.U(1.W), ss(7,6), 1.U(1.W), ss(4,2), ss(5), ss(0))
+            mstatus         := set_partial_val(mstatus, SSTATUS_MASK, new_sstatus)
             // io.clear_lr := true.B
         }.elsewhen(io.excep.etype === ETYPE_MRET){ //mret
-            io.reg2if.seq_pc    := mepc
-            io.reg2if.valid     := true.B
+            forceJmp.seq_pc := mepc
+            forceJmp.valid  := true.B
             val ms          = mstatus
             priv            := ms(12,11)
             val new_mstatus = Cat(ms(63,13), PRV_U, ms(10,8), 1.U(1.W), ms(6,4), ms(7), ms(2,0))
-            mstatus   := new_mstatus
+            mstatus         := new_mstatus
             // io.clear_lr := true.B
         }.otherwise{
             // exceptions & interruptions & ecall
-            val deleg = Mux(io.excep.cause(63), mideleg, medeleg)
+            val deleg = Mux(cause(63), mideleg, medeleg)
             when(priv <= PRV_S && deleg(cause(62,0))){
                 // printf("S-mode priv: %d cause: %x pc: %x mtime: %x\n", priv, io.excep.cause, io.excep.pc, mtime)
                 val seq_pc = stvec + Mux(stvec(1) === 1.U, cause << 2.U, 0.U)
-                io.reg2if.seq_pc := seq_pc
-                io.reg2if.valid := true.B
-                scause    := cause
-                sepc      := io.excep.pc
+                forceJmp.seq_pc := seq_pc
+                forceJmp.valid  := true.B
+                scause          := cause
+                sepc            := io.excep.pc
                 val ss          = sstatus
                 val new_sstatus = Cat(ss(63,9), priv(0), ss(7,6), ss(1), ss(4,2), 0.U(1.W), ss(0))
-                mstatus   := set_partial_val(mstatus, SSTATUS_MASK, new_sstatus)
-                stval     := io.excep.tval
+                mstatus         := set_partial_val(mstatus, SSTATUS_MASK, new_sstatus)
+                stval           := io.excep.tval
                 priv            := PRV_S
             }.otherwise{
                 // printf("M-mode priv: %d cause: %x pc: %x mtime: %x\n", priv, io.excep.cause, io.excep.pc, mtime)
-                val seq_pc  = mtvec + Mux(mtvec(1), cause << 2.U, 0.U)
-                io.reg2if.seq_pc := seq_pc
-                io.reg2if.valid := true.B
-                mcause    := cause
-                mepc      := io.excep.pc
+                val seq_pc      = mtvec + Mux(mtvec(1), cause << 2.U, 0.U)
+                forceJmp.seq_pc := seq_pc
+                forceJmp.valid  := true.B
+                mcause          := cause
+                mepc            := io.excep.pc
                 val ms          = mstatus
                 val new_mstatus = Cat(ms(63,13), priv(1,0), ms(10,8), ms(3), ms(6,4), 0.U(1.W), ms(2,0))
-                mstatus   := new_mstatus
-                mtval     := io.excep.tval
+                mstatus         := new_mstatus
+                mtval           := io.excep.tval
                 priv            := PRV_M
             }
         }

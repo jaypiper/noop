@@ -11,6 +11,7 @@ class Decode extends Module{
     val io = IO(new Bundle{
         val if2id   = Flipped(new IF2ID)
         val id2df   = new ID2DF
+        val idState = Input(new IdState)
     })
     // from if
     val drop_r      = RegInit(false.B)
@@ -129,9 +130,12 @@ class Decode extends Module{
         when(inst_in === Insts.ECALL){
             excep_r.pc  := io.if2id.pc
             excep_r.en  := true.B
-            excep_r.etype := ETYPE_ECALL
-            excep_r.cause := 0.U
+            excep_r.cause := PriorityMux(Seq(
+                (io.idState.priv === PRV_M,     CAUSE_MACHINE_ECALL.U),
+                (io.idState.priv === PRV_S,     CAUSE_SUPERVISOR_ECALL.U),
+                (true.B,                        CAUSE_USER_ECALL.U)))
             excep_r.tval  := 0.U
+            stall_pipe()
         }
         when(inst_in === Insts.SRET){
             excep_r.pc  := io.if2id.pc

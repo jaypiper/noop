@@ -35,6 +35,10 @@ class MmuState extends Bundle{
     val satp    = UInt(DATA_WIDTH.W)
 }
 
+class IdState extends Bundle{
+    val priv    = UInt(2.W)
+}
+
 class Exception_BASIC extends Bundle{
     val cause   = UInt(DATA_WIDTH.W)
     val tval    = UInt(DATA_WIDTH.W)
