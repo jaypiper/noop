@@ -115,12 +115,12 @@ class TLB extends Module{
     val mstatus = io.mmuState.mstatus
 
     val select = LFSR(4)
-    val select_r = RegInit(0.U(2.W))
+    val select_r = RegInit(0.U(4.W))
     val offset  = RegInit(0.U(8.W))
     val level   = RegInit(0.U(2.W))
     val ppn     = RegInit(0.U(44.W))
     val wpte_hs_r = RegInit(false.B)
-    when(is_Sv39){
+    when(is_Sv39 || state =/= sIdle){
         switch(state){
             is(sIdle){
                 dc_mode_r := mode_NOP
