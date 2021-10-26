@@ -26,10 +26,12 @@ class Writeback extends Module{
     val tlb_r       = RegInit(false.B)
     val cache_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
+    val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     valid_r         := false.B
     tlb_r           := false.B
     cache_r         := false.B
     forceJmp.valid  := false.B
+    excep_r.en      := false.B
 
     io.mem2rb.drop  := drop_r
     io.recov        := recov_r
@@ -58,6 +60,7 @@ class Writeback extends Module{
             inst_r  := io.mem2rb.inst
             pc_r    := io.mem2rb.pc
             recov_r := io.mem2rb.recov
+            excep_r := io.mem2rb.excep
             when(io.mem2rb.special =/= 0.U || (io.mem2rb.recov && !io.mem2rb.excep.en)){
                 forceJmp.valid  := true.B
                 forceJmp.seq_pc := io.mem2rb.pc + 4.U
@@ -80,9 +83,9 @@ class Writeback extends Module{
 
     val transExcep = Module(new TransExcep)
     transExcep.io.clock     := clock
-    transExcep.io.intr      := 0.U
-    transExcep.io.cause     := 0.U
-    transExcep.io.pc        := 0.U
+    transExcep.io.intr      := excep_r.en && excep_r.etype === 0.U
+    transExcep.io.cause     := excep_r.cause
+    transExcep.io.pc        := excep_r.pc
 
 }
 

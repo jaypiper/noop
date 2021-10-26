@@ -52,7 +52,7 @@ class FetchIO extends Bundle{
     val reg2if      = Input(new ForceJmp)
     val wb2if       = Input(new ForceJmp)
     val recov       = Input(Bool())
-    val intr_in     = Flipped(new RaiseIntr)
+    val intr_in     = Input(new RaiseIntr)
     val branchFail  = Input(new ForceJmp)
     val if2id       = new IF2ID
 }
@@ -106,16 +106,15 @@ class Fetch extends Module{
     val pc1_r = RegInit(0.U(VADDR_WIDTH.W))
     val br_next_pc1_r = RegInit(0.U(VADDR_WIDTH.W))
     val excep1_r    = RegInit(0.U.asTypeOf(new Exception))
-    excep1_r.en     := io.intr_in.en
-    excep1_r.tval   := io.intr_in.cause
-    val handshake12 = Wire(Bool())
-    val handshake23 = Wire(Bool())
+    val valid1_r    = RegInit(false.B)
+    val hs_in       = state === sIdle && !drop1_in
+    val hs1         = Wire(Bool())
+    val hs2         = Wire(Bool())
 
     val cur_pc = PriorityMux(Seq(
-        // (io.branchFail.valid)
-        (!handshake12,              pc),
+        (!hs1,              pc),
         (io.bpuSearch.is_target,    io.bpuSearch.target),
-        (handshake12,               pc + 4.U),
+        (hs1,               pc + 4.U),
         (true.B,                    pc)
     ))
     val next_pc = PriorityMux(Seq(
@@ -123,12 +122,34 @@ class Fetch extends Module{
             (io.wb2if.valid,                io.wb2if.seq_pc),
             (io.intr_in.en,                 cur_pc),
             (io.branchFail.valid,           io.branchFail.seq_pc),
-            // (handshake12,                   cur_pc + 4.U),
             (true.B,                        cur_pc)))
     pc := next_pc
     pc1_r := cur_pc
     br_next_pc1_r := next_pc
     val if_working = !drop1_in && state === sIdle
+    //intr
+    when(hs_in){
+        excep1_r.en     := io.intr_in.en
+        excep1_r.pc     := 0.U          // pc will be set in execute stage
+        excep1_r.cause  := io.intr_in.cause
+        excep1_r.tval   := 0.U
+        excep1_r.etype  := 0.U
+        when(io.intr_in.en){
+            stall_pipe1()
+        }.otherwise{
+            recov1_r := false.B
+        }
+    }
+    when(!drop2_in){
+        when(hs_in){
+            valid1_r := true.B
+        }.elsewhen(hs1){
+            valid1_r := false.B
+        }
+    }.otherwise{
+        valid1_r := false.B
+    }
+
     // bpu
     io.bpuSearch.vaddr := cur_pc
     io.bpuSearch.va_valid := if_working
@@ -153,26 +174,26 @@ class Fetch extends Module{
 
     val tlb_inp_valid   = !reset_tlb && (io.va2pa.pvalid || io.va2pa.tlb_excep.en)
 
-    handshake12 := false.B
+    hs1 := false.B
     when(!drop2_in){
-        when(valid2_r && !handshake23){
-            handshake12 := false.B
-        }.elsewhen(tlb_inp_valid && state === sIdle){
-            handshake12 := true.B
+        when(valid2_r && !hs2){
+            hs1 := false.B
+        }.elsewhen(tlb_inp_valid || excep1_r.en){
+            hs1 := valid1_r
         }
     }
     when(!drop3_in){
-        when(handshake12){
+        when(hs1){
             valid2_r        := true.B
             pc2_r           := pc1_r
             br_next_pc2_r   := br_next_pc1_r
             is_target2_r    := io.bpuSearch.is_target
             target2_r       := io.bpuSearch.target
             recov2_r        := recov1_r
-        }.elsewhen(handshake23){
+        }.elsewhen(hs2){
             valid2_r := false.B
         }
-        when(!handshake12){
+        when(!hs1){
         }.elsewhen(io.va2pa.pvalid){
             paddr2_r    := io.va2pa.paddr
             excep2_r.en    := false.B
@@ -182,14 +203,16 @@ class Fetch extends Module{
             excep2_r.tval  := io.va2pa.tlb_excep.tval
             excep2_r.cause := io.va2pa.tlb_excep.cause
             stall_pipe2()
+        }.otherwise{
+            excep2_r    := excep1_r
         }
     }.otherwise{
         valid2_r := false.B
         reset_tlb := !(io.va2pa.pvalid || io.va2pa.tlb_excep.en)
     }
-    io.instRead.addr := Mux(handshake12, io.va2pa.paddr, paddr2_r)
-    val cur_excep_en = Mux(handshake12, io.va2pa.tlb_excep.en, excep2_r.en)
-    io.instRead.arvalid := (handshake12 || valid2_r) && !io.if2id.drop && !cur_excep_en
+    io.instRead.addr := Mux(hs1, io.va2pa.paddr, paddr2_r)
+    val cur_excep_en = Mux(hs1, io.va2pa.tlb_excep.en || excep1_r.en, excep2_r.en)
+    io.instRead.arvalid := (hs1 || valid2_r) && !io.if2id.drop && !cur_excep_en
 // stage 3
     val pc3_r           = RegInit(0.U(VADDR_WIDTH.W))
     val br_next_pc3_r   = RegInit(0.U(VADDR_WIDTH.W))
@@ -204,21 +227,21 @@ class Fetch extends Module{
         reset_ic := false.B
     }
     val handshakeOut = io.if2id.ready && io.if2id.valid
-    handshake23 := false.B
+    hs2 := false.B
     when(!drop3_in){
         when(valid3_r && !handshakeOut){
-            handshake23 := false.B
+            hs2 := false.B
         }.elsewhen(excep2_r.en && valid2_r){
-            handshake23 := true.B
+            hs2 := true.B
             inst_r  := 0.U
             excep3_r := excep2_r
         }.elsewhen(valid2_r && io.instRead.rvalid && !reset_ic){
-            handshake23 := true.B
+            hs2 := true.B
             inst_r := io.instRead.inst
         }
     }
     when(!io.if2id.drop){
-        when(handshake23){
+        when(hs2){
             valid3_r := true.B
             pc3_r := pc2_r
             br_next_pc3_r := br_next_pc2_r

@@ -31,7 +31,8 @@ class Csrs extends Module{
         val mmuState = Output(new MmuState)
         val idState = Output(new IdState)
         val reg2if  = Output(new ForceJmp)
-        val intr_out = new RaiseIntr // TODO
+        val intr_out = Output(new RaiseIntr)
+        val clint   = Input(new ClintIntr)
     })
     val priv        = RegInit(PRV_M)
     val misa        = RegInit("h800000000014112d".U(DATA_WIDTH.W))
@@ -66,8 +67,6 @@ class Csrs extends Module{
     io.mmuState.mstatus := mstatus
     io.mmuState.satp    := satp
     io.idState.priv    := priv
-    io.intr_out.en      := false.B
-    io.intr_out.cause   := 0.U
     val forceJmp        = RegInit(0.U.asTypeOf(new ForceJmp))
     io.reg2if           := forceJmp
     forceJmp.valid      := false.B
@@ -120,6 +119,31 @@ class Csrs extends Module{
             }
         }
     }
+// intr
+    val intr_out_r = RegInit(0.U.asTypeOf(new RaiseIntr))
+    io.intr_out := intr_out_r
+    when(io.clint.raise){
+        mip := set_partial_val(mip, MIP_MTIP, Fill(64,1.U))
+    }
+    when(io.clint.clear){
+        mip := set_partial_val(mip, MIP_MTIP, 0.U)
+    }
+    val pending_int  = mip & mie
+    val m_enable = (priv < PRV_M) || ((priv === PRV_M) && mstatus(MSTATUS_MIE_BIT))
+    val enable_int_m = pending_int & ~mideleg & Fill(DATA_WIDTH, m_enable(0))
+    val s_enable = (priv <= PRV_S) && mstatus(MSTATUS_SIE_BIT)
+    val enable_int_s = pending_int & mideleg & Fill(DATA_WIDTH, s_enable(0))
+    val enable_int = Mux(enable_int_s =/= 0.U, enable_int_s, enable_int_m)
+
+    intr_out_r.en := enable_int =/= 0.U
+    //priority: MEI, MSI, MTI, SEI, SSI, STI
+    intr_out_r.cause := PriorityMux(Seq(
+        (enable_int(IRQ_M_TIMER),       IRQ_M_TIMER.U),
+        (enable_int(IRQ_S_SOFT),        IRQ_S_SOFT.U),
+        (enable_int(IRQ_S_TIMER),       IRQ_S_TIMER.U),
+        (true.B,                        INVALID_IRQ.U)
+    )) | Cat(1.U(1.W), 0.U(63.W))
+// csr read
     io.rs.is_err    := false.B
     when(io.rs.id === CSR_MISA){
         io.rs.data := misa

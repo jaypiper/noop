@@ -95,6 +95,11 @@ class RaiseIntr extends Bundle{
     val cause   = Output(UInt(DATA_WIDTH.W))
 }
 
+class ClintIntr extends Bundle{
+    val raise   = Bool()
+    val clear   = Bool()
+}
+
 class BranchInfo extends Bundle{
     val seq_pc = Output(UInt(VADDR_WIDTH.W))
     val is_jmp = Output(Bool())
