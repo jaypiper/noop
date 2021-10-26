@@ -113,6 +113,7 @@ class TLB extends Module{
     val offset  = RegInit(0.U(8.W))
     val level   = RegInit(0.U(2.W))
     val ppn     = RegInit(0.U(44.W))
+    val wpte_hs_r = RegInit(false.B)
     when(is_Sv39){
         switch(state){
             is(sIdle){
@@ -122,30 +123,37 @@ class TLB extends Module{
                     out_paddr_r := Cat(tlbMsg.tlbPa, inp_offset)
                     when((ad & tlbMsg.tlbInfo) =/= ad && is_Sv39){
                         state := sWritePte
+                        wpte_hs_r := false.B
                         pte_addr_r  := tlbMsg.tlbPteAddr
                         wpte_data_r := Cat(0.U(34.W), tlbMsg.tlbPa, tlbMsg.tlbInfo | ad)
+                        info(tlbMsg.tlbIdx) := tlbMsg.tlbInfo | ad
                     }
                 }
                 when(handshake && !tlbMsg.tlbHit){
                     state := sPte
+                    select_r   := select
+                    m_type_r   := io.va2pa.m_type
                     out_excep_r.cause := m_type2cause(io.va2pa.m_type)
                     out_excep_r.tval  := io.va2pa.vaddr
                     when(io.va2pa.vaddr(63,39) =/= Fill(25, io.va2pa.vaddr(38))){
                         // state := sExcep
                         out_excep_r.en := true.B
                     }.otherwise{
-                        pte_addr_r := Cat(io.mmuState.satp(43,0), (pre_addr >> offset)(8,0), 0.U(3.W))
+                        pte_addr_r := Cat(io.mmuState.satp(43,0), (io.va2pa.vaddr >> 30.U)(8,0), 0.U(3.W))
                         dc_mode_r  := mode_LD
                         offset  := 30.U
-                        level   := 2.U
+                        level   := 3.U
                         state := sPte
                     }
                 }
             }
             is(sWritePte){
-                dc_mode_r := mode_SD
+                dc_mode_r := Mux(wpte_hs_r, mode_NOP, mode_SD)
                 when(io.dcacheRW.ready){
                     dc_mode_r := mode_NOP
+                    wpte_hs_r := true.B
+                }
+                when(io.dcacheRW.rvalid){
                     state := sIdle
                 }
             }
