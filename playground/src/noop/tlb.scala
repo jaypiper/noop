@@ -14,6 +14,7 @@ class TlbHItMsg extends Bundle{
     val tlbMask = UInt(TLB_TAG_WIDTH.W)
     val tlbInfo = UInt(TLB_INFO_WIDTH.W)
     val tlbPteAddr = UInt(PADDR_WIDTH.W)
+    val tlbIdx  = UInt(4.W)
 }
 
 
@@ -58,7 +59,7 @@ class TLB extends Module{
     val mmuMode = Mux((io.mmuState.priv === PRV_M) && !io.mmuState.mstatus(MSTATUS_MPRV_BIT), Bare, io.mmuState.satp(63,60))
     val is_Sv39 = mmuMode === Sv39
     val tlbMsg = Wire(new TlbHItMsg)
-    tlbMsg.tlbHit := 0.U; tlbMsg.tlbPa := 0.U; tlbMsg.tlbMask := 0.U; tlbMsg.tlbInfo := 0.U; tlbMsg.tlbPteAddr  := 0.U
+    tlbMsg.tlbHit := 0.U; tlbMsg.tlbPa := 0.U; tlbMsg.tlbMask := 0.U; tlbMsg.tlbInfo := 0.U; tlbMsg.tlbPteAddr  := 0.U; tlbMsg.tlbIdx := 0.U
     
     for(i <- 0 until TLB_ENTRY_NUM){
         val tlb_tag_mask = tlb_mask(pte_level(i))
@@ -68,6 +69,7 @@ class TLB extends Module{
             tlbMsg.tlbMask := tlb_tag_mask
             tlbMsg.tlbInfo := info(i)
             tlbMsg.tlbPteAddr := pte_addr(i)
+            tlbMsg.tlbIdx  := i.U
         }
     }
     val sIdle :: sPte :: sExcep :: sWritePte :: Nil = Enum(4)
@@ -82,7 +84,9 @@ class TLB extends Module{
         }
     }
     val handshake = io.va2pa.vvalid && io.va2pa.ready
-    val ad = get_ad(io.va2pa.m_type)
+    val m_type_r = RegInit(0.U(2.W))
+    val cur_m_type = Mux(handshake, io.va2pa.m_type, m_type_r)
+    val ad = get_ad(cur_m_type)
     io.va2pa.ready  := io.va2pa.vvalid && (state === sIdle) && !io.flush && !flush_r
     io.va2pa.pvalid := out_valid_r
     io.va2pa.paddr  := out_paddr_r
@@ -105,11 +109,13 @@ class TLB extends Module{
     io.dcacheRW.addr := pte_addr_r
     io.dcacheRW.wdata := wpte_data_r
     io.dcacheRW.dc_mode := dc_mode_r
+    io.dcacheRW.amo     := 0.U
     val pte     = io.dcacheRW.rdata
     val dc_hand = io.dcacheRW.ready && (io.dcacheRW.dc_mode =/= mode_NOP)
     val mstatus = io.mmuState.mstatus
 
-    val select = LFSR(TLB_ENTRY_WIDTH)
+    val select = LFSR(4)
+    val select_r = RegInit(0.U(2.W))
     val offset  = RegInit(0.U(8.W))
     val level   = RegInit(0.U(2.W))
     val ppn     = RegInit(0.U(44.W))
@@ -193,16 +199,13 @@ class TLB extends Module{
                     }.otherwise{
                         state := sIdle
                         val ppn_mask = tlb_mask(level)
-                        tag(select) := pre_addr(VADDR_WIDTH-1, PAGE_WIDTH) & (~ppn_mask)
-                        valid(select) := true.B
-                        val update_pa = pte(29, 10) & (~ppn_mask)
-                        paddr(select) := update_pa
-                        info(select) := pte(9,0)
-                        pte_addr(select) := pte_addr_r
-                        pte_level(select) := level
-                        out_valid_r := true.B
-                        val paddr_mask = Cat(ppn_mask, 0.U(PAGE_WIDTH.W))
-                        out_paddr_r := ((update_pa << PAGE_WIDTH.U) & paddr_mask) | (pre_addr & ~paddr_mask)
+                        tag(select_r) := pre_addr(VADDR_WIDTH-1, PAGE_WIDTH) & ppn_mask
+                        valid(select_r) := true.B
+                        val update_pa = pte(29, 10) & ppn_mask
+                        paddr(select_r) := update_pa
+                        pte_addr(select_r) := pte_addr_r
+                        pte_level(select_r) := level
+                        info(select_r) := pte(9,0)
                     }
                 }
             }
