@@ -302,7 +302,7 @@ int main(int argc, char **argv){
     printf("after initialization\n");
     reset();
 
-    // cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__regs__DOT__csrs_22=state.csr[USCRATCH];
+    cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__uscratch=state.csr[USCRATCH];
 
     init_vga();
     uint32_t is_end = 0;
