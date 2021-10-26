@@ -135,6 +135,8 @@ class Decode extends Module{
                 (io.idState.priv === PRV_S,     CAUSE_SUPERVISOR_ECALL.U),
                 (true.B,                        CAUSE_USER_ECALL.U)))
             excep_r.tval  := 0.U
+            jmp_type_r  := JMP_CSR
+            rs2_r       :=  Mux(io.idState.priv === PRV_M, CSR_MTVEC, CSR_STVEC)
             stall_pipe()
         }
         when(inst_in === Insts.SRET){
@@ -143,6 +145,8 @@ class Decode extends Module{
             excep_r.etype := ETYPE_SRET
             excep_r.cause := 0.U
             excep_r.tval  := 0.U
+            jmp_type_r  := JMP_CSR
+            rs2_r       := CSR_SEPC
             stall_pipe()
         }
         when(inst_in === Insts.MRET){
@@ -151,6 +155,8 @@ class Decode extends Module{
             excep_r.etype := ETYPE_MRET
             excep_r.cause := 0.U
             excep_r.tval  := 0.U
+            jmp_type_r  := JMP_CSR
+            rs2_r       := CSR_MEPC
             stall_pipe()
         }
         when(inst_in === Insts.FENCE_I){

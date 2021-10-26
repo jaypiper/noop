@@ -51,7 +51,7 @@ class ReadRegs extends Module{
     io.rs2Read.id := io.df2rr.rs2(4,0)
     io.csrRead.id := io.df2rr.rs2
     val rs1_bef = Mux(io.df2rr.rrs1, io.rs1Read.data, io.df2rr.rs1_d)
-    val rs2_bef = Mux(io.df2rr.ctrl.writeCSREn, io.csrRead.data, Mux(io.df2rr.rrs2, io.rs2Read.data, io.df2rr.rs2_d))
+    val rs2_bef = Mux(io.df2rr.ctrl.writeCSREn || io.df2rr.excep.en =/= 0.U, io.csrRead.data, Mux(io.df2rr.rrs2, io.rs2Read.data, io.df2rr.rs2_d))
     val dst_bef = io.df2rr.dst_d
     def idx2reg(idx: UInt)={
         MuxLookup(idx, 0.U, Seq(

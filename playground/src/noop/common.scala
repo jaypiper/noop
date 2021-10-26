@@ -578,7 +578,8 @@ object decode_config extends DeType with ALUOP with BrType
     )
     val NO_JMP     = "b00".U(2.W)
     val JMP_UNCOND = "b01".U(2.W)
-    val JMP_COND   = "b11".U(2.W)
+    val JMP_COND   = "b10".U(2.W)
+    val JMP_CSR    = "b11".U(2.W)
 
     val AMO_WIDTH = 5
     val amoSwap = "b00001".U(AMO_WIDTH.W)

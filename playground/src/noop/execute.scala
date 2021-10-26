@@ -142,6 +142,7 @@ class Execute extends Module{
         JMP_COND    -> branchAlu.io.is_jmp
     ))
     val real_target = PriorityMux(Seq(
+        (io.rr2ex.jmp_type === JMP_CSR,     io.rr2ex.rs2_d),
         (!real_is_target,                   io.rr2ex.pc + 4.U),
         (io.rr2ex.jmp_type === JMP_UNCOND,  io.rr2ex.rs1_d + io.rr2ex.dst_d),
         (true.B,                            io.rr2ex.dst_d)
@@ -157,7 +158,7 @@ class Execute extends Module{
         when(hs_in && io.rr2ex.jmp_type =/= NO_JMP){
             bpu_r.valid := true.B
         }
-        when(hs_in && io.rr2ex.br_next_pc =/= real_target && io.rr2ex.jmp_type =/= NO_JMP){
+        when(hs_in && !io.rr2ex.excep.en && io.rr2ex.br_next_pc =/= real_target && io.rr2ex.jmp_type =/= NO_JMP){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
             drop_r  := true.B
