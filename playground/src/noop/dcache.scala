@@ -72,6 +72,7 @@ class DataCache extends Module{
         val dataAxi     = new AxiMaster
         val dcRW        = new DcacheRW
         val flush       = Input(Bool())
+        val flush_out   = Output(Bool())
     })
 
     val tag     = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(0.U(DC_TAG_WIDTH.W))))))
@@ -83,6 +84,7 @@ class DataCache extends Module{
     }
     val wait_r      = RegInit(false.B) // cache miss
     val valid_r     = RegInit(false.B)
+    val flush_r     = RegInit(false.B)
     val mode_r      = RegInit(0.U(DC_MODE_WIDTH.W))
     val wdata_r     = RegInit(0.U(DATA_WIDTH.W))
     val amo_r       = RegInit(0.U(AMO_WIDTH.W))
@@ -91,12 +93,14 @@ class DataCache extends Module{
     val hs_in       = io.dcRW.dc_mode =/= mode_NOP && io.dcRW.ready
     io.dcRW.ready := valid_in && !wait_r
     io.dcRW.rvalid := valid_r
+    io.flush_out := flush_r
     val addr_r          = RegInit(0.U(PADDR_WIDTH.W))
     val cur_addr        = Mux(hs_in, io.dcRW.addr, addr_r)
     val matchWay_r      = RegInit(0.U(2.W))
     val offset          = RegInit(0.U(3.W))
     val rdatabuf        = RegInit(0.U(DATA_WIDTH.W))
     val blockIdx        = cur_addr(DC_INDEX_WIDTH+DC_BLOCK_WIDTH-1, DC_BLOCK_WIDTH)
+    val blockIdx_r      = RegInit(0.U(DC_INDEX_WIDTH.W))
     val cur_tag         = cur_addr(PADDR_WIDTH-1, DC_BLOCK_WIDTH+DC_INDEX_WIDTH)
     val cache_hit_vec   = VecInit((0 until CACHE_WAY_NUM).map(i => tag(i)(blockIdx) === cur_tag && valid(i)(blockIdx)))
     val cacheHit        = cache_hit_vec.asUInt().orR
@@ -108,18 +112,33 @@ class DataCache extends Module{
         mode_r  := io.dcRW.dc_mode
         wdata_r := io.dcRW.wdata
         amo_r   := io.dcRW.amo
+        blockIdx_r := io.dcRW.addr(DC_INDEX_WIDTH+DC_BLOCK_WIDTH-1, DC_BLOCK_WIDTH)
     }
+// flush
     when(io.flush){
-        valid   := VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B))))
+        flush_r := true.B
+    }
+    val flush_way   = Wire(UInt(2.W))
+    val flush_idx   = Wire(UInt(DC_INDEX_WIDTH.W))
+    val flush_done  = Wire(Bool())
+    flush_way := 0.U; flush_idx := 0.U; flush_done := true.B
+    for(i <- 0 until CACHE_WAY_NUM){
+        for(j <- 0 until DC_BLOCK_NUM){
+            when(valid(i)(j) && dirty(i)(j)){
+                flush_way := i.U
+                flush_idx := j.U
+                flush_done := false.B
+            }
+        }
     }
     val cur_way         = Mux(hs_in, matchWay, matchWay_r)
     val cur_ram_addr    = cur_addr(RAM_ADDR_WIDTH+RAM_WIDTH_BIT-1, RAM_WIDTH_BIT)
-    val cur_axi_addr    = Cat(cur_addr(RAM_ADDR_WIDTH + RAM_WIDTH_BIT-1, DC_BLOCK_WIDTH), offset(2,1))
+    val cur_axi_addr    = Mux(flush_r, Cat(flush_idx, offset(2,1)), Cat(cur_addr(RAM_ADDR_WIDTH + RAM_WIDTH_BIT-1, DC_BLOCK_WIDTH), offset(2,1)))
     val cur_mode        = Mux(hs_in, io.dcRW.dc_mode, mode_r)
     val cur_wdata       = Mux(hs_in, io.dcRW.wdata, wdata_r)
     val pre_blockIdx    = addr_r(DC_INDEX_WIDTH+DC_BLOCK_WIDTH-1, DC_BLOCK_WIDTH)
     val pre_tag     = addr_r(PADDR_WIDTH-1, DC_BLOCK_WIDTH+DC_INDEX_WIDTH)
-    val sIdle :: sRaddr :: sRdata :: sWaddr :: sWdata :: sAtomic :: Nil = Enum(6)
+    val sIdle :: sRaddr :: sRdata :: sWaddr :: sWdata :: sAtomic :: sFlush :: Nil = Enum(7)
     val state = RegInit(sIdle)
     val rdata64 = data(matchWay_r).rdata >> Cat(addr_r(RAM_WIDTH_BIT-1, 0), 0.U(3.W))
     io.dcRW.rdata := rdata_by_mode(mode_r, rdata64)
@@ -152,7 +171,7 @@ class DataCache extends Module{
                         3.U   ->"hffffffffffffffff".U(RAM_MASK_WIDTH.W), 
                     )) << (Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
     data(cur_way).addr  := Mux(state === sIdle || state === sAtomic, cur_ram_addr, cur_axi_addr)
-    data(cur_way).cen   := wait_r || hs_in
+    data(cur_way).cen   := wait_r || hs_in || flush_r
     data(cur_way).wen   := wen
     data(cur_way).wdata := Mux(state === sAtomic, amo_wdata, 
                             Mux(state === sIdle, inp_wdata, Cat(io.dataAxi.rd.bits.data, rdatabuf)))
@@ -162,19 +181,22 @@ class DataCache extends Module{
     when(wen && (state === sIdle || state === sAtomic)){
         dirty(cur_way)(blockIdx) := true.B
     }
+
 // axi signal
     val axiRaddrEn      = RegInit(false.B)
     val axiRaddr        = cur_addr & DC_BLOCK_MASK
     val axiRdataEn      = RegInit(false.B)
     val axiWaddrEn      = RegInit(false.B)
-    val axiWaddr        = Cat(tag(matchWay_r)(blockIdx), blockIdx, 0.U(DC_BLOCK_WIDTH.W))
+    val axiWaddr        = Cat(tag(matchWay_r)(blockIdx_r), blockIdx_r, 0.U(DC_BLOCK_WIDTH.W))
     val axiWdata        = Mux(offset(0), data(matchWay_r).rdata(127,64), data(matchWay_r).rdata(63,0))
     val axiWdataEn      = RegInit(false.B)
     val axiWdataLast    = offset === 7.U
 
     switch(state){
         is(sIdle){
-            when(!hs_in && !wait_r){
+            when(flush_r || io.flush){
+                state := sFlush
+            }.elsewhen(!hs_in && !wait_r){
 
             }.elsewhen(cacheHit){
                 when(cur_mode_sl === 3.U){
@@ -239,8 +261,8 @@ class DataCache extends Module{
                 when(io.dataAxi.wd.bits.last){
                     state := sIdle
                     axiWdataEn := false.B
-                    valid(matchWay_r)(pre_blockIdx) := false.B
-                    dirty(matchWay_r)(pre_blockIdx) := false.B
+                    valid(matchWay_r)(blockIdx_r) := false.B
+                    dirty(matchWay_r)(blockIdx_r) := false.B
                 }
             }
         }
@@ -249,6 +271,18 @@ class DataCache extends Module{
             mask    := inp_mask
             wait_r  := false.B
             state   := sIdle
+        }
+        is(sFlush){
+            when(flush_done){
+                flush_r := false.B
+                state := sIdle
+                valid := VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B))))
+            }.otherwise{
+                state := sWaddr
+                axiWaddrEn := true.B
+                matchWay_r := flush_way
+                blockIdx_r := flush_idx
+            }
         }
     }
     io.dataAxi.init()

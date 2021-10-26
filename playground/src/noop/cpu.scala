@@ -136,6 +136,7 @@ class CPU extends Module{
     crossBar.io.memAxi  <> dcache.io.dataAxi
     crossBar.io.mmioAxi <> mem2Axi.io.outAxi
     crossBar.io.flashAxi <> flash2Axi.io.outAxi
+    crossBar.io.selectMem <> dcache.io.flush_out
 
     crossBar.io.outAxi.wa.ready    := io.master.awready
     io.master.awvalid := crossBar.io.outAxi.wa.valid

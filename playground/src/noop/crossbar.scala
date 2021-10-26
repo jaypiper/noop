@@ -11,12 +11,15 @@ class CrossBarIO extends Bundle{
     val memAxi      = new AxiSlave
     val mmioAxi     = new AxiSlave
     val outAxi      = new AxiMaster
+    val selectMem   = Input(Bool())
 }
 
 class CrossBar extends Module{
     val io = IO(new CrossBarIO)
     val (sIdle :: sMemAddr :: sInstAddr :: sMemData :: sInstData :: sFlashAddr :: sFlashData :: sMmioAddr :: sMmioData :: Nil) = Enum(9)
     val state = RegInit(sIdle)
+
+    val selectMem_r = RegInit(false.B)
 
     io.icAxi.init()
     io.flashAxi.init()
@@ -36,7 +39,10 @@ class CrossBar extends Module{
 
     switch(state){
         is(sIdle){
-            when(io.memAxi.ra.valid || io.memAxi.wa.valid){
+            when(io.selectMem){
+                state := sMemAddr
+                selectMem_r := true.B
+            }.elsewhen(io.memAxi.ra.valid || io.memAxi.wa.valid){
                 state := sMemAddr
             }.elsewhen(io.mmioAxi.ra.valid || io.mmioAxi.wa.valid){
                 state := sMmioAddr
@@ -47,15 +53,21 @@ class CrossBar extends Module{
             }
         }
         is(sMemAddr){
-            io.outAxi <> io.memAxi
-            when(memTrans){
-                state := sMemData
+            when(selectMem_r && !io.selectMem){
+                state := sIdle
+                selectMem_r := false.B
+            }.otherwise{
+                io.outAxi <> io.memAxi
+                when(memTrans){
+                    state := sMemData
+                }
             }
         }
         is(sMemData){
             io.outAxi <> io.memAxi
             when(memDone){
                 state := sIdle
+                selectMem_r := false.B
             }
         }
         is(sInstAddr){
