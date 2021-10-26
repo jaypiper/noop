@@ -68,7 +68,7 @@ done
 
 # xv6_testcases=(16 17 19 21 22 25 26 29 32 36 45 46 55)
 # xv6_testnum=${#xv6_testcases[*]}
-xv6_testnum=0
+xv6_testnum=59
 xv6_running_num=0
 xv6_usertest_name=(
     "preempt"       "copyin"        "copyout"       "openiput"  "forkforkfork"
@@ -133,10 +133,10 @@ do
         for ((i=0; i < ${xv6_testnum}; i++))
         do
             # id=${xv6_testcases[i]}
-            id=i
+            id=$i
             if ((${xv6_state[i]} == 1))
             then
-                if (grep 'HIT BAD TRAP' ${output_path}/kernel${i}-${xv6_usertest_name[i]}.txt)
+                if (grep 'HIT BAD TRAP' ${output_path}/kernel${id}-${xv6_usertest_name[i]}.txt)
                 then
                     finish_num=`expr ${finish_num} + 1`
                     fail_num=`expr ${fail_num} + 1`
