@@ -245,7 +245,7 @@ class Csrs extends Module{
     }.elsewhen(io.rd.id === CSR_STVEC){
         stvec := io.rd.data
     }.elsewhen(io.rd.id === CSR_SATP){
-        satp := io.rd.data
+        satp := set_partial_val(satp, W_SATP_MASK, io.rd.data)
     }.elsewhen(io.rd.id === CSR_SCAUSE){
         scause := io.rd.data
     }.elsewhen(io.rd.id === CSR_SSTATUS){
