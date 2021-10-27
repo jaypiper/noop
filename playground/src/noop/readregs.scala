@@ -39,6 +39,7 @@ class ReadRegs extends Module{
     val rs2_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
+    val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
     val special_r   = RegInit(0.U(2.W))
     val indi_r      = RegInit(0.U(INDI_WIDTH.W))
@@ -75,6 +76,7 @@ class ReadRegs extends Module{
         rs2_d_r     := idx2reg(io.df2rr.swap(3,2))
         dst_r       := io.df2rr.dst
         dst_d_r     := idx2reg(io.df2rr.swap(1,0))
+        rcsr_id_r   := Mux(io.df2rr.ctrl.writeCSREn, io.df2rr.rs2, 0.U)
         jmp_type_r  := io.df2rr.jmp_type
         special_r   := io.df2rr.special
         indi_r      := io.df2rr.indi
@@ -120,6 +122,7 @@ class ReadRegs extends Module{
     io.rr2ex.rs2_d      := rs2_d_r
     io.rr2ex.dst        := dst_r
     io.rr2ex.dst_d      := dst_d_r
+    io.rr2ex.rcsr_id    := rcsr_id_r
     io.rr2ex.jmp_type   := jmp_type_r
     io.rr2ex.special    := special_r
     io.rr2ex.indi       := indi_r

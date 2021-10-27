@@ -35,6 +35,7 @@ class Execute extends Module{
     val csr_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
+    val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val special_r   = RegInit(0.U(2.W))
     val alu64_r     = RegInit(false.B)
     val indi_r      = RegInit(0.U(INDI_WIDTH.W))
@@ -85,6 +86,7 @@ class Execute extends Module{
         csr_d_r     := alu_out
         dst_r       := io.rr2ex.dst
         dst_d_r     := wdata
+        rcsr_id_r   := io.rr2ex.rcsr_id
         special_r   := io.rr2ex.special
         indi_r      := io.rr2ex.indi
         alu64_r     := alu64
@@ -191,6 +193,7 @@ class Execute extends Module{
     io.ex2mem.csr_d     := csr_d_r
     io.ex2mem.dst       := dst_r
     io.ex2mem.dst_d     := dst_d_r
+    io.ex2mem.rcsr_id   := rcsr_id_r
     io.ex2mem.special   := special_r
     io.ex2mem.indi      := indi_r
     io.ex2mem.valid     := valid_r

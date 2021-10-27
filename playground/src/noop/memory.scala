@@ -106,6 +106,7 @@ class Memory extends Module{
     val csr_id1_r   = RegInit(0.U(CSR_WIDTH.W))
     val csr_d1_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en1_r   = RegInit(false.B)
+    val rcsr_id1_r  = RegInit(0.U(CSR_WIDTH.W))
     val special1_r  = RegInit(0.U(2.W))
     val indi1_r     = RegInit(0.U(INDI_WIDTH.W))
     val recov1_r    = RegInit(false.B)
@@ -137,6 +138,7 @@ class Memory extends Module{
         csr_id1_r   := io.ex2mem.csr_id
         csr_d1_r    := io.ex2mem.csr_d
         csr_en1_r   := io.ex2mem.ctrl.writeCSREn
+        rcsr_id1_r  := io.ex2mem.rcsr_id
         ctrl1_r     := io.ex2mem.ctrl
         indi1_r     := io.ex2mem.indi
         special1_r  := io.ex2mem.special
@@ -190,6 +192,7 @@ class Memory extends Module{
     val csr_id2_r   = RegInit(0.U(CSR_WIDTH.W))
     val csr_d2_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en2_r   = RegInit(false.B)
+    val rcsr_id2_r  = RegInit(0.U(CSR_WIDTH.W))
     val special2_r  = RegInit(0.U(2.W))
     val paddr2_r    = RegInit(0.U(PADDR_WIDTH.W))
     val indi2_r     = RegInit(0.U(INDI_WIDTH.W))
@@ -220,6 +223,7 @@ class Memory extends Module{
         csr_id2_r   := csr_id1_r
         csr_d2_r    := csr_d1_r
         csr_en2_r   := csr_en1_r
+        rcsr_id2_r  := rcsr_id1_r
         special2_r  := special1_r
         indi2_r     := indi1_r
         recov2_r    := recov1_r
@@ -318,6 +322,7 @@ class Memory extends Module{
     val csr_id3_r   = RegInit(0.U(CSR_WIDTH.W))
     val csr_d3_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en3_r   = RegInit(false.B)
+    val rcsr_id3_r  = RegInit(0.U(CSR_WIDTH.W))
     val special3_r  = RegInit(0.U(2.W))
     val is_mmio_r   = RegInit(false.B)
     val recov3_r    = RegInit(false.B)
@@ -337,6 +342,7 @@ class Memory extends Module{
         csr_id3_r   := csr_id2_r
         csr_d3_r    := csr_d2_r
         csr_en3_r   := csr_en2_r
+        rcsr_id3_r  := rcsr_id2_r
         special3_r  := special2_r
         recov3_r    := recov2_r
         is_mmio_r   := ctrl2_r.dcMode =/= mode_NOP && paddr2_r < "h80000000".U
@@ -372,6 +378,7 @@ class Memory extends Module{
     io.mem2rb.dst       := dst3_r
     io.mem2rb.dst_d     := dst_d3_r
     io.mem2rb.dst_en    := dst_en3_r
+    io.mem2rb.rcsr_id   := rcsr_id3_r
     io.mem2rb.special   := special3_r
     io.mem2rb.is_mmio   := is_mmio_r
     io.mem2rb.recov     := recov3_r
