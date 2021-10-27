@@ -80,7 +80,6 @@ class Csrs extends Module{
             priv            := Cat(0.U(1.W), ss(8))
             val new_sstatus = Cat(ss(63,9), 0.U(1.W), ss(7,6), 1.U(1.W), ss(4,2), ss(5), ss(0))
             mstatus         := set_partial_val(mstatus, WSSTATUS_MASK, new_sstatus)
-            // io.clear_lr := true.B
         }.elsewhen(io.excep.etype === ETYPE_MRET){ //mret
             forceJmp.seq_pc := mepc
             forceJmp.valid  := true.B
@@ -88,12 +87,10 @@ class Csrs extends Module{
             priv            := ms(12,11)
             val new_mstatus = Cat(ms(63,13), PRV_U, ms(10,8), 1.U(1.W), ms(6,4), ms(7), ms(2,0))
             mstatus         := new_mstatus
-            // io.clear_lr := true.B
         }.otherwise{
             // exceptions & interruptions & ecall
             val deleg = Mux(cause(63), mideleg, medeleg)
             when(priv <= PRV_S && deleg(cause(62,0))){
-                // printf("S-mode priv: %d cause: %x pc: %x mtime: %x\n", priv, io.excep.cause, io.excep.pc, mtime)
                 val seq_pc = stvec + Mux(stvec(1) === 1.U, cause << 2.U, 0.U)
                 forceJmp.seq_pc := seq_pc
                 forceJmp.valid  := true.B
@@ -105,7 +102,6 @@ class Csrs extends Module{
                 stval           := io.excep.tval
                 priv            := PRV_S
             }.otherwise{
-                // printf("M-mode priv: %d cause: %x pc: %x mtime: %x\n", priv, io.excep.cause, io.excep.pc, mtime)
                 val seq_pc      = mtvec + Mux(mtvec(1), cause << 2.U, 0.U)
                 forceJmp.seq_pc := seq_pc
                 forceJmp.valid  := true.B
@@ -225,7 +221,7 @@ class Csrs extends Module{
     }.elsewhen(io.rd.id === CSR_MIE){
         mie := io.rd.data
     }.elsewhen(io.rd.id === CSR_MIP){
-        mip := io.rd.data
+        mip := set_partial_val(mip, W_MIP_MASK, io.rd.data)
     }.elsewhen(io.rd.id === CSR_MCAUSE){
         mcause := io.rd.data
     }.elsewhen(io.rd.id === CSR_MEDELEG){

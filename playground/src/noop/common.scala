@@ -195,6 +195,8 @@ trait csr_config extends priv_encoding{
     val PMPADDR_MASK = "h3fffffffffffff".U(DATA_WIDTH.W)
     val W_SATP_MASK = "hf0000fffffffffff".U(DATA_WIDTH.W)
 
+    val W_MIP_MASK = MIP_MEIP | MIP_MTIP | MIP_MSIP
+
     def set_partial_val(preVal: UInt, mask: UInt, newVal: UInt) = {
         (preVal & ~mask) | (newVal & mask)
     }
