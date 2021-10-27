@@ -86,6 +86,14 @@ class Decode extends Module{
                                 inst_in === Insts.LR_W || inst_in === Insts.LR_D)
         swap_r          := NO_SWAP
         recov_r         := io.if2id.recov
+        when(dType === INVALID && !io.if2id.excep.en){
+            excep_r.en      := true.B
+            excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
+            excep_r.tval    := inst_in
+            excep_r.pc      := io.if2id.pc
+            excep_r.etype   := 0.U
+            stall_pipe()
+        }
         when(dType === RType){
             rrs1_r  := true.B
             rrs2_r  := true.B

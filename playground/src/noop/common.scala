@@ -413,6 +413,7 @@ object Insts{
     //nemu_trap
     def TRAP    = BitPat("b00000000000000000000000001101011")
     def FENCE_I = BitPat("b00000000000000000001000000001111")
+    def FENCE   = BitPat("b0000????????00000000000000001111")
     def SFENCE_VMA  = BitPat("b0001001??????????000000001110011")
 
     //atomic
@@ -449,7 +450,7 @@ trait DeType{
     val BType = 4.U(3.W)
     val UType = 5.U(3.W)
     val JType = 6.U(3.W)
-    val TRAP  = 7.U(3.W)
+    val INVALID  = 7.U(3.W)
 }
 
 trait ALUOP{
@@ -475,7 +476,7 @@ object decode_config extends DeType with ALUOP with BrType
     val IS_ALU64 = 0.U
     val IS_ALU32 = 1.U
                             // decode aluop    alu-w    ram-mode|write-reg|跳转信号|csr-read|csr-write|rs1-imm
-    val decodeDefault = List(EMPTY, alu_NOP,   IS_ALU64,  mode_NOP, false.B, false.B, false.B, false.B, false.B)
+    val decodeDefault = List(INVALID, alu_NOP,   IS_ALU64,  mode_NOP, false.B, false.B, false.B, false.B, false.B)
     val decodeTable = Array(   
         Insts.LUI    -> List(UType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.AUIPC  -> List(UType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
@@ -576,7 +577,10 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.AMOMINU_D -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
         Insts.AMOMAXU_D -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
 
-        Insts.TRAP   -> List(TRAP,  alu_NOP,   IS_ALU64,  mode_NOP, false.B, false.B, false.B, false.B, false.B)
+        Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
     )
     val NO_JMP     = "b00".U(2.W)
     val JMP_UNCOND = "b01".U(2.W)
