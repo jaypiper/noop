@@ -237,7 +237,7 @@ class Memory extends Module{
         }
     }
     val sc_valid    = io.va2pa.paddr === lr_addr_r && lr_valid_r
-    val is_dc_r     = RegInit(false.B)
+    val is_dc_r     = (ctrl2_r.dcMode =/= mode_NOP)
     val drop_dc     = RegInit(false.B)
     io.dataRW.dc_mode := mode_NOP
     io.dataRW.addr    := Mux(hs1, io.va2pa.paddr, paddr2_r)
@@ -282,15 +282,11 @@ class Memory extends Module{
                 excep2_r.pc     := pc1_r
                 excep2_r.etype  := 0.U
                 ctrl2_r     := 0.U.asTypeOf(new Ctrl)
-                is_dc_r     := false.B
                 dst_en2_r   := false.B
                 csr_en2_r   := false.B
                 stall_pipe2()
             }.elsewhen(ctrl1_r.dcMode =/= mode_NOP){
-                is_dc_r := true.B
                 dc_hs_r := dc_hs
-            }.otherwise{
-                is_dc_r := false.B
             }
         }.elsewhen(hs2){
             valid2_r := false.B
