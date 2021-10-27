@@ -37,10 +37,10 @@ class Execute extends Module{
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val special_r   = RegInit(0.U(2.W))
     val alu64_r     = RegInit(false.B)
+    val indi_r      = RegInit(0.U(INDI_WIDTH.W))
     val next_pc_r   = RegInit(0.U(VADDR_WIDTH.W))  // for intr; updated by branch
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)    
-
 
     val hs_in   = io.rr2ex.ready && io.rr2ex.valid
     val hs_out  = io.ex2mem.ready && io.ex2mem.valid
@@ -86,6 +86,7 @@ class Execute extends Module{
         dst_r       := io.rr2ex.dst
         dst_d_r     := wdata
         special_r   := io.rr2ex.special
+        indi_r      := io.rr2ex.indi
         alu64_r     := alu64
         recov_r     := io.rr2ex.recov
         when(io.rr2ex.excep.cause(63)){
@@ -191,6 +192,7 @@ class Execute extends Module{
     io.ex2mem.dst       := dst_r
     io.ex2mem.dst_d     := dst_d_r
     io.ex2mem.special   := special_r
+    io.ex2mem.indi      := indi_r
     io.ex2mem.valid     := valid_r
     io.ex2mem.recov     := recov_r
 }
