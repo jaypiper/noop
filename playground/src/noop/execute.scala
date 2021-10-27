@@ -175,7 +175,7 @@ class Execute extends Module{
     io.d_ex.data   := dst_d_r
     io.d_ex.state  := d_invalid
     when(valid_r){
-        io.d_ex.state   := Mux(ctrl_r.dcMode(DC_L_BIT), d_wait, Mux(ctrl_r.writeRegEn, d_valid, d_invalid))
+        io.d_ex.state   := Mux(ctrl_r.dcMode(DC_L_BIT) || indi_r(INDI_SC_BIT), d_wait, Mux(ctrl_r.writeRegEn, d_valid, d_invalid))
     }.elsewhen(state =/= sIdle){
         io.d_ex.state   := d_wait
     }

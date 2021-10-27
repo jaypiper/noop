@@ -171,7 +171,7 @@ class Memory extends Module{
     io.d_mem1.data := dst_d1_r
     when(!dst_en1_r){
         io.d_mem1.state := d_invalid
-    }.elsewhen(valid1_r && !ctrl1_r.dcMode(DC_L_BIT)){
+    }.elsewhen(valid1_r && !(ctrl1_r.dcMode(DC_L_BIT) || indi1_r(INDI_SC_BIT))){
         io.d_mem1.state := d_valid
     }.elsewhen(valid1_r){
         io.d_mem1.state := d_wait
