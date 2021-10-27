@@ -61,7 +61,7 @@ class Csrs extends Module{
     val uscratch    = RegInit(0.U(DATA_WIDTH.W))
     val pmpcfg0     = RegInit(0.U(DATA_WIDTH.W))
     val mhartid     = RegInit(0.U(DATA_WIDTH.W))
-    val sstatus     = mstatus & SSTATUS_MASK
+    val sstatus     = mstatus & RSSTATUS_MASK
 
     io.mmuState.priv    := priv
     io.mmuState.mstatus := mstatus
@@ -79,7 +79,7 @@ class Csrs extends Module{
             val ss          = sstatus
             priv            := Cat(0.U(1.W), ss(8))
             val new_sstatus = Cat(ss(63,9), 0.U(1.W), ss(7,6), 1.U(1.W), ss(4,2), ss(5), ss(0))
-            mstatus         := set_partial_val(mstatus, SSTATUS_MASK, new_sstatus)
+            mstatus         := set_partial_val(mstatus, WSSTATUS_MASK, new_sstatus)
             // io.clear_lr := true.B
         }.elsewhen(io.excep.etype === ETYPE_MRET){ //mret
             forceJmp.seq_pc := mepc
@@ -101,7 +101,7 @@ class Csrs extends Module{
                 sepc            := io.excep.pc
                 val ss          = sstatus
                 val new_sstatus = Cat(ss(63,9), priv(0), ss(7,6), ss(1), ss(4,2), 0.U(1.W), ss(0))
-                mstatus         := set_partial_val(mstatus, SSTATUS_MASK, new_sstatus)
+                mstatus         := set_partial_val(mstatus, WSSTATUS_MASK, new_sstatus)
                 stval           := io.excep.tval
                 priv            := PRV_S
             }.otherwise{
@@ -249,7 +249,9 @@ class Csrs extends Module{
     }.elsewhen(io.rd.id === CSR_SCAUSE){
         scause := io.rd.data
     }.elsewhen(io.rd.id === CSR_SSTATUS){
-        mstatus := set_partial_val(mstatus, SSTATUS_MASK, io.rd.data)
+        val new_mstatus = set_partial_val(mstatus, WSSTATUS_MASK, io.rd.data)
+        val sd          = Mux((io.rd.data(14,13) === 3.U) || (io.rd.data(16,15) === 3.U), MSTATUS64_SD, 0.U)
+        mstatus := Cat(sd(63,62), new_mstatus(61,0))
     }.elsewhen(io.rd.id === CSR_SIE){
         mie := set_partial_val(mie, mideleg, io.rd.data)
     }.elsewhen(io.rd.id === CSR_SIP){
