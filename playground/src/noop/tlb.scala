@@ -15,6 +15,7 @@ class TlbHItMsg extends Bundle{
     val tlbInfo = UInt(TLB_INFO_WIDTH.W)
     val tlbPteAddr = UInt(PADDR_WIDTH.W)
     val tlbIdx  = UInt(4.W)
+    val tlbLevel = UInt(2.W)
 }
 
 
@@ -59,7 +60,8 @@ class TLB extends Module{
     val mmuMode = Mux((io.mmuState.priv === PRV_M) && !io.mmuState.mstatus(MSTATUS_MPRV_BIT), Bare, io.mmuState.satp(63,60))
     val is_Sv39 = mmuMode === Sv39
     val tlbMsg = Wire(new TlbHItMsg)
-    tlbMsg.tlbHit := 0.U; tlbMsg.tlbPa := 0.U; tlbMsg.tlbMask := 0.U; tlbMsg.tlbInfo := 0.U; tlbMsg.tlbPteAddr  := 0.U; tlbMsg.tlbIdx := 0.U
+    tlbMsg.tlbHit := 0.U; tlbMsg.tlbPa := 0.U; tlbMsg.tlbMask := 0.U; tlbMsg.tlbInfo := 0.U
+    tlbMsg.tlbPteAddr := 0.U; tlbMsg.tlbIdx := 0.U; tlbMsg.tlbLevel := 0.U
     
     for(i <- 0 until TLB_ENTRY_NUM){
         val tlb_tag_mask = tlb_mask(pte_level(i))
@@ -70,6 +72,7 @@ class TLB extends Module{
             tlbMsg.tlbInfo := info(i)
             tlbMsg.tlbPteAddr := pte_addr(i)
             tlbMsg.tlbIdx  := i.U
+            tlbMsg.tlbLevel   := pte_level(i)
         }
     }
     val sIdle :: sPte :: sExcep :: sWritePte :: Nil = Enum(4)
@@ -126,7 +129,9 @@ class TLB extends Module{
                 dc_mode_r := mode_NOP
                 when(handshake && tlbMsg.tlbHit){
                     out_valid_r := true.B
-                    out_paddr_r := Cat(tlbMsg.tlbPa, inp_offset)
+                    // out_paddr_r := Cat(tlbMsg.tlbPa, inp_offset)
+                    val paddr_mask = Cat(tlb_mask(tlbMsg.tlbLevel),0.U(PAGE_WIDTH.W))
+                    out_paddr_r := set_partial_val(io.va2pa.vaddr, paddr_mask, tlbMsg.tlbPa << PAGE_WIDTH)
                     when((ad & tlbMsg.tlbInfo) =/= ad && is_Sv39){
                         state := sWritePte
                         wpte_hs_r := false.B
