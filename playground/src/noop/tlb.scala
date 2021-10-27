@@ -57,7 +57,12 @@ class TLB extends Module{
 
     val inp_tag = io.va2pa.vaddr(VADDR_WIDTH-1, PAGE_WIDTH)
     val inp_offset = io.va2pa.vaddr(PAGE_WIDTH-1, 0)
-    val mmuMode = Mux((io.mmuState.priv === PRV_M) && !io.mmuState.mstatus(MSTATUS_MPRV_BIT), Bare, io.mmuState.satp(63,60))
+    val mode = PriorityMux(Seq(
+        (io.va2pa.m_type === MEM_FETCH,             io.mmuState.priv),
+        (io.mmuState.mstatus(MSTATUS_MPRV_BIT),     io.mmuState.mstatus(12,11)),
+        (true.B,                                    io.mmuState.priv)
+    ))
+    val mmuMode = Mux(mode === PRV_M, Bare, io.mmuState.satp(63,60))
     val is_Sv39 = mmuMode === Sv39
     val tlbMsg = Wire(new TlbHItMsg)
     tlbMsg.tlbHit := 0.U; tlbMsg.tlbPa := 0.U; tlbMsg.tlbMask := 0.U; tlbMsg.tlbInfo := 0.U

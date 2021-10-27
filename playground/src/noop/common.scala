@@ -223,8 +223,7 @@ trait pte_encoding{
     val PTE_D_BIT   = 7
 }
 
-object tlb_config extends satp_mode with mem_access_mode 
-        with pte_encoding with csr_config{
+object tlb_config extends satp_mode with pte_encoding with csr_config{
     val TLB_ENTRY_WIDTH = 4
     val TLB_ENTRY_NUM   = 1 << TLB_ENTRY_WIDTH
     val TLB_TAG_WIDTH   = VADDR_WIDTH - PAGE_WIDTH
