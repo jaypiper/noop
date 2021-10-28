@@ -79,10 +79,8 @@ class CPU extends Module{
     val tlb_if       = Module(new TLB)
     val tlb_mem      = Module(new TLB)
     val dcSelector  = Module(new DcacheSelector)
-    val bpu         = Module(new BPU)
     val clint       = Module(new CLINT)
 
-    fetch.io.bpuSearch  <> bpu.io.search
     fetch.io.instRead   <> fetchCrossbar.io.instIO
     fetch.io.va2pa      <> tlb_if.io.va2pa
     fetch.io.reg2if     <> csrs.io.reg2if
@@ -106,7 +104,6 @@ class CPU extends Module{
     readregs.io.csrRead <> csrs.io.rs
 
     execute.io.ex2mem   <> memory.io.ex2mem
-    execute.io.bpuUpdate<> bpu.io.update
     memory.io.mem2rb    <> writeback.io.mem2rb
     memory.io.dataRW    <> memCrossbar.io.dataRW
     memory.io.va2pa     <> tlb_mem.io.va2pa

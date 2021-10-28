@@ -46,7 +46,6 @@ class FetchCrossBar extends Module{
 }
 
 class FetchIO extends Bundle{
-    val bpuSearch   = Flipped(new BPUSearch)
     val instRead    = Flipped(new IcacheRead)
     val va2pa       = Flipped(new VA2PA)
     val reg2if      = Input(new ForceJmp)
@@ -112,9 +111,7 @@ class Fetch extends Module{
     val hs2         = Wire(Bool())
 
     val cur_pc = PriorityMux(Seq(
-        (!hs1,              pc),
-        (io.bpuSearch.is_target,    io.bpuSearch.target),
-        (hs1,               pc + 4.U),
+        (hs1,                       pc + 8.U),
         (true.B,                    pc)
     ))
     val next_pc = PriorityMux(Seq(
@@ -126,7 +123,6 @@ class Fetch extends Module{
     pc := next_pc
     pc1_r := cur_pc
     br_next_pc1_r := next_pc
-    val if_working = !drop1_in && state === sIdle
     //intr
     when(hs_in){
         excep1_r.en     := io.intr_in.en
@@ -150,17 +146,13 @@ class Fetch extends Module{
         valid1_r := false.B
     }
 
-    // bpu
-    io.bpuSearch.vaddr := cur_pc
-    io.bpuSearch.va_valid := if_working
     // tlb
     io.va2pa.vaddr := cur_pc
-    io.va2pa.vvalid := if_working && !io.intr_in.en
+    io.va2pa.vvalid := hs_in && !io.intr_in.en
     io.va2pa.m_type := MEM_FETCH
 
 // stage 2
     val pc2_r       = RegInit(0.U(VADDR_WIDTH.W))
-    val br_next_pc2_r  = RegInit(0.U(VADDR_WIDTH.W))
     val paddr2_r    = RegInit(0.U(PADDR_WIDTH.W))
     val valid2_r    = RegInit(false.B)
     val excep2_r    = RegInit(0.U.asTypeOf(new Exception))
@@ -186,9 +178,6 @@ class Fetch extends Module{
         when(hs1){
             valid2_r        := true.B
             pc2_r           := pc1_r
-            br_next_pc2_r   := br_next_pc1_r
-            is_target2_r    := io.bpuSearch.is_target
-            target2_r       := io.bpuSearch.target
             recov2_r        := recov1_r
         }.elsewhen(hs2){
             valid2_r := false.B
@@ -215,54 +204,93 @@ class Fetch extends Module{
     io.instRead.arvalid := (hs1 || valid2_r) && !io.if2id.drop && !cur_excep_en
 // stage 3
     val pc3_r           = RegInit(0.U(VADDR_WIDTH.W))
-    val br_next_pc3_r   = RegInit(0.U(VADDR_WIDTH.W))
     val valid3_r        = RegInit(false.B)
     val excep3_r        = RegInit(0.U.asTypeOf(new Exception))
-    val is_target3_r    = RegInit(false.B)
-    val target3_r       = RegInit(0.U(VADDR_WIDTH.W))
+    val next_pc_r       = RegInit(0.U(VADDR_WIDTH.W))
+    val wait_jmp_pc     = RegInit(true.B)
+    val inst_buf        = RegInit(0.U(128.W))
+    val buf_start_pc    = RegInit(0.U(VADDR_WIDTH.W))
+    val buf_bitmap      = RegInit(0.U(2.W))
+    val excep_buf       = RegInit(0.U.asTypeOf(new Exception))
     val inst_r          = RegInit(0.U(INST_WIDTH.W))
-
+    val next_inst_buf   = Wire(UInt(128.W))
+    val next_buf_bitmap = Wire(UInt(2.W))
     val reset_ic    = RegInit(false.B)
     when(io.instRead.rvalid){
         reset_ic := false.B
     }
-    val handshakeOut = io.if2id.ready && io.if2id.valid
     hs2 := false.B
+    val buf_offset = (next_pc_r - buf_start_pc)
+    val hs_out = io.if2id.ready && io.if2id.valid
+    next_inst_buf := inst_buf
+    next_buf_bitmap := buf_bitmap
     when(!drop3_in){
-        when(valid3_r && !handshakeOut){
-            hs2 := false.B
+        when(buf_bitmap === 3.U || excep_buf.en){        // buf full
         }.elsewhen(excep2_r.en && valid2_r){
+            excep_buf := excep2_r
             hs2 := true.B
-            inst_r  := 0.U
-            excep3_r := excep2_r
         }.elsewhen(valid2_r && io.instRead.rvalid && !reset_ic){
             hs2 := true.B
-            inst_r := io.instRead.inst
+            when(buf_bitmap(0)){
+                next_inst_buf := Cat(io.instRead.inst, inst_buf(63,0))
+                next_buf_bitmap := 3.U
+            }.otherwise{
+                next_inst_buf := Cat(0.U(64.W), io.instRead.inst)
+                next_buf_bitmap := 1.U
+                buf_start_pc := Cat(pc2_r(63,3), 0.U(3.W))
+                when(wait_jmp_pc){
+                    next_pc_r   := pc2_r
+                    wait_jmp_pc := false.B
+                }
+            }
+        }
+        buf_bitmap := next_buf_bitmap
+        inst_buf := next_inst_buf
+    }.otherwise{
+        buf_bitmap := 0.U
+        reset_ic := reset_ic || (valid2_r && !excep2_r.en && !io.instRead.rvalid)
+        wait_jmp_pc := true.B
+    }
+    val inst_valid = Wire(Bool())
+    val top_inst = Wire(UInt(INST_WIDTH.W))
+    val top_inst32 = inst_buf >> Cat(buf_offset(2,0), 0.U(3.W))
+    inst_valid := false.B; top_inst := 0.U
+    when(buf_bitmap === 3.U){
+        inst_valid := true.B
+        top_inst := Mux(top_inst32(1,0) === 3.U, top_inst32, Cat(0.U(16.W), top_inst32(15,0)))
+    }.elsewhen(buf_bitmap === 1.U){
+        when(buf_offset === 6.U && top_inst32(1,0) =/= 3.U){
+            inst_valid := true.B
+            top_inst := Cat(0.U(16.W), top_inst32(15,0))
+        }.elsewhen(buf_offset <= 4.U){
+            inst_valid := true.B
+            top_inst := Mux(top_inst32(1,0) === 3.U, top_inst32, Cat(0.U(16.W), top_inst32(15,0)))
         }
     }
+
     when(!io.if2id.drop){
-        when(hs2){
-            valid3_r := true.B
-            pc3_r := pc2_r
-            br_next_pc3_r := br_next_pc2_r
-            excep3_r := excep2_r
-            is_target3_r := is_target2_r
-            target3_r   := target2_r
-            recov3_r    := recov2_r
-        }.elsewhen(handshakeOut){
+        when((inst_valid || excep_buf.en) && (!valid3_r || hs_out)){
+            valid3_r    := true.B
+            excep3_r    := Mux(inst_valid, 0.U.asTypeOf(new Exception), excep_buf)
+            inst_r      := Mux(inst_valid, top_inst, 0.U)
+            pc3_r       := next_pc_r
+            val next_pc_w = next_pc_r + Mux(top_inst(1,0) === 3.U, 4.U, 2.U)
+            next_pc_r   := next_pc_w
+            when((next_pc_w - buf_start_pc) >= 8.U && buf_bitmap =/= 0.U){
+                buf_start_pc := buf_start_pc + 8.U
+                inst_buf := Cat(0.U(64.W), next_inst_buf(127,64))
+                buf_bitmap := Cat(0.U(1.W), next_buf_bitmap(1))
+            }
+        }.elsewhen(hs_out){
             valid3_r := false.B
         }
     }.otherwise{
         valid3_r := false.B
-        reset_ic := reset_ic || (valid2_r && !excep2_r.en && !io.instRead.rvalid)
     }
 
     io.if2id.inst       := inst_r
     io.if2id.pc         := pc3_r
-    io.if2id.br_next_pc := br_next_pc3_r
     io.if2id.excep      := excep3_r
-    io.if2id.is_target  := is_target3_r
-    io.if2id.target     := target3_r
     io.if2id.valid      := valid3_r
     io.if2id.recov      := recov3_r
 }

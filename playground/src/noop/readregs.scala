@@ -28,10 +28,7 @@ class ReadRegs extends Module{
     io.df2rr.stall  := (stall_r && !io.rr2ex.drop) || io.rr2ex.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
-    val br_next_pc_r = RegInit(0.U(VADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
-    val is_target_r = RegInit(false.B)
-    val target_r    = RegInit(0.U(VADDR_WIDTH.W))
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val rs1_r       = RegInit(0.U(REG_WIDTH.W))
     val rs1_d_r     = RegInit(0.U(DATA_WIDTH.W))
@@ -65,10 +62,7 @@ class ReadRegs extends Module{
     when(hs_in){
         inst_r      := io.df2rr.inst
         pc_r        := io.df2rr.pc
-        br_next_pc_r := io.df2rr.br_next_pc
         excep_r     := io.df2rr.excep
-        is_target_r := io.df2rr.is_target
-        target_r    := io.df2rr.target
         ctrl_r      := io.df2rr.ctrl
         rs1_r       := io.df2rr.rs1
         rs1_d_r     := idx2reg(io.df2rr.swap(5,4))
@@ -111,10 +105,7 @@ class ReadRegs extends Module{
     }
     io.rr2ex.inst       := inst_r
     io.rr2ex.pc         := pc_r
-    io.rr2ex.br_next_pc := br_next_pc_r
     io.rr2ex.excep      := excep_r
-    io.rr2ex.is_target  := is_target_r
-    io.rr2ex.target     := target_r
     io.rr2ex.ctrl       := ctrl_r
     io.rr2ex.rs1        := rs1_r
     io.rr2ex.rs1_d      := rs1_d_r

@@ -84,7 +84,7 @@ class DcacheRW extends Bundle{
 
 class IcacheRead extends Bundle{
     val addr    = Input(UInt(PADDR_WIDTH.W))
-    val inst    = Output(UInt(INST_WIDTH.W))
+    val inst    = Output(UInt(DATA_WIDTH.W))
     val arvalid = Input(Bool())
     val ready   = Output(Bool())
     val rvalid  = Output(Bool())
@@ -113,10 +113,7 @@ class ForceJmp extends Bundle{
 class IF2ID extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val br_next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
-    val is_target = Output(Bool())
-    val target  = Output(UInt(VADDR_WIDTH.W))
     val drop    = Input(Bool())
     val stall   = Input(Bool())
     val recov   = Output(Bool())
@@ -137,10 +134,7 @@ class Ctrl extends Bundle{
 class ID2DF extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val br_next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
-    val is_target = Output(Bool())
-    val target  = Output(UInt(VADDR_WIDTH.W))
     val ctrl    = Output(new Ctrl)
     val rs1     = Output(UInt(REG_WIDTH.W))
     val rrs1    = Output(Bool())
@@ -174,10 +168,7 @@ class DF2RR extends ID2DF{
 class RR2EX extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
-    val br_next_pc = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
-    val is_target = Output(Bool())
-    val target  = Output(UInt(VADDR_WIDTH.W))
     val ctrl    = Output(new Ctrl)
     val rs1     = Output(UInt(REG_WIDTH.W))
     val rs1_d   = Output(UInt(DATA_WIDTH.W))

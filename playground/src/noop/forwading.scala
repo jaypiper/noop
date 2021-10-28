@@ -23,10 +23,7 @@ class Forwarding extends Module{
     io.id2df.stall  := (stall_r && !io.df2rr.drop) || io.df2rr.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
-    val br_next_pc_r = RegInit(0.U(VADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
-    val is_target_r = RegInit(false.B)
-    val target_r    = RegInit(0.U(VADDR_WIDTH.W))
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val rs1_r       = RegInit(0.U(REG_WIDTH.W))
     val rrs1_r      = RegInit(false.B)
@@ -153,10 +150,7 @@ class Forwarding extends Module{
     when(hs_in){
         inst_r      := io.id2df.inst
         pc_r        := io.id2df.pc
-        br_next_pc_r := io.id2df.br_next_pc
         excep_r     := io.id2df.excep
-        is_target_r := io.id2df.is_target
-        target_r    := io.id2df.target
         ctrl_r      := io.id2df.ctrl
         rs1_r       := io.id2df.rs1
         rrs1_r      := io.id2df.rrs1
@@ -222,10 +216,7 @@ class Forwarding extends Module{
     }
     io.df2rr.inst       := inst_r
     io.df2rr.pc         := pc_r
-    io.df2rr.br_next_pc    := br_next_pc_r
     io.df2rr.excep      := excep_r
-    io.df2rr.is_target  := is_target_r
-    io.df2rr.target     := target_r
     io.df2rr.ctrl       := ctrl_r
     io.df2rr.rs1        := rs1_r
     io.df2rr.rrs1       := rrs1_r

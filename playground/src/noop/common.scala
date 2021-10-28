@@ -441,6 +441,41 @@ object Insts{
     def AMOMAX_D    = BitPat("b10100????????????011?????0101111")
     def AMOMINU_D   = BitPat("b11000????????????011?????0101111")
     def AMOMAXU_D   = BitPat("b11100????????????011?????0101111")
+
+    def C_ADDI4SPN  = BitPat("b000???????????00")
+    def C_LW        = BitPat("b010???????????00")
+    def C_LD        = BitPat("b011???????????00")
+    def C_SW        = BitPat("b110???????????00")
+    def C_SD        = BitPat("b111???????????00")
+
+    def C_ADDI      = BitPat("b000???????????01")  // include c_nop
+    def C_ADDIW     = BitPat("b001???????????01")
+    def C_LI        = BitPat("b010???????????01")
+    def C_ADDI16SP  = BitPat("b011?00010?????01")
+    def C_LUI       = BitPat("b011???????????01")
+    def C_SRLI      = BitPat("b100?00????????01")
+    def C_SRAI      = BitPat("b100?01????????01")
+    def C_ANDI      = BitPat("b100?10????????01")
+    def C_SUB       = BitPat("b100011???00???01")
+    def C_XOR       = BitPat("b100011???01???01")
+    def C_OR        = BitPat("b100011???10???01")
+    def C_AND       = BitPat("b100011???11???01")
+    def C_SUBW      = BitPat("b100111???00???01")
+    def C_ADDW      = BitPat("b100111???01???01")
+    def C_J         = BitPat("b101???????????01")
+    def C_BEQZ      = BitPat("b110???????????01")
+    def C_BNEZ      = BitPat("b111???????????01")
+
+    def C_SLLI      = BitPat("b000???????????10")
+    def C_LWSP      = BitPat("b010???????????10")
+    def C_LDSP      = BitPat("b011???????????10")
+    def C_JR        = BitPat("b1000?????0000010")
+    def C_MV        = BitPat("b1000??????????10")
+    def C_EBREAK    = BitPat("b1001000000000010")
+    def C_JALR      = BitPat("b1001?????0000010")
+    def C_ADD       = BitPat("b1001??????????10")
+    def C_SWSP      = BitPat("b110???????????10")
+    def C_SDSP      = BitPat("b111???????????10")
 }
 
 trait DeType{
@@ -452,6 +487,10 @@ trait DeType{
     val UType = 5.U(3.W)
     val JType = 6.U(3.W)
     val INVALID  = 7.U(3.W)
+
+    val c_invalid :: cr :: ci :: css :: ciw :: cl :: cs :: cb :: cj :: Nil = Enum(9)
+    val (no_imm :: ciw_u :: cls_w :: cls_d :: ci_u :: ci_s :: ci_u2 ::
+         ci_u3 :: ci_s4 :: ci_s12 :: cj_s1 :: cb_s1 :: css_u2 :: css_u3 :: Nil) = Enum(14)
 }
 
 trait ALUOP{
@@ -583,6 +622,47 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
     )
+    val decodeDefault_c = List(c_invalid, no_imm,  alu_NOP, IS_ALU64, mode_NOP, false.B)
+    val decodeTable_c = Array(                                      // write-reg
+        Insts.C_ADDI4SPN-> List(ciw, ciw_u,  alu_ADD, IS_ALU64, mode_NOP, true.B),
+        Insts.C_LW      -> List(cl,  cls_w,  alu_ADD, IS_ALU64, mode_LW,  true.B),
+        Insts.C_LD      -> List(cl,  cls_d,  alu_ADD, IS_ALU64, mode_LD,  true.B),
+        Insts.C_SW      -> List(cs,  cls_w,  alu_ADD, IS_ALU64, mode_SW,  false.B),
+        Insts.C_SD      -> List(cs,  cls_d,  alu_ADD, IS_ALU64, mode_SD,  false.B),
+
+        Insts.C_ADDI    -> List(ci,  ci_s,   alu_ADD, IS_ALU64, mode_NOP, true.B),
+        Insts.C_ADDIW   -> List(ci,  ci_s,   alu_ADD, IS_ALU32, mode_NOP, true.B),
+        Insts.C_LI      -> List(ci,  ci_s,   alu_MV2, IS_ALU64, mode_NOP, true.B),
+        Insts.C_ADDI16SP-> List(ci,  ci_s4,  alu_ADD, IS_ALU64, mode_NOP, true.B),
+        Insts.C_LUI     -> List(ci,  ci_s12, alu_MV2, IS_ALU64, mode_NOP, true.B),
+        Insts.C_SRLI    -> List(cb,  ci_u,   alu_SRL, IS_ALU64, mode_NOP, true.B),
+        Insts.C_SRAI    -> List(cb,  ci_u,   alu_SRA, IS_ALU64, mode_NOP, true.B),
+        Insts.C_ANDI    -> List(cb,  ci_s,   alu_AND, IS_ALU64, mode_NOP, true.B),
+        Insts.C_SUB     -> List(cs,  no_imm, alu_SUB, IS_ALU64, mode_NOP, true.B),
+        Insts.C_XOR     -> List(cs,  no_imm, alu_XOR, IS_ALU64, mode_NOP, true.B),
+        Insts.C_OR      -> List(cs,  no_imm, alu_OR,  IS_ALU64, mode_NOP, true.B),
+        Insts.C_AND     -> List(cs,  no_imm, alu_AND, IS_ALU64, mode_NOP, true.B),
+        Insts.C_SUBW    -> List(cs,  no_imm, alu_SUB, IS_ALU32, mode_NOP, true.B),
+        Insts.C_ADDW    -> List(cs,  no_imm, alu_ADD, IS_ALU32, mode_NOP, true.B),
+        Insts.C_J       -> List(cj,  cj_s1,  alu_MV2, IS_ALU64, mode_NOP, false.B),
+        Insts.C_BEQZ    -> List(cb,  cb_s1,  alu_NOP, IS_ALU64, mode_NOP, false.B),
+        Insts.C_BNEZ    -> List(cb,  cb_s1,  alu_NOP, IS_ALU64, mode_NOP, false.B),
+
+        Insts.C_SLLI    -> List(ci,  ci_u,   alu_SLL, IS_ALU64, mode_NOP, true.B),
+        Insts.C_LWSP    -> List(ci,  ci_u2,  alu_ADD, IS_ALU64, mode_LW,  true.B),
+        Insts.C_LDSP    -> List(ci,  ci_u3,  alu_ADD, IS_ALU64, mode_LD,  true.B),
+        Insts.C_JR      -> List(cr,  no_imm, alu_MV1, IS_ALU64, mode_NOP, false.B),
+        Insts.C_MV      -> List(cr,  no_imm, alu_MV2, IS_ALU64, mode_NOP, true.B),
+        Insts.C_JALR    -> List(cr,  no_imm, alu_MV2, IS_ALU64, mode_NOP, true.B),
+        Insts.C_ADD     -> List(cr,  no_imm, alu_ADD, IS_ALU64, mode_NOP, true.B),
+        Insts.C_SWSP    -> List(css, css_u2, alu_ADD, IS_ALU64, mode_SW,  false.B),
+        Insts.C_SDSP    -> List(css, css_u3, alu_ADD, IS_ALU64, mode_SD,  false.B)
+    )
+
+    def decode_r3(rvc: UInt) = {
+        Cat(1.U(1.W), rvc(2,0))
+    }
+
     val NO_JMP     = "b00".U(2.W)
     val JMP_UNCOND = "b01".U(2.W)
     val JMP_COND   = "b10".U(2.W)

@@ -15,7 +15,6 @@ class Execute extends Module{
         val rr2ex       = Flipped(new RR2EX)
         val ex2mem      = new EX2MEM
         val d_ex        = Output(new RegForward)
-        val bpuUpdate   = Output(new BPUUpdate)
         val ex2if       = Output(new ForceJmp)
     })
     val drop_r = RegInit(false.B)
@@ -132,8 +131,6 @@ class Execute extends Module{
         }
     }
     // branch & jmp
-    val bpu_r = RegInit(0.U.asTypeOf(new BPUUpdate))
-    bpu_r.valid := false.B
     val branchAlu = Module(new BranchALU)
     val forceJmp = RegInit(0.U.asTypeOf(new ForceJmp))
     forceJmp.valid := false.B
@@ -152,16 +149,10 @@ class Execute extends Module{
     ))
 
     when(hs_in){
-        bpu_r.vaddr     := io.rr2ex.pc
-        bpu_r.target    := real_target
-        bpu_r.is_target := real_is_target
         next_pc_r       := real_target      // for intr
     }
     when(!drop_in){
-        when(hs_in && io.rr2ex.jmp_type =/= NO_JMP){
-            bpu_r.valid := true.B
-        }
-        when(hs_in && !io.rr2ex.excep.en && io.rr2ex.br_next_pc =/= real_target && io.rr2ex.jmp_type =/= NO_JMP){
+        when(hs_in && !io.rr2ex.excep.en && real_is_target && io.rr2ex.jmp_type =/= NO_JMP){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
             drop_r  := true.B
@@ -169,7 +160,6 @@ class Execute extends Module{
     }
     io.ex2if.seq_pc := forceJmp.seq_pc
     io.ex2if.valid  := forceJmp.valid & !io.ex2mem.drop
-    io.bpuUpdate    := bpu_r
 
     // data forwading
 

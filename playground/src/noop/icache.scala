@@ -58,11 +58,9 @@ class InstCache extends Module{
     val state = RegInit(sIdle)
 
     val rdata128 = data(matchWay_r).rdata
-    io.icRead.inst := MuxLookup(addr_r(3,2), 0.U, Seq( // can also be implemented using shift opeartion
-        "b00".U -> rdata128(31, 0),
-        "b01".U -> rdata128(63, 32),
-        "b10".U -> rdata128(95, 64),
-        "b11".U -> rdata128(127, 96)
+    io.icRead.inst := MuxLookup(addr_r(3), 0.U, Seq( // can also be implemented using shift opeartion
+        0.U     -> rdata128(63, 0),
+        1.U     -> rdata128(127, 64)
     ))
     val wen     = Wire(Bool())
     data(cur_way).addr  := Mux(state === sRdata, cur_raddr, cur_ram_addr)
