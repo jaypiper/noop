@@ -29,7 +29,7 @@ class FetchCrossBar extends Module{
             io.icRead.arvalid := true.B
             io.instIO.ready := io.icRead.ready
         }.otherwise{
-            io.flashRead.dc_mode := mode_LWU
+            io.flashRead.dc_mode := mode_LD
             io.instIO.ready := io.flashRead.ready
         }
     }
