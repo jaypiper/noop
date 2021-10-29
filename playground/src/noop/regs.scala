@@ -209,7 +209,7 @@ class Csrs extends Module{
     }.elsewhen(io.rd.id === CSR_MSTATUS){
         val new_mstatus = io.rd.data & MSTATUS_MASK
         val sd          = Mux((io.rd.data(14,13) === 3.U) || (io.rd.data(16,15) === 3.U), MSTATUS64_SD, 0.U)
-        mstatus := set_partial_val(mstatus, MSTATUS_MASK, new_mstatus) | sd
+        mstatus := set_partial_val(mstatus, MSTATUS_MASK | MSTATUS64_SD, new_mstatus | sd)
     }.elsewhen(io.rd.id === CSR_MEPC){
         mepc := io.rd.data
     }.elsewhen(io.rd.id === CSR_MTVAL){
