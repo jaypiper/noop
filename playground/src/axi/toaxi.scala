@@ -8,6 +8,55 @@ import noop.datapath._
 import axi._
 import axi.axi_config._
 
+class Splite64to32 extends Module{
+    val io = IO(new Bundle{
+        val data_in = new DcacheRW
+        val data_out = Flipped(new DcacheRW)
+    })
+    val data_buf = RegInit(0.U(32.W))
+    val sIdle :: sWait :: Nil = Enum(2)
+    val addr_r = RegInit(0.U(PADDR_WIDTH.W))
+    val is_64 = RegInit(false.B)
+    val busy = RegInit(false.B)
+    val state = RegInit(sIdle)
+    val hs_out = (io.data_out.dc_mode =/= mode_NOP) && io.data_out.ready
+    io.data_out.amo := 0.U;  io.data_out.wdata := 0.U;  io.data_out.dc_mode := mode_NOP;  io.data_out.addr := 0.U
+    io.data_in.ready := false.B; io.data_in.rvalid := false.B
+    io.data_in.rdata := Mux(is_64, Cat(io.data_out.rdata(31,0), data_buf), io.data_out.rdata)
+    switch(state){
+        is(sIdle){
+                when(io.data_in.dc_mode =/= mode_NOP){
+                    busy := true.B
+                    io.data_out.addr := Cat(io.data_in.addr(PADDR_WIDTH-1, 3), 0.U(3.W))
+                    io.data_out.dc_mode := mode_LWU
+                    io.data_in.ready := io.data_out.ready
+                    when(hs_out && io.data_out.dc_mode =/= mode_LD){
+                        state := sWait
+                        addr_r := Cat(io.data_in.addr(PADDR_WIDTH-1, 3), 0.U(3.W))
+                        is_64 := true.B
+                    }.elsewhen(hs_out){
+                        is_64 := false.B
+                    }
+                }.elsewhen(io.data_in.rvalid){
+                    busy := false.B
+                }
+                when(busy){
+                    io.data_in.rvalid := io.data_out.rvalid
+                }
+            }
+        is(sWait){
+            when(io.data_out.rvalid){
+                data_buf := io.data_out.rdata
+            }
+            io.data_out.addr := addr_r + 4.U
+            io.data_out.dc_mode := mode_LWU
+            when(hs_out){
+                state := sIdle
+            }
+        }
+    }
+}
+
 class ToAXI extends Module{
     val io = IO(new Bundle{
         val dataIO = new DcacheRW

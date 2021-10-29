@@ -75,6 +75,7 @@ class CPU extends Module{
 
     val crossBar    = Module(new CrossBar)
     val fetchCrossbar = Module(new FetchCrossBar)
+    val split64to32 = Module(new Splite64to32)
     val memCrossbar = Module(new MemCrossBar)
     val tlb_if       = Module(new TLB)
     val tlb_mem      = Module(new TLB)
@@ -119,7 +120,8 @@ class CPU extends Module{
     tlb_mem.io.flush    <> writeback.io.flush_tlb
 
     fetchCrossbar.io.icRead     <> icache.io.icRead
-    fetchCrossbar.io.flashRead  <> flash2Axi.io.dataIO
+    fetchCrossbar.io.flashRead  <> split64to32.io.data_in
+    split64to32.io.data_out     <> flash2Axi.io.dataIO
     memCrossbar.io.dcRW         <> dcSelector.io.mem2dc
     memCrossbar.io.mmio         <> mem2Axi.io.dataIO
     memCrossbar.io.clintIO      <> clint.io.rw
