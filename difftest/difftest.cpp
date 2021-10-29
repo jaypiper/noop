@@ -223,7 +223,7 @@ void difftest_step(uint32_t n){
         //ref执行一步
         if(state.is_mmio || state.rcsr_id == MIP_ID){
             memcpy(ref_r.gpr, state.gpr, sizeof(state.gpr));
-            ref_r.pc = state.pc + 4;
+            ref_r.pc = state.pc + ((state.inst&0x3) == 0x3 ? 4 : 2);
             memcpy(ref_r.csr, state.csr, sizeof(state.csr));
             ref_difftest_setregs(&ref_r);
         }else if(state.intr && (state.cause &(1ULL << 63)) != 0){
