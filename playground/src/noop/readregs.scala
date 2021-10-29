@@ -94,7 +94,7 @@ class ReadRegs extends Module{
             io.df2rr.ready := true.B
         }
     }
-    when(!io.df2rr.drop){
+    when(!io.rr2ex.drop){
         when(hs_in){
             valid_r := true.B
         }.elsewhen(hs_out){
