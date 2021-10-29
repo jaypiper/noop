@@ -11,6 +11,50 @@ import axi._
 import ram._
 import axi.axi_config._
 
+class IcacheCrossBlock extends Module{
+    val io = IO(new Bundle{
+        val icIn    = new IcacheRead
+        val icOut   = Flipped(new IcacheRead)
+    })
+    val sIdle :: sCross :: Nil = Enum(2)
+    val state       = RegInit(sIdle)
+    val addr_r      = RegInit(0.U(VADDR_WIDTH.W))
+    val inst_first_r = RegInit(0.U(INST_WIDTH.W))
+    val cross_r     = RegInit(false.B)
+    val hs_out      = io.icOut.arvalid && io.icOut.ready
+    val hs_in       = io.icIn.arvalid && io.icIn.ready
+    io.icIn.inst := 0.U; io.icIn.ready := false.B; io.icIn.rvalid := false.B
+    io.icOut.addr := 0.U; io.icOut.arvalid := false.B
+    when(hs_in){
+        cross_r := false.B
+    }
+    switch(state){
+        is(sIdle){
+            io.icOut.addr       := io.icIn.addr & Cat(Fill(VADDR_WIDTH-2, 1.U(1.W)), 0.U(2.W))
+            io.icOut.arvalid    := io.icIn.arvalid
+            io.icIn.ready       := io.icOut.ready
+            io.icIn.rvalid      := io.icOut.rvalid
+            io.icIn.inst        := Mux(cross_r, Cat(io.icOut.inst(15,0), inst_first_r(31,16)), io.icOut.inst)
+            when((io.icIn.addr(1,0) =/= 0.U) && hs_out){
+                state   := sCross
+                addr_r  := io.icIn.addr + 2.U   // next addr
+                cross_r := true.B
+            }
+        }
+        is(sCross){
+            io.icOut.arvalid    := true.B
+            io.icOut.addr       := addr_r
+            when(io.icOut.rvalid){
+                inst_first_r := io.icOut.inst
+            }
+            when(hs_out){
+                state := sIdle
+            }
+        }
+    }
+}
+
+
 class InstCache extends Module{
     val io = IO(new Bundle{
         val instAxi     = new AxiMaster
