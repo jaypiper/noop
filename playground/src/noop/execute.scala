@@ -143,7 +143,7 @@ class Execute extends Module{
     ))
     val real_target = PriorityMux(Seq(
         (io.rr2ex.jmp_type === JMP_CSR,     io.rr2ex.rs2_d),
-        (!real_is_target,                   io.rr2ex.pc + 4.U),
+        (!real_is_target,                   io.rr2ex.pc + Mux(io.rr2ex.inst(1,0) === 3.U, 4.U, 2.U)),
         (io.rr2ex.jmp_type === JMP_UNCOND,  io.rr2ex.rs1_d + io.rr2ex.dst_d),
         (true.B,                            io.rr2ex.dst_d)
     ))
