@@ -103,7 +103,7 @@ class Fetch extends Module{
     }
 // stage 1
     val pc1_r = RegInit(0.U(VADDR_WIDTH.W))
-    val br_next_pc1_r = RegInit(0.U(VADDR_WIDTH.W))
+    val is_flash = RegInit(false.B)
     val excep1_r    = RegInit(0.U.asTypeOf(new Exception))
     val valid1_r    = RegInit(false.B)
     val hs_in       = state === sIdle && !drop1_in
@@ -122,7 +122,6 @@ class Fetch extends Module{
             (true.B,                        cur_pc)))
     pc := next_pc
     pc1_r := cur_pc
-    br_next_pc1_r := next_pc
     //intr
     when(hs_in){
         excep1_r.en     := io.intr_in.en
@@ -248,6 +247,7 @@ class Fetch extends Module{
         inst_buf := next_inst_buf
     }.otherwise{
         buf_bitmap := 0.U
+        excep_buf.en := false.B
         reset_ic := reset_ic || (valid2_r && !excep2_r.en && !io.instRead.rvalid)
         wait_jmp_pc := true.B
     }
@@ -280,6 +280,12 @@ class Fetch extends Module{
                 buf_start_pc := buf_start_pc + 8.U
                 inst_buf := Cat(0.U(64.W), next_inst_buf(127,64))
                 buf_bitmap := Cat(0.U(1.W), next_buf_bitmap(1))
+            }
+            when(!inst_valid){
+                excep_buf.en := false.B
+                stall_pipe3()
+            }.otherwise{
+                recov3_r := false.B
             }
         }.elsewhen(hs_out){
             valid3_r := false.B

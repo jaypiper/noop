@@ -62,7 +62,7 @@ class Decode extends Module{
         is(UType){ imm := Cat(inst_in(31, 12), 0.U(12.W)).asSInt }
         is(JType){ imm := Cat(inst_in(31), inst_in(19, 12), inst_in(20), inst_in(30, 21), 0.U(1.W)).asSInt }
     }
-    when(hs_in && ~is_compress){
+    when(hs_in && ~is_compress && !io.if2id.excep.en){
         inst_r          := io.if2id.inst
         pc_r            := io.if2id.pc
         excep_r         := io.if2id.excep
@@ -196,7 +196,7 @@ class Decode extends Module{
         is(css_u2){ imm_c := Cat(0.U(56.W), inst_c(8,7), inst_c(12,9), 0.U(2.W)).asSInt}
         is(css_u3){ imm_c := Cat(0.U(55.W), inst_c(9,7), inst_c(12,10), 0.U(3.W)).asSInt}
     }
-    when(hs_in && is_compress){
+    when(hs_in && is_compress && !io.if2id.excep.en){
         inst_r  := Cat(0.U(15.W), inst_c)
         pc_r    := io.if2id.pc
         excep_r         := io.if2id.excep
@@ -298,6 +298,19 @@ class Decode extends Module{
             dst_d_r := imm_c.asUInt
             jmp_type_r  := JMP_UNCOND
         }
+    }
+    when(hs_in && io.if2id.excep.en){
+        inst_r          := io.if2id.inst
+        pc_r            := io.if2id.pc
+        excep_r         := io.if2id.excep
+        ctrl_r          := 0.U.asTypeOf(new Ctrl)
+        rrs1_r          := false.B
+        rrs2_r          := false.B
+        jmp_type_r      := NO_JMP
+        special_r       := 0.U
+        indi_r          := 0.U
+        swap_r          := NO_SWAP
+        recov_r         := io.if2id.recov
     }
     
     io.if2id.ready := false.B
