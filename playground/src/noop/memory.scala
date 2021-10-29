@@ -255,7 +255,7 @@ class Memory extends Module{
             dst_en2_r := true.B
             dst_d2_r  := 1.U
         }.otherwise{
-            io.dataRW.dc_mode := ctrl1_r.dcMode
+            io.dataRW.dc_mode := Mux(!io.va2pa.tlb_excep.en, ctrl1_r.dcMode, mode_NOP)
         }
     }.otherwise{
         io.dataRW.dc_mode := Mux(valid2_r && !dc_hs_r, ctrl2_r.dcMode, mode_NOP)
