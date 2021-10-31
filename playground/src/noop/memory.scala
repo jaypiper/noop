@@ -167,6 +167,7 @@ class Memory extends Module{
     }.otherwise{
         valid1_r := false.B
         drop_tlb := is_tlb_r && !io.va2pa.pvalid // next pa will be dropped
+        is_tlb_r := false.B
     }
     io.d_mem1.id   := dst1_r
     io.d_mem1.data := dst_d1_r
@@ -254,7 +255,7 @@ class Memory extends Module{
     when(!drop3_in){
         when(hs1){
             valid2_r := true.B
-            when(io.va2pa.tlb_excep.en){
+            when(io.va2pa.tlb_excep.en && !drop_tlb){
                 excep2_r.cause  := io.va2pa.tlb_excep.cause
                 excep2_r.tval   := io.va2pa.tlb_excep.tval
                 excep2_r.en     := true.B
