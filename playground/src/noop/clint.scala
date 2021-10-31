@@ -22,7 +22,7 @@ class CLINT extends Module{
     val clear_r = RegInit(false.B)
     clear_r := false.B
     when(count === 0.U){
-        mtime := mtime + 10.U
+        mtime := mtime + 1.U
     }
     io.intr.raise := mtime > mtimecmp
     io.intr.clear := clear_r
