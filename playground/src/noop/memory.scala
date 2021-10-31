@@ -232,7 +232,7 @@ class Memory extends Module{
             lr_valid_r  := true.B
             lr_addr_r   := io.va2pa.paddr
         }
-        when(excep1_r.etype =/= 0.U){
+        when(excep1_r.en && excep1_r.cause(63)){
             lr_valid_r  := false.B
         }
     }
