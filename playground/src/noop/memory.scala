@@ -139,7 +139,6 @@ class Memory extends Module{
         csr_d1_r    := io.ex2mem.csr_d
         csr_en1_r   := io.ex2mem.ctrl.writeCSREn
         rcsr_id1_r  := io.ex2mem.rcsr_id
-        ctrl1_r     := io.ex2mem.ctrl
         indi1_r     := io.ex2mem.indi
         special1_r  := io.ex2mem.special
         recov1_r    := io.ex2mem.recov
@@ -204,10 +203,7 @@ class Memory extends Module{
         drop2_r := true.B; stall2_r := true.B; recov2_r := true.B
     }
 
-    val lr_addr_r   = RegInit(0.U(PADDR_WIDTH.W))
-    val lr_valid_r  = RegInit(false.B)
-
-    when(io.va2pa.pvalid && drop_tlb){
+    when((io.va2pa.pvalid || io.va2pa.tlb_excep.en) && drop_tlb){
         drop_tlb := false.B
     }
 
@@ -228,15 +224,8 @@ class Memory extends Module{
         indi2_r     := indi1_r
         recov2_r    := recov1_r
         paddr2_r    := io.va2pa.paddr
-        when(indi1_r(INDI_LR_BIT) && !excep1_r.en){
-            lr_valid_r  := true.B
-            lr_addr_r   := io.va2pa.paddr
-        }
-        when(excep1_r.en && excep1_r.cause(63)){
-            lr_valid_r  := false.B
-        }
     }
-    val sc_valid    = io.va2pa.paddr === lr_addr_r && lr_valid_r
+
     val is_dc_r     = (ctrl2_r.dcMode =/= mode_NOP)
     val drop_dc     = RegInit(false.B)
     io.dataRW.dc_mode := mode_NOP
@@ -246,17 +235,7 @@ class Memory extends Module{
     val inp_tlb_valid2 = io.va2pa.pvalid || io.va2pa.tlb_excep.en
 
     when(hs1){
-        when(indi1_r(INDI_SC_BIT) && sc_valid && !excep1_r.en){
-            io.dataRW.dc_mode := ctrl1_r.dcMode
-            dst_en2_r := true.B
-            dst_d2_r  := 0.U
-        }.elsewhen(indi1_r(INDI_SC_BIT)){
-            ctrl2_r.dcMode  := mode_NOP
-            dst_en2_r := true.B
-            dst_d2_r  := 1.U
-        }.otherwise{
-            io.dataRW.dc_mode := Mux(!io.va2pa.tlb_excep.en, ctrl1_r.dcMode, mode_NOP)
-        }
+        io.dataRW.dc_mode := Mux(!io.va2pa.tlb_excep.en, ctrl1_r.dcMode, mode_NOP)
     }.otherwise{
         io.dataRW.dc_mode := Mux(valid2_r && !dc_hs_r, ctrl2_r.dcMode, mode_NOP)
     }
