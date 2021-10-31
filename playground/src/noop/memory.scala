@@ -228,7 +228,7 @@ class Memory extends Module{
         indi2_r     := indi1_r
         recov2_r    := recov1_r
         paddr2_r    := io.va2pa.paddr
-        when(indi1_r(INDI_LR_BIT)){
+        when(indi1_r(INDI_LR_BIT) && !excep1_r.en){
             lr_valid_r  := true.B
             lr_addr_r   := io.va2pa.paddr
         }
@@ -246,7 +246,7 @@ class Memory extends Module{
     val inp_tlb_valid2 = io.va2pa.pvalid || io.va2pa.tlb_excep.en
 
     when(hs1){
-        when(indi1_r(INDI_SC_BIT) && sc_valid){
+        when(indi1_r(INDI_SC_BIT) && sc_valid && !excep1_r.en){
             io.dataRW.dc_mode := ctrl1_r.dcMode
             dst_en2_r := true.B
             dst_d2_r  := 0.U
