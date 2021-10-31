@@ -122,6 +122,10 @@ class TLB extends Module{
     val dc_hand = io.dcacheRW.ready && (io.dcacheRW.dc_mode =/= mode_NOP)
     val mstatus = io.mmuState.mstatus
 
+    val tlb_high_legal = Fill(25, io.va2pa.vaddr(38)) === io.va2pa.vaddr(63,39)
+    val tlb_access_illegal = ((cur_m_type === MEM_FETCH) && !tlbMsg.tlbInfo(PTE_X_BIT)) ||
+                                ((cur_m_type === MEM_LOAD) && !(tlbMsg.tlbInfo(PTE_R_BIT) || (mstatus(MSTATUS_MXR_BIT) && tlbMsg.tlbInfo(PTE_X_BIT)))) ||
+                            ((cur_m_type === MEM_STORE) && !tlbMsg.tlbInfo(PTE_W_BIT))
     val select = LFSR(4)
     val select_r = RegInit(0.U(4.W))
     val offset  = RegInit(0.U(8.W))
@@ -132,7 +136,12 @@ class TLB extends Module{
         switch(state){
             is(sIdle){
                 dc_mode_r := mode_NOP
-                when(handshake && tlbMsg.tlbHit){
+                when(!handshake){
+                }.elsewhen(!tlb_high_legal || (tlbMsg.tlbHit && tlb_access_illegal)){
+                    out_excep_r.en := true.B
+                    out_excep_r.cause := m_type2cause(io.va2pa.m_type)
+                    out_excep_r.tval  := io.va2pa.vaddr
+                }.elsewhen(tlbMsg.tlbHit){
                     out_valid_r := true.B
                     // out_paddr_r := Cat(tlbMsg.tlbPa, inp_offset)
                     val paddr_mask = Cat(tlb_mask(tlbMsg.tlbLevel),0.U(PAGE_WIDTH.W))
@@ -144,8 +153,7 @@ class TLB extends Module{
                         wpte_data_r := Cat(0.U(34.W), tlbMsg.tlbPa, tlbMsg.tlbInfo | ad)
                         info(tlbMsg.tlbIdx) := tlbMsg.tlbInfo | ad
                     }
-                }
-                when(handshake && !tlbMsg.tlbHit){
+                }.elsewhen(!tlbMsg.tlbHit){
                     state := sPte
                     select_r   := select
                     m_type_r   := io.va2pa.m_type
