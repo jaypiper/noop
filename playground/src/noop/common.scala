@@ -441,6 +441,7 @@ object Insts{
     def AMOMAX_D    = BitPat("b10100????????????011?????0101111")
     def AMOMINU_D   = BitPat("b11000????????????011?????0101111")
     def AMOMAXU_D   = BitPat("b11100????????????011?????0101111")
+    def WFI         = BitPat("b00010000010100000000000001110011")
 
     def C_ADDI4SPN  = BitPat("b000???????????00")
     def C_LW        = BitPat("b010???????????00")
@@ -620,6 +621,7 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        Insts.WFI       -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
     )
     val decodeDefault_c = List(c_invalid, no_imm,  alu_NOP, IS_ALU64, mode_NOP, false.B)
