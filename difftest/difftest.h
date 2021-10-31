@@ -34,6 +34,6 @@ extern "C" void update_reg(int id, long long val);
 
 int SDL_Init(Uint32 flags);
 
-#define TRACE_START 0//139000000
+#define TRACE_START 0
 
 #endif

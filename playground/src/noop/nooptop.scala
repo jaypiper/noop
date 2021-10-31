@@ -1,5 +1,7 @@
 
 import sim.newtop
+import prefix._
+import noop.cpu._
 
 object NoopTop extends App{
     // (new chisel3.stage.ChiselStage).execute(args,
