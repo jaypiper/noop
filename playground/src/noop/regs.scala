@@ -36,7 +36,7 @@ class Csrs extends Module{
     })
     val priv        = RegInit(PRV_M)
     val misa        = RegInit("h800000000014112d".U(DATA_WIDTH.W))
-    val mstatus     = RegInit(0.U(DATA_WIDTH.W))
+    val mstatus     = RegInit("ha00000000".U(DATA_WIDTH.W))
     val mepc        = RegInit(0.U(DATA_WIDTH.W))
     val mtval       = RegInit(0.U(DATA_WIDTH.W))
     val mscratch    = RegInit(0.U(DATA_WIDTH.W))

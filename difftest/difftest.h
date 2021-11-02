@@ -33,6 +33,7 @@ void get_regs(CPU_state* state);
 extern "C" void update_reg(int id, long long val);
 
 int SDL_Init(Uint32 flags);
+void init_sdcard();
 
 #define TRACE_START 0
 

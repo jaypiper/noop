@@ -313,6 +313,7 @@ int main(int argc, char **argv){
     cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(uscratch)=state.csr[USCRATCH];
     cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(mstatus)=state.csr[MSTATUS_ID];
     init_vga();
+    init_sdcard();
     uint32_t is_end = 0;
 #ifdef DIFFTEST
     check = 1;
