@@ -129,7 +129,7 @@ class Csrs extends Module{
     val enable_int_m = pending_int & ~mideleg & Fill(DATA_WIDTH, m_enable(0))
     val s_enable = (priv <= PRV_S) && mstatus(MSTATUS_SIE_BIT)
     val enable_int_s = pending_int & mideleg & Fill(DATA_WIDTH, s_enable(0))
-    val enable_int = Mux(enable_int_s =/= 0.U, enable_int_s, enable_int_m)
+    val enable_int = Mux(enable_int_m =/= 0.U, enable_int_m, enable_int_s)
 
     intr_out_r.en := enable_int =/= 0.U
     //priority: MEI, MSI, MTI, SEI, SSI, STI
