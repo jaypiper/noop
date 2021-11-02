@@ -21,6 +21,7 @@ class CLINT extends Module{
     val count = RegInit(0.U(2.W))
     val clear_r = RegInit(false.B)
     clear_r := false.B
+    count := count + 1.U
     when(count === 0.U){
         mtime := mtime + 1.U
     }
