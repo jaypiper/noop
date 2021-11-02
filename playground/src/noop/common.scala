@@ -186,7 +186,7 @@ trait csr_config extends priv_encoding{
     val SUP_INTS = MIP_SSIP | MIP_STIP | MIP_SEIP
 
     val RSSTATUS_MASK = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP | SSTATUS_FS |
-                        SSTATUS_XS | SSTATUS_SUM | SSTATUS_MXR | SSTATUS64_SD
+                        SSTATUS_XS | SSTATUS_SUM | SSTATUS_MXR | SSTATUS64_SD | SSTATUS_UXL
     val WSSTATUS_MASK = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_SPP | SSTATUS_FS |
                         SSTATUS_XS | SSTATUS_SUM | SSTATUS_MXR
     val MSTATUS_MASK = MSTATUS_MIE | MSTATUS_MPIE | MSTATUS_MPRV | MSTATUS_SIE | MSTATUS_SPIE |
@@ -195,7 +195,7 @@ trait csr_config extends priv_encoding{
     val PMPADDR_MASK = "h3fffffffffffff".U(DATA_WIDTH.W)
     val W_SATP_MASK = "hf0000fffffffffff".U(DATA_WIDTH.W)
 
-    val W_MIP_MASK = MIP_MEIP | MIP_MTIP | MIP_MSIP
+    val W_MIP_MASK = MIP_STIP | MIP_SSIP
 
     def set_partial_val(preVal: UInt, mask: UInt, newVal: UInt) = {
         (preVal & ~mask) | (newVal & mask)
