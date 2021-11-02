@@ -9,6 +9,7 @@ VerilatedFstC *tfp = new VerilatedFstC;
 void (*ref_difftest_memcpy_from_dut)(paddr_t dest, void *src, uint64_t n) = NULL;
 void (*ref_difftest_getregs)(void *c) = NULL;
 void (*ref_difftest_setregs)(const void *c) = NULL;
+void (*ref_difftest_setregs_all)(const void *c) = NULL;
 void (*ref_difftest_exec)(uint64_t n) = NULL;
 void (*ref_check_end)(void* indi) = NULL;
 void (*ref_intr_exec)(uint64_t pc, uint64_t cause) = NULL;
@@ -77,6 +78,9 @@ void init_difftest(char *ref_so_file){
     ref_difftest_setregs = (void (*)(const void *))dlsym(handle, "isa_difftest_setregs");
     assert(ref_difftest_setregs);
 
+    ref_difftest_setregs_all = (void (*)(const void *))dlsym(handle, "isa_difftest_setregs_all");
+    assert(ref_difftest_setregs_all);
+
     ref_difftest_exec = (void (*)(uint64_t))dlsym(handle, "isa_exec_once");
     assert(ref_difftest_exec);
 
@@ -93,7 +97,7 @@ void init_difftest(char *ref_so_file){
 
     //加载程序到ref中
     ref_difftest_memcpy_from_dut(PC_START, (void*)program, program_sz);
-    ref_difftest_setregs(&state);
+    ref_difftest_setregs_all(&state);
 #endif
     //加载程序到dut中
 #ifdef FLASH
@@ -243,6 +247,10 @@ void difftest_step(uint32_t n){
     }
 }
 
+void init_csr(){
+    state.csr[MISA] = 0x800000000014112dull;
+    state.csr[MSTATUS_ID] = 0xa00000000ull;
+}
 
 void reset(){
     cpu->reset = 1;
@@ -296,14 +304,14 @@ int main(int argc, char **argv){
     if(argc >= 3){
         state.csr[USCRATCH] = atoi(argv[2]);
     }
-    state.csr[MISA] = 0x800000000014112dull;
+    init_csr();
     char ref_so_path[] = "../ics2020/nemu/build/riscv64-nemu-interpreter-so";
     init_difftest(ref_so_path);
     printf("after initialization\n");
     reset();
-
-    cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__uscratch=state.csr[USCRATCH];
-
+    init_csr();
+    cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(uscratch)=state.csr[USCRATCH];
+    cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(mstatus)=state.csr[MSTATUS_ID];
     init_vga();
     uint32_t is_end = 0;
 #ifdef DIFFTEST
