@@ -109,7 +109,7 @@ class Execute extends Module{
             dst_d_r := 0.U
         }
         when(io.rr2ex.excep.en && io.rr2ex.excep.cause(63)){
-            lr_valid_r := true.B
+            lr_valid_r := false.B
         }
     }
     io.rr2ex.ready  := false.B
