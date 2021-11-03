@@ -147,7 +147,7 @@ class Memory extends Module{
     io.va2pa.vaddr  := Mux(hs_in, io.ex2mem.mem_addr, mem_addr1_r)
     io.va2pa.vvalid := !drop1_in && is_tlb_r && !hs1
     val cur_mode    = Mux(hs_in, io.ex2mem.ctrl.dcMode, ctrl1_r.dcMode)
-    io.va2pa.m_type := Mux(cur_mode(DC_L_BIT), MEM_LOAD, MEM_STORE)
+    io.va2pa.m_type := Mux(cur_mode(DC_S_BIT), MEM_STORE, MEM_LOAD)
     io.ex2mem.ready := false.B
     when(!drop1_in){
         when(valid1_r && !hs1){
