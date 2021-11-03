@@ -215,6 +215,7 @@ class Fetch extends Module{
     val next_inst_buf   = Wire(UInt(128.W))
     val next_buf_bitmap = Wire(UInt(2.W))
     val reset_ic    = RegInit(false.B)
+    val update_excep_pc = RegInit(false.B)
     when(io.instRead.rvalid){
         reset_ic := false.B
     }
@@ -228,6 +229,7 @@ class Fetch extends Module{
         }.elsewhen(excep2_r.en && valid2_r){
             excep_buf := excep2_r
             hs2 := true.B
+            update_excep_pc := !wait_jmp_pc
         }.elsewhen(valid2_r && io.instRead.rvalid && !reset_ic){
             hs2 := true.B
             when(buf_bitmap(0)){
@@ -267,12 +269,21 @@ class Fetch extends Module{
             top_inst := Mux(top_inst32(1,0) === 3.U, top_inst32, Cat(0.U(16.W), top_inst32(15,0)))
         }
     }
-
+    val fetch_page_fault_excep = excep_buf.cause === CAUSE_FETCH_PAGE_FAULT.U
+    val cross_page_excep = fetch_page_fault_excep && buf_bitmap === 1.U && buf_offset === 6.U && top_inst32(1,0) === 3.U
     when(!io.if2id.drop){
         when((inst_valid || excep_buf.en) && (!valid3_r || hs_out)){
             valid3_r    := true.B
             excep3_r    := Mux(inst_valid, 0.U.asTypeOf(new Exception), excep_buf)
             inst_r      := Mux(inst_valid, top_inst, 0.U)
+            when(update_excep_pc){
+                excep3_r.pc := next_pc_r
+                excep3_r.tval := PriorityMux(Seq(
+                    (cross_page_excep,          next_pc_r + 2.U),
+                    (fetch_page_fault_excep,    next_pc_r),
+                    (true.B,                    excep_buf.tval)
+                ))
+            }
             pc3_r       := next_pc_r
             val next_pc_w = next_pc_r + Mux(top_inst(1,0) === 3.U, 4.U, 2.U)
             next_pc_r   := next_pc_w
