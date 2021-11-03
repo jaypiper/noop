@@ -157,14 +157,15 @@ rtlreg_t ref_pre_pc = PC_START;
 
 bool check_gregs(CPU_state* ref_r){
     if(!check) return 1;
+    int jud = true;
     if(!state.intr && ref_pre_pc != state.pc){
         printf("pc diff: %lx\n", ref_pre_pc);
-        return false;
+        jud = false;
     }
     for(int i = 0; i < 32; i++){
         if(ref_r->gpr[i] != state.gpr[i]){
             printf("reg diff: %s\n", regs[i]);
-            return false;
+            jud = false;
         }
     }
     for(int i = 0; i < csr_num; i++){
@@ -173,11 +174,14 @@ bool check_gregs(CPU_state* ref_r){
         rtlreg_t state_csr = id == MIP_ID? state.csr[id] & MIP_MASK : state.csr[id];
         if(ref_csr != state_csr){
             printf("csr diff: %s\n", csrs[i]);
-            return false;
+            jud = false;
         }
     }
-    if(ref_r->priv != state.priv) return false;
-    return true;
+    if(ref_r->priv != state.priv) {
+        printf("priv_diff\n");
+        jud = false;
+    };
+    return jud;
 }
 int end_timer = -1;
 int dut_end = 0;
