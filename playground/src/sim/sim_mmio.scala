@@ -31,6 +31,7 @@ object port{
     val RTC_ADDR    = "ha1000048".U(PADDR_WIDTH.W)
     val NEMU_VGA    = "ha0000000".U(PADDR_WIDTH.W)
     val PLIC        = "h0c000000".U(PADDR_WIDTH.W)
+    val SDCARD_MMIO = "h43000000".U(PADDR_WIDTH.W)
 }
 
 class SimMMIOIO extends Bundle{
@@ -40,7 +41,10 @@ class SimMMIOIO extends Bundle{
 
 class SimMMIO extends Module{
     val io = IO(new SimMMIOIO)
-    val (sIdle :: sWdata :: sWresp :: sRdata:: Nil) = Enum(4)
+    val sdcard = Module(new SdCard)
+    sdcard.io.addr := 0.U; sdcard.io.wen := false.B; sdcard.io.cen := false.B; sdcard.io.wdata := 0.U
+    sdcard.io.clock := clock
+    val (sIdle :: sWdata :: sWresp :: sRdata :: sSDread :: Nil) = Enum(5)
     val uart = RegInit(VecInit(Seq.fill(0x8)(0.U(8.W))))
     val mtime = RegInit(0.U(64.W))
     val mtimecmp = RegInit(0.U(64.W))
@@ -50,6 +54,7 @@ class SimMMIO extends Module{
     val waready  = RegInit(false.B)
     val wdready  = RegInit(false.B)
     val waddr   = RegInit(0.U(PADDR_WIDTH.W))
+    val wsize   = RegInit(0.U(3.W))
     val wdata   = RegInit(0.U(DATA_WIDTH.W))
 
     val raready = RegInit(false.B)
@@ -61,7 +66,6 @@ class SimMMIO extends Module{
     //serial
     val serialData = RegInit(0.U(64.W))
 
-    // io.int := (mtime >= mtimecmp)
     val count = RegInit(0.U(2.W))
     // count := count + 1.U
     when(count === 0.U){
@@ -79,6 +83,7 @@ class SimMMIO extends Module{
             offset  := 0.U
             when(io.mmioAxi.wa.valid && waready){
                 waddr   := io.mmioAxi.wa.bits.addr
+                wsize   := io.mmioAxi.wa.bits.size
                 waready  := false.B
                 state   := sWdata
             }
@@ -105,6 +110,10 @@ class SimMMIO extends Module{
                     rdata := 0.U
                 }.elsewhen(io.mmioAxi.ra.bits.addr >= port.PLIC && io.mmioAxi.ra.bits.addr < (port.PLIC + 0x3000.U)){
 
+                }.elsewhen(io.mmioAxi.ra.bits.addr >= port.SDCARD_MMIO && io.mmioAxi.ra.bits.addr < (port.SDCARD_MMIO + 0x80.U)){
+                    sdcard.io.addr  := io.mmioAxi.ra.bits.addr(6,0)
+                    sdcard.io.cen   := true.B
+                    state           := sSDread
                 }.otherwise{
                     rdata   := 0.U
                     printf("mmio invalid raddr: %x\n", io.mmioAxi.ra.bits.addr)
@@ -142,6 +151,10 @@ class SimMMIO extends Module{
 
                     }.elsewhen(waddr >= port.PLIC && waddr < (port.PLIC + 0x3000.U)){
 
+                    }.elsewhen(waddr >= port.SDCARD_MMIO && waddr < port.SDCARD_MMIO + 0x80.U){
+                        sdcard.io.addr  := waddr(6,0)
+                        sdcard.io.wdata := inputwd >> Cat(waddr(2,0), 0.U(3.W))
+                        sdcard.io.wen   := true.B
                     }.otherwise{
                         printf("mmio invalid waddr: %x\n", io.mmioAxi.wa.bits.addr)
                     }
@@ -160,13 +173,17 @@ class SimMMIO extends Module{
         //read
         is(sRdata){
             rdvalid := true.B
-            when(io.mmioAxi.rd.ready){
+            when(io.mmioAxi.rd.ready && rdvalid){
                 offset  := offset + 1.U
                 when(islast){
                     rdvalid := false.B
                     state   := sIdle
                 }
             }
+        }
+        is(sSDread){
+            rdata := sdcard.io.rdata << Cat(io.mmioAxi.ra.bits.addr(2,0), 0.U(3.W))
+            state := sRdata
         }
     }
 
@@ -179,7 +196,17 @@ class SimMMIO extends Module{
     io.mmioAxi.rd.valid := rdvalid
     io.mmioAxi.rd.bits.data := rdata
     io.mmioAxi.rd.bits.last := islast
-    when(uart(0) === 0.U || vga(0) === 0.U || vga_ctrl(1) === 0.U){
-        printf("")
-    }
+
+}
+
+class SdCard extends BlackBox with HasBlackBoxPath{
+    val io = IO(new Bundle{
+        val addr    = Input(UInt(7.W))
+        val wen     = Input(Bool())
+        val wdata   = Input(UInt(64.W))
+        val clock   = Input(Clock())
+        val cen     = Input(Bool())
+        val rdata   = Output(UInt(64.W))
+    })
+    addPath("playground/src/device/SdCard.v")
 }
