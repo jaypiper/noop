@@ -33,6 +33,7 @@ class Csrs extends Module{
         val reg2if  = Output(new ForceJmp)
         val intr_out = Output(new RaiseIntr)
         val clint   = Input(new ClintIntr)
+        val updateNextPc = Output(new ForceJmp)
     })
     val priv        = RegInit(PRV_M)
     val misa        = RegInit("h800000000014112d".U(DATA_WIDTH.W))
@@ -71,7 +72,7 @@ class Csrs extends Module{
     io.reg2if           := forceJmp
     forceJmp.valid      := false.B
     val cause = io.excep.cause
-
+    io.updateNextPc     := forceJmp
     when(io.excep.en){
         when(io.excep.etype === ETYPE_SRET){ //sret
             forceJmp.seq_pc := sepc

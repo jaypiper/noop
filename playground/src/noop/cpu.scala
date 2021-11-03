@@ -105,6 +105,7 @@ class CPU extends Module{
     readregs.io.csrRead <> csrs.io.rs
 
     execute.io.ex2mem   <> memory.io.ex2mem
+    execute.io.updateNextPc <> csrs.io.updateNextPc
     memory.io.mem2rb    <> writeback.io.mem2rb
     memory.io.dataRW    <> memCrossbar.io.dataRW
     memory.io.va2pa     <> tlb_mem.io.va2pa
