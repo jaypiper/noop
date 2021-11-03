@@ -30,6 +30,9 @@ Vnewtop* cpu;
 
 int check = 0;
 
+CPU_state state_buf[4];
+int inst_p = 0;
+
 void load_program(char* filename){
 
     memset(&program, 0, sizeof(program));
@@ -122,6 +125,13 @@ static int diff_csrs[] = {
 
 static int csr_num = sizeof(diff_csrs)/sizeof(int);
 
+void disp_state_buf(){
+    for(int i = 0; i < 4; i++){
+        int idx = (inst_p + i) % 4;
+        printf("pc: %lx inst: %x intr/excep: %d cause: %lx\n", state_buf[idx].pc, state_buf[idx].inst, state_buf[idx].intr, state_buf[idx].cause);
+    }
+}
+
 void print_info(CPU_state* ref_r){
     if(ref_r){
         for(int i = 0; i < 32; i++){
@@ -141,6 +151,7 @@ void print_info(CPU_state* ref_r){
         }
         printf("pc      %16lx\n------\n", state.pc);
     }
+    disp_state_buf();
 }
 rtlreg_t ref_pre_pc = PC_START;
 
@@ -211,7 +222,8 @@ void dut_step(uint32_t n){
         }
 
         inst_num ++;
-
+        state_buf[inst_p] = state;
+        inst_p = (inst_p + 1) % 4;
         if(state.valid && state.inst == 0x6b){
             dut_end = 1;
             break;

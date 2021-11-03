@@ -28,7 +28,7 @@ typedef struct CPU_STATE{
 
 #ifdef SIM
     #define newtop__DOT__socfull__DOT__mem__DOT__srams__DOT__mem__DOT__mem_ext__DOT__ram newtop__DOT__mem__DOT__ram
-    #define newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__uscratch newtop__DOT__cpu__DOT__csrs__DOT__uscratch
+    #define newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(csr) newtop__DOT__cpu__DOT__csrs__DOT__##csr
 #endif
 
 # define SCREEN_W 400
