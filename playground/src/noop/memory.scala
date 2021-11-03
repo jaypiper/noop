@@ -200,6 +200,9 @@ class Memory extends Module{
     val valid2_r    = RegInit(false.B)
     val dc_hs_r     = RegInit(false.B)
 
+    val lr_addr_r   = RegInit(0.U(PADDR_WIDTH.W))
+    val lr_valid_r  = RegInit(false.B)
+
     def stall_pipe2()={
         drop2_r := true.B; stall2_r := true.B; recov2_r := true.B
     }
@@ -207,7 +210,7 @@ class Memory extends Module{
     when((io.va2pa.pvalid || io.va2pa.tlb_excep.en) && drop_tlb){
         drop_tlb := false.B
     }
-
+    val stage2_is_excep = excep1_r.en || io.va2pa.tlb_excep.en
     when(hs1){
         inst2_r     := inst1_r
         pc2_r       := pc1_r
@@ -225,6 +228,13 @@ class Memory extends Module{
         indi2_r     := indi1_r
         recov2_r    := recov1_r
         paddr2_r    := io.va2pa.paddr
+        when(indi1_r(INDI_LR_BIT) && !stage2_is_excep){
+            lr_valid_r  := true.B
+            lr_addr_r   := io.va2pa.paddr
+        }
+        when(excep1_r.en && excep1_r.cause(63)){
+            lr_valid_r  := false.B
+        }
     }
 
     val is_dc_r     = (ctrl2_r.dcMode =/= mode_NOP)
@@ -234,9 +244,23 @@ class Memory extends Module{
     io.dataRW.wdata   := Mux(hs1, mem_data1_r, mem_data2_r)
     io.dataRW.amo     := Mux(hs1, inst1_r(31, 27), inst2_r(31,27))
     val inp_tlb_valid2 = io.va2pa.pvalid || io.va2pa.tlb_excep.en
-
+    val sc_valid    = io.va2pa.paddr === lr_addr_r && lr_valid_r
     when(hs1){
-        io.dataRW.dc_mode := Mux(!io.va2pa.tlb_excep.en, ctrl1_r.dcMode, mode_NOP)
+        when(stage2_is_excep){
+            io.dataRW.dc_mode := mode_NOP
+            ctrl2_r.dcMode  := mode_NOP
+        }.elsewhen(indi1_r(INDI_SC_BIT) && sc_valid){
+            io.dataRW.dc_mode := ctrl1_r.dcMode
+            dst_en2_r   := true.B
+            dst_d2_r    := 0.U
+        }.elsewhen(indi1_r(INDI_SC_BIT)){
+            io.dataRW.dc_mode := mode_NOP
+            ctrl2_r.dcMode  := mode_NOP
+            dst_en2_r   := true.B
+            dst_d2_r    := 1.U
+        }.otherwise{
+            io.dataRW.dc_mode := ctrl1_r.dcMode
+        }
     }.otherwise{
         io.dataRW.dc_mode := Mux(valid2_r && !dc_hs_r, ctrl2_r.dcMode, mode_NOP)
     }

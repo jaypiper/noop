@@ -43,9 +43,6 @@ class Execute extends Module{
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)    
 
-    val lr_addr_r   = RegInit(0.U(VADDR_WIDTH.W))
-    val lr_valid_r  = RegInit(false.B)
-
     val hs_in   = io.rr2ex.ready && io.rr2ex.valid
     val hs_out  = io.ex2mem.ready && io.ex2mem.valid
     val alu64 = io.rr2ex.ctrl.aluWidth === IS_ALU64
@@ -100,21 +97,6 @@ class Execute extends Module{
         recov_r     := io.rr2ex.recov
         when(io.rr2ex.excep.cause(63)){
             excep_r.pc := next_pc_r
-        }
-        when(io.rr2ex.indi(INDI_LR_BIT)){
-            lr_addr_r := alu_out
-            lr_valid_r := true.B
-        }
-        when(io.rr2ex.indi(INDI_SC_BIT) && !((lr_addr_r === alu_out) && lr_valid_r)){
-            ctrl_r.writeRegEn := true.B
-            dst_d_r := 1.U
-            ctrl_r.dcMode := mode_NOP
-        }.elsewhen(io.rr2ex.indi(INDI_SC_BIT)){
-            ctrl_r.writeRegEn := true.B
-            dst_d_r := 0.U
-        }
-        when(io.rr2ex.excep.en && io.rr2ex.excep.cause(63)){
-            lr_valid_r := false.B
         }
     }
     io.rr2ex.ready  := false.B
