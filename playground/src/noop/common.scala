@@ -322,6 +322,16 @@ object cache_config{ // U S L WIDTH
         ))
         ans
     }
+
+    def alignCheck(addr: UInt, width: UInt) = {
+        val ans = MuxLookup(width, false.B, Seq(
+            0.U -> true.B,
+            1.U -> ((addr & 0x1.U) === 0.U),
+            2.U -> ((addr & 0x3.U) === 0.U),
+            3.U -> ((addr & 0x7.U) === 0.U)
+        ))
+        ans
+    }
 }
 
 object Insts{

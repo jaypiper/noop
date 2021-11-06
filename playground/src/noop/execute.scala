@@ -79,6 +79,10 @@ class Execute extends Module{
         next_pc_r := io.updateNextPc.seq_pc
     }
 
+    def stall_pipe()={
+        drop_r := true.B; stall_r := true.B; recov_r := true.B
+    }
+    val memAlign = io.rr2ex.ctrl.dcMode === mode_NOP || alignCheck(alu_out, io.rr2ex.ctrl.dcMode(1,0))
     when(hs_in){
         inst_r      := io.rr2ex.inst
         pc_r        := io.rr2ex.pc
@@ -97,6 +101,16 @@ class Execute extends Module{
         recov_r     := io.rr2ex.recov
         when(io.rr2ex.excep.cause(63)){
             excep_r.pc := next_pc_r
+        }
+        when(!memAlign){
+            ctrl_r := 0.U.asTypeOf(new Ctrl)
+            indi_r := 0.U
+            excep_r.cause := Mux(io.rr2ex.ctrl.dcMode(DC_S_BIT), CAUSE_MISALIGNED_STORE.U, CAUSE_MISALIGNED_LOAD.U)
+            excep_r.tval := alu_out
+            excep_r.en  := true.B
+            excep_r.pc  := io.rr2ex.pc
+            excep_r.etype := 0.U
+            stall_pipe()
         }
     }
     io.rr2ex.ready  := false.B
