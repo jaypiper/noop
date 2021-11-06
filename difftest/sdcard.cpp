@@ -65,7 +65,7 @@ static void sdcard_handle_cmd(int cmd) {
     case MMC_SET_BLOCK_COUNT: blkcnt = base[SDARG] & 0xffff; break;
     case MMC_READ_MULTIPLE_BLOCK: prepare_rw(false); break;
     case MMC_WRITE_MULTIPLE_BLOCK: prepare_rw(true); break;
-    case MMC_SEND_STATUS: base[SDRSP0] = base[SDRSP1] = base[SDRSP2] = base[SDRSP3] = 0; break;
+    case MMC_SEND_STATUS: base[SDRSP0] = 0x900; base[SDRSP1] = base[SDRSP2] = base[SDRSP3] = 0; break;
     case MMC_STOP_TRANSMISSION: break;
     default:
       printf("unhandled command = %d", cmd);
