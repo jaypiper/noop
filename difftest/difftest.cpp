@@ -29,7 +29,7 @@ CPU_state state;
 Vnewtop* cpu;
 
 int check = 0;
-
+jmp_buf env;
 CPU_state state_buf[4];
 int inst_p = 0;
 
@@ -283,6 +283,7 @@ int flag = 0;
 
 void int_handeler(int sig) {
 	flag = 1;
+    longjmp(env,1);
 }
 void check_and_exit(){
   if(!flag) return;
@@ -331,25 +332,28 @@ int main(int argc, char **argv){
     init_vga();
     init_sdcard();
     uint32_t is_end = 0;
+    if (setjmp (env) == 0) {
 #ifdef DIFFTEST
-    check = 1;
-    while(!is_end && !is_diff){
-        difftest_step(1);
-        ref_check_end(&is_end);
-        if(inst_num % 10000000 == 0 && inst_num != 0){
-            disp_ipc();
+        check = 1;
+        while(!is_end && !is_diff){
+            difftest_step(1);
+            ref_check_end(&is_end);
+            if(inst_num % 10000000 == 0 && inst_num != 0){
+                disp_ipc();
+            }
+            check_and_exit();
         }
-        check_and_exit();
-    }
 #else
-    while(!dut_end){
-        dut_step(1);
-        if(inst_num % 10000000 == 0){
-            disp_ipc();
+        while(!dut_end){
+            dut_step(1);
+            if(inst_num % 10000000 == 0){
+                disp_ipc();
+            }
         }
+#endif
+    }else{
         check_and_exit();
     }
-#endif
     if(!is_diff){
         if(state.gpr[10] == 0){
             printf("\33[1;32mCPU HIT GOOD TRAP\033[0m\n");

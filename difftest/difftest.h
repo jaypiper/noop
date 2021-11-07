@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "common.h"
 #include <assert.h>
+#include <csetjmp>
 #include <vector>
 #include "../obj_dir/Vnewtop.h"
 
