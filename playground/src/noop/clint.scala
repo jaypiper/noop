@@ -14,7 +14,7 @@ object clint_config{
 class CLINT extends Module{
     val io = IO(new Bundle{
         val rw    = new DataRWD
-        val intr  = Output(new ClintIntr)
+        val intr  = Output(new Intr)
     })
     val mtime = RegInit(0.U(DATA_WIDTH.W))
     val mtimecmp = RegInit(0.U(DATA_WIDTH.W))

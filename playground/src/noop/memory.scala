@@ -10,6 +10,7 @@ import noop.clint._
 import noop.clint.clint_config._
 import noop.datapath._
 import noop.tlb._
+import noop.plic.plic_config._
 
 class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     val io = IO(new Bundle{
@@ -17,11 +18,14 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         val mmio    = Flipped(new DcacheRW)
         val dcRW    = Flipped(new DcacheRW)
         val clintIO = Flipped(new DataRWD)
+        val plicIO  = Flipped(new PlicRW)
     })
     val pre_type    = RegInit(0.U(2.W))
-    val time_r      = RegInit(0.U(DATA_WIDTH.W))
-    val time_valid  = RegInit(false.B)
+    val data_r      = RegInit(0.U(DATA_WIDTH.W))
+    val data_valid  = RegInit(false.B)
+    val plic_valid  = RegInit(false.B)
     val is_clint    = io.dataRW.addr === MTIME || io.dataRW.addr === MTIMECMP
+    val is_plic     = io.dataRW.addr >= PLIC_BASE && io.dataRW.addr <= (PLIC_BASE + "h3ffffff".U(PADDR_WIDTH.W))
     val inp_mem     = io.dataRW.addr(PADDR_WIDTH-1)
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
@@ -33,14 +37,24 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     io.dcRW.dc_mode := mode_NOP
     io.mmio.dc_mode := mode_NOP
     io.mmio.amo     := io.dataRW.amo
+    io.plicIO.addr  := io.dataRW.addr
+    io.plicIO.wdata := io.dataRW.wdata
     io.dataRW.ready := false.B
     io.clintIO.wvalid := false.B
-    when(io.dataRW.dc_mode =/= mode_NOP){ // 0: mmio, 1: mem, 2: clint
+    io.plicIO.wvalid  := false.B
+    io.plicIO.arvalid := false.B
+    when(io.dataRW.dc_mode =/= mode_NOP){ // 0: mmio, 1: mem, 2: clint 3: plic
         when(is_clint){
             pre_type            := 2.U
             io.clintIO.wvalid   := io.dataRW.dc_mode(DC_S_BIT)
-            time_r              := io.clintIO.rdata
-            time_valid          := true.B
+            data_r              := io.clintIO.rdata
+            data_valid          := true.B
+        }.elsewhen(is_plic){
+            pre_type            := 3.U
+            io.plicIO.arvalid   := io.dataRW.dc_mode(DC_L_BIT)
+            io.plicIO.wvalid    := io.dataRW.dc_mode(DC_L_BIT)
+            data_r              := io.plicIO.rdata
+            data_valid          := true.B
         }.elsewhen(inp_mem){
             pre_type        := 1.U
             io.dcRW.dc_mode := io.dataRW.dc_mode
@@ -51,10 +65,10 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
             io.dataRW.ready := io.mmio.ready
         }
     }
-    when(pre_type === 2.U && time_valid){
-        io.dataRW.rdata     := time_r
+    when((pre_type === 2.U || pre_type === 3.U) && data_valid){
+        io.dataRW.rdata     := data_r
         io.dataRW.rvalid    := true.B
-        time_valid          := false.B
+        data_valid          := false.B
     }.elsewhen(pre_type === 1.U){
         io.dataRW.rdata     := io.dcRW.rdata
         io.dataRW.rvalid    := io.dcRW.rvalid

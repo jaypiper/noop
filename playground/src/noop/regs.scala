@@ -32,7 +32,9 @@ class Csrs extends Module{
         val idState = Output(new IdState)
         val reg2if  = Output(new ForceJmp)
         val intr_out = Output(new RaiseIntr)
-        val clint   = Input(new ClintIntr)
+        val clint   = Input(new Intr)
+        val plic_m  = Input(new Intr)
+        val plic_s  = Input(new Intr)
         val updateNextPc = Output(new ForceJmp)
     })
     val priv        = RegInit(PRV_M)
@@ -125,6 +127,18 @@ class Csrs extends Module{
     when(io.clint.clear){
         mip := set_partial_val(mip, MIP_MTIP, 0.U)
     }
+    when(io.plic_m.raise){
+        mip := set_partial_val(mip, MIP_MEIP, Fill(64,1.U))
+    }
+    when(io.plic_m.clear){
+        mip := set_partial_val(mip, MIP_MEIP, 0.U)
+    }
+    when(io.plic_s.raise){
+        mip := set_partial_val(mip, MIP_SEIP, Fill(64,1.U))
+    }
+    when(io.plic_s.clear){
+        mip := set_partial_val(mip, MIP_SEIP, 0.U)
+    }
     val pending_int  = mip & mie
     val m_enable = (priv < PRV_M) || ((priv === PRV_M) && mstatus(MSTATUS_MIE_BIT))
     val enable_int_m = pending_int & ~mideleg & Fill(DATA_WIDTH, m_enable(0))
@@ -135,7 +149,9 @@ class Csrs extends Module{
     intr_out_r.en := enable_int =/= 0.U
     //priority: MEI, MSI, MTI, SEI, SSI, STI
     intr_out_r.cause := PriorityMux(Seq(
+        (enable_int(IRQ_M_EXT),         IRQ_M_EXT.U),
         (enable_int(IRQ_M_TIMER),       IRQ_M_TIMER.U),
+        (enable_int(IRQ_S_EXT),         IRQ_S_EXT.U),
         (enable_int(IRQ_S_SOFT),        IRQ_S_SOFT.U),
         (enable_int(IRQ_S_TIMER),       IRQ_S_TIMER.U),
         (true.B,                        INVALID_IRQ.U)

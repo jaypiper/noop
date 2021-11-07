@@ -23,8 +23,11 @@ class newtop extends Module{
     transAxi.io.bun_axi <> crossBar.io.inAxi
     crossBar.io.mmioAxi <> mmio.io.mmioAxi
     crossBar.io.memAxi <> mem.io.memAxi
-    cpu.io.interrupt := false.B
     cpu.io.slave := DontCare
+
+    val intr_count = RegInit(1.U(20.W))
+    intr_count := intr_count + 1.U
+    cpu.io.interrupt := intr_count === 0.U
 
     dontTouch(cpu.io.interrupt)
     dontTouch(cpu.io.slave)

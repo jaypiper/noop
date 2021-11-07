@@ -72,6 +72,10 @@ class DataRWD extends DataRW{
     val wvalid = Input(Bool())
 }
 
+class PlicRW extends DataRWD{
+    val arvalid = Input(Bool())
+}
+
 class DcacheRW extends Bundle{
     val addr    = Input(UInt(PADDR_WIDTH.W))
     val rdata   = Output(UInt(DATA_WIDTH.W))
@@ -95,7 +99,7 @@ class RaiseIntr extends Bundle{
     val cause   = Output(UInt(DATA_WIDTH.W))
 }
 
-class ClintIntr extends Bundle{
+class Intr extends Bundle{
     val raise   = Bool()
     val clear   = Bool()
 }
