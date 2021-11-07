@@ -122,6 +122,7 @@ class Csrs extends Module{
 // intr
     val intr_out_r = RegInit(0.U.asTypeOf(new RaiseIntr))
     io.intr_out := intr_out_r
+    val intr_seip = RegInit(false.B)
     when(io.clint.raise){
         mip := set_partial_val(mip, MIP_MTIP, Fill(64,1.U))
     }
@@ -135,12 +136,18 @@ class Csrs extends Module{
         mip := set_partial_val(mip, MIP_MEIP, 0.U)
     }
     when(io.plic_s.raise){
-        mip := set_partial_val(mip, MIP_SEIP, Fill(64,1.U))
+        intr_seip := true.B
     }
     when(io.plic_s.clear){
-        mip := set_partial_val(mip, MIP_SEIP, 0.U)
+        intr_seip := false.B
     }
-    val pending_int  = mip & mie
+    when(io.intr_msip.raise){
+        mip := set_partial_val(mip, MIP_MSIP, Fill(64,1.U))
+    }
+    when(io.intr_msip.clear){
+        mip := set_partial_val(mip, MIP_MSIP, 0.U)
+    }
+    val pending_int  = (mip | (intr_seip << IRQ_S_EXT.U)) & mie
     val m_enable = (priv < PRV_M) || ((priv === PRV_M) && mstatus(MSTATUS_MIE_BIT))
     val enable_int_m = pending_int & ~mideleg & Fill(DATA_WIDTH, m_enable(0))
     val s_enable = (priv <= PRV_S) && mstatus(MSTATUS_SIE_BIT)
@@ -240,7 +247,7 @@ class Csrs extends Module{
     }.elsewhen(io.rd.id === CSR_MIE){
         mie := io.rd.data
     }.elsewhen(io.rd.id === CSR_MIP){
-        mip := set_partial_val(mip, W_MIP_MASK, io.rd.data)
+        mip := set_partial_val(mip, W_MIP_MASK, io.rd.data) | (intr_seip << IRQ_S_EXT.U)
     }.elsewhen(io.rd.id === CSR_MCAUSE){
         mcause := io.rd.data
     }.elsewhen(io.rd.id === CSR_MEDELEG){
