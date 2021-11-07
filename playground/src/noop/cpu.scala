@@ -15,6 +15,7 @@ import noop.writeback._
 import noop.regs._
 import noop.clint._
 import noop.plic._
+import noop.dma._
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -83,6 +84,7 @@ class CPU extends Module{
     val dcSelector  = Module(new DcacheSelector)
     val clint       = Module(new CLINT)
     val plic        = Module(new Plic)
+    val dmaBridge   = Module(new DmaBridge)
 
     fetch.io.instRead   <> fetchCrossbar.io.instIO
     fetch.io.va2pa      <> tlb_if.io.va2pa
@@ -146,6 +148,9 @@ class CPU extends Module{
     plic.io.intr_out_s  <> csrs.io.plic_s
     plic.io.rw          <> memCrossbar.io.plicIO
 
+    io.slave <> dmaBridge.io.dmaAxi
+    dmaBridge.io.dcRW <> dcSelector.io.dma2dc
+
     crossBar.io.outAxi.wa.ready    := io.master.awready
     io.master.awvalid := crossBar.io.outAxi.wa.valid
     io.master.awaddr  := crossBar.io.outAxi.wa.bits.addr
@@ -180,5 +185,4 @@ class CPU extends Module{
     crossBar.io.outAxi.rd.bits.last    := io.master.rlast
     crossBar.io.outAxi.rd.bits.id      := io.master.rid
 
-    io.slave := DontCare
 }

@@ -16,6 +16,7 @@ class DcacheSelector extends Module{
         val tlb_if2dc   = new DcacheRW
         val tlb_mem2dc  = new DcacheRW
         val mem2dc      = new DcacheRW
+        val dma2dc      = new DcacheRW
         val select      = Flipped(new DcacheRW)
     })
     io.tlb_if2dc.rdata      := io.select.rdata
@@ -24,6 +25,8 @@ class DcacheSelector extends Module{
     io.tlb_mem2dc.rvalid    := false.B;         io.tlb_mem2dc.ready := false.B
     io.mem2dc.rdata         := io.select.rdata
     io.mem2dc.rvalid        := false.B;         io.mem2dc.ready     := false.B
+    io.dma2dc.rdata         := io.select.rdata
+    io.dma2dc.rvalid        := false.B;         io.dma2dc.ready     := false.B
     val pre_idx = RegInit(0.U(2.W))
     val busy    = RegInit(false.B)
     io.select.addr      := 0.U
@@ -52,20 +55,27 @@ class DcacheSelector extends Module{
         io.select.amo       := io.tlb_mem2dc.amo
         io.tlb_mem2dc.ready := io.select.ready
     }.elsewhen(io.tlb_if2dc.dc_mode =/= mode_NOP){
-        pre_idx :=2.U
+        pre_idx := 2.U
         busy    := io.select.ready
         io.select.addr      := io.tlb_if2dc.addr
         io.select.wdata     := io.tlb_if2dc.wdata
         io.select.dc_mode   := io.tlb_if2dc.dc_mode
         io.select.amo       := io.tlb_if2dc.amo
         io.tlb_if2dc.ready  := io.select.ready
+    }.elsewhen(io.dma2dc.dc_mode =/= mode_NOP){
+        pre_idx := 3.U
+        busy    := io.select.ready
+        io.select.addr      := io.dma2dc.addr
+        io.select.wdata     := io.dma2dc.wdata
+        io.select.dc_mode   := io.dma2dc.dc_mode
+        io.select.amo       := io.dma2dc.amo
+        io.dma2dc.ready     := io.select.ready
     }
     io.mem2dc.rvalid        := io.select.rvalid && pre_idx === 0.U
     io.tlb_mem2dc.rvalid    := io.select.rvalid && pre_idx === 1.U
     io.tlb_if2dc.rvalid     := io.select.rvalid && pre_idx === 2.U
-
+    io.dma2dc.rvalid        := io.select.rvalid && pre_idx === 3.U
 }
-
 
 class DataCache extends Module{
     val io = IO(new Bundle{
