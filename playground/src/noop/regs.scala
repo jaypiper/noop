@@ -36,6 +36,7 @@ class Csrs extends Module{
         val plic_m  = Input(new Intr)
         val plic_s  = Input(new Intr)
         val updateNextPc = Output(new ForceJmp)
+        val intr_msip = Input(new Intr)
     })
     val priv        = RegInit(PRV_M)
     val misa        = RegInit("h800000000014112d".U(DATA_WIDTH.W))
@@ -150,6 +151,7 @@ class Csrs extends Module{
     //priority: MEI, MSI, MTI, SEI, SSI, STI
     intr_out_r.cause := PriorityMux(Seq(
         (enable_int(IRQ_M_EXT),         IRQ_M_EXT.U),
+        (enable_int(IRQ_M_SOFT),        IRQ_M_SOFT.U),
         (enable_int(IRQ_M_TIMER),       IRQ_M_TIMER.U),
         (enable_int(IRQ_S_EXT),         IRQ_S_EXT.U),
         (enable_int(IRQ_S_SOFT),        IRQ_S_SOFT.U),

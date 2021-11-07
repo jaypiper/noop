@@ -116,6 +116,7 @@ class CPU extends Module{
     writeback.io.wCsr   <> csrs.io.rd
     writeback.io.excep  <> csrs.io.excep
     clint.io.intr       <> csrs.io.clint
+    clint.io.intr_msip  <> csrs.io.intr_msip
 
     icache.io.flush     <> writeback.io.flush_cache
     dcache.io.flush     <> writeback.io.flush_cache

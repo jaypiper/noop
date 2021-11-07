@@ -24,7 +24,7 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     val data_r      = RegInit(0.U(DATA_WIDTH.W))
     val data_valid  = RegInit(false.B)
     val plic_valid  = RegInit(false.B)
-    val is_clint    = io.dataRW.addr === MTIME || io.dataRW.addr === MTIMECMP
+    val is_clint    = io.dataRW.addr === MTIME || io.dataRW.addr === MTIMECMP || io.dataRW.addr === IPI
     val is_plic     = io.dataRW.addr >= PLIC_BASE && io.dataRW.addr <= (PLIC_BASE + "h3ffffff".U(PADDR_WIDTH.W))
     val inp_mem     = io.dataRW.addr(PADDR_WIDTH-1)
     io.mmio.addr    := io.dataRW.addr
