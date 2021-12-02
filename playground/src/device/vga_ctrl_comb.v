@@ -61,8 +61,6 @@ module vga_ctrl(
     output        io_slave_rlast,
     output [3:0]  io_slave_rid,
 
-    input vga_clk,
-    input vga_resetn,
 	output hsync,
 	output vsync,
 	output [3:0]vga_r,
@@ -93,15 +91,19 @@ module vga_ctrl(
     output out_buf2_wen
 );
 
-	parameter h_frontporch = 128;
-	parameter h_active = 216;
-	parameter h_backporch = 1016;
-	parameter h_total = 1056;
+    wire vga_clk_din, vga_clk_dout;
+    preg #(2,0) vga_clk_gen(clock, ~resetn, ~vga_clk_dout, vga_clk_dout, 1);
+    wire vga_clk_en = vga_clk_dout;
 
-	parameter v_frontporch = 4;
-	parameter v_active = 27;
-	parameter v_backporch = 627;
-	parameter v_total = 628;
+	parameter h_frontporch = 120;
+	parameter h_active = 184;
+	parameter h_backporch = 984;
+	parameter h_total = 1040;
+
+	parameter v_frontporch = 6;
+	parameter v_active = 29;
+	parameter v_backporch = 629;
+	parameter v_total = 666;
 
     parameter MODE800x600 = 0;
     parameter MODE400x300 = 1;
@@ -110,8 +112,8 @@ module vga_ctrl(
     wire [23:0] buf1_din, buf2_din, buf1_dout, buf2_dout;
     wire buf1_wen, buf2_wen;
 
-    pram #(24, 400) buffer1(buf1_addr, buf1_din, clock, buf1_wen, 1, buf1_dout);
-    pram #(24, 400) buffer2(buf2_addr, buf2_din, clock, buf2_wen, 1, buf2_dout);
+    S011HD1P_X256Y2D32_BW buffer1(buf1_dout, clock, 0, ~buf1_wen, 0, buf1_addr, buf1_din);
+    S011HD1P_X256Y2D32_BW buffer2(buf2_dout, clock, 0, ~buf2_wen, 0, buf2_addr, buf2_din);
 
     wire [31:0] status_din, status_dout, base_din, base_dout;
     wire status_wen, base_wen;
@@ -124,19 +126,19 @@ module vga_ctrl(
     wire [10:0] x_next_din, x_next_dout;
     wire [9:0] y_next_din, y_next_dout;
     wire x_next_wen, y_next_wen;
-    preg #(11, 1) x_next_cnt (vga_clk, ~vga_resetn, x_next_din, x_next_dout, x_next_wen);
+    preg #(11, 1) x_next_cnt (clock, ~resetn, x_next_din, x_next_dout, x_next_wen);
     assign x_next_din = x_next_dout == h_total ? 1 : x_next_dout + 11'd1;
-    assign x_next_wen = 1;
+    assign x_next_wen = vga_clk_en;
 
-    preg #(10, 1) y_next_cnt (vga_clk, ~vga_resetn, y_next_din, y_next_dout, y_next_wen);
+    preg #(10, 1) y_next_cnt (clock, ~resetn, y_next_din, y_next_dout, y_next_wen);
     assign y_next_din = (y_next_dout == v_total & x_next_dout == h_total) ? 1 : y_next_dout + 10'd1;
-    assign y_next_wen = x_next_dout == h_total;
+    assign y_next_wen = (x_next_dout == h_total) & vga_clk_en;
 
     wire [10:0] x_din, x_dout;
     wire [9:0] y_din, y_dout;
     wire x_wen, y_wen;
-    preg #(11, 1) x_cnt (vga_clk, ~vga_resetn, x_din, x_dout, x_wen);
-    preg #(10, 1) y_cnt (vga_clk, ~vga_resetn, y_din, y_dout, y_wen);
+    preg #(11, 1) x_cnt (clock, ~resetn, x_din, x_dout, x_wen);
+    preg #(10, 1) y_cnt (clock, ~resetn, y_din, y_dout, y_wen);
     assign x_din = x_next_dout;
     assign x_wen = 1;
     assign y_din = y_next_dout;
@@ -153,13 +155,13 @@ module vga_ctrl(
 	assign v_valid = (y_dout > v_active) & (y_dout <= v_backporch);
 	wire valid = h_valid & v_valid;
 	// 计算当前有效像素坐标
-	wire [10:0] h_addr = x_next_dout - 10'd217;
-	wire [9:0] v_addr = y_next_dout - 10'd28;
+	wire [10:0] h_addr = x_next_dout - (h_active + 1);
+	wire [9:0] v_addr = y_next_dout - (v_active + 1);
 	// 设置输出的颜色值
     wire vga_idx_v = isMode800? v_addr[0] : v_addr[1];
     wire [9:0] vga_idx_h = isMode800 ? h_addr : h_addr[10:1];
-    wire [10:0] pixel_h = x_dout - 10'd217;
-    wire [9:0] pixel_v = y_dout - 10'd28;
+    wire [10:0] pixel_h = x_dout - (h_active + 1);
+    wire [9:0] pixel_v = y_dout - (v_active + 1);
     wire secondHalf = isMode800? pixel_h[0]: pixel_h[1];
     wire isBuf2 = isMode800? pixel_v[0]: pixel_v[1];
     wire [11:0] pixel = ({12{!isBuf2 & !secondHalf}} & buf1_dout[11:0]) | ({12{!isBuf2 & secondHalf}} & buf1_dout[23:12]) | 
@@ -173,13 +175,13 @@ module vga_ctrl(
     wire [10:0] vidx_din, vidx_dout, pre_vidx_din, pre_vidx_dout;
     wire vidx_wen, pre_vidx_wen, vaddr_wen;
     wire [19:0] vaddr_din, vaddr_dout;
-    preg #(11, 0) axi_vidx(vga_clk, ~vga_resetn, vidx_din, vidx_dout, vidx_wen);
+    preg #(11, 0) axi_vidx(clock, ~resetn, vidx_din, vidx_dout, vidx_wen);
     preg #(11, 0) pre_axi_vidx(clock, ~resetn, pre_vidx_din, pre_vidx_dout, pre_vidx_wen);
     preg #(20, 0) axi_vaddr(clock, ~resetn, vaddr_din, vaddr_dout, vaddr_wen);
     assign vidx_din = y_dout == v_backporch ? 0 : vidx_dout + 1;
-    assign vidx_wen = v_valid && x_dout == 1;
+    assign vidx_wen = v_valid && (x_dout == 1) && vga_clk_en;
     assign vaddr_din = y_dout == v_backporch ? 0 : vaddr_dout + (isMode800 ? 20'd800 : 20'd400);
-    assign vaddr_wen = v_valid && x_dout == 1;
+    assign vaddr_wen = v_valid && (x_dout == 1) && vga_clk_en;
     // wire [19:0] axi_vaddr = vidx_dout * (isMode800 ? 20'd800 : 20'd400);
     assign pre_vidx_din = vidx_dout;
     assign pre_vidx_wen = 1;
