@@ -65,30 +65,7 @@ module vga_ctrl(
 	output vsync,
 	output [3:0]vga_r,
 	output [3:0]vga_g,
-	output [3:0]vga_b,
-    output [8:0] out_offset,
-    output [10:0] out_h_addr,
-	output [9:0] out_v_addr,
-    output out_vga_idx_v,
-    output [9:0] out_vga_idx_h,
-    output [10:0] out_axi_vidx,
-    output [19:0] out_axi_vaddr,
-    output [10:0] out_pre_axi_vidx,
-    output [10:0] out_x_next_dout,
-    output [10:0] out_x_dout,
-    output [9:0] out_y_next_dout,
-    output [9:0] out_y_dout,
-    output [9:0] out_buf1_addr,
-    output [9:0] out_buf2_addr,
-    output [1:0] out_mstate,
-    output [31:0] out_mraddr,
-    output out_mIdle_s,
-    output [23:0] out_buf1_din,
-    output [23:0] out_buf2_din,
-    output [23:0] out_buf1_dout,
-    output [23:0] out_buf2_dout,
-    output out_buf1_wen,
-    output out_buf2_wen
+	output [3:0]vga_b
 );
 
     wire vga_clk_din, vga_clk_dout;
@@ -127,11 +104,11 @@ module vga_ctrl(
     wire [9:0] y_next_din, y_next_dout;
     wire x_next_wen, y_next_wen;
     preg #(11, 1) x_next_cnt (clock, ~resetn, x_next_din, x_next_dout, x_next_wen);
-    assign x_next_din = x_next_dout == h_total ? 1 : x_next_dout + 11'd1;
+    assign x_next_din = base_dout == 0 ? 0 : (x_next_dout == h_total ? 1 : x_next_dout + 11'd1);
     assign x_next_wen = vga_clk_en;
 
     preg #(10, 1) y_next_cnt (clock, ~resetn, y_next_din, y_next_dout, y_next_wen);
-    assign y_next_din = (y_next_dout == v_total & x_next_dout == h_total) ? 1 : y_next_dout + 10'd1;
+    assign y_next_din = base_dout == 0 ? 0 : ((y_next_dout == v_total & x_next_dout == h_total) ? 1 : y_next_dout + 10'd1);
     assign y_next_wen = (x_next_dout == h_total) & vga_clk_en;
 
     wire [10:0] x_din, x_dout;
@@ -203,7 +180,7 @@ module vga_ctrl(
     wire [8:0] axiOffset_din, axiOffset_dout, axiOffset_wen;
     preg #(9,0) axiOffset(clock, ~resetn, axiOffset_din, axiOffset_dout, axiOffset_wen);
 
-    wire mIdle_s = mstate_dout == mIdle & (isMode800 ? pre_vidx_dout != vidx_dout || second_dout == 1 : pre_vidx_dout[10:1] != vidx_dout[10:1]);
+    wire mIdle_s = (base_dout != 0) & (mstate_dout == mIdle & (isMode800 ? pre_vidx_dout != vidx_dout || second_dout == 1 : pre_vidx_dout[10:1] != vidx_dout[10:1]));
     wire mRaddr_s = mstate_dout == mRaddr & mraddrEn_dout & io_master_arready;
     wire mRdata_data = mstate_dout == mRdata & mrdataEn_dout & io_master_rvalid;
     wire mRdata_last = mRdata_data & io_master_rlast;
@@ -226,10 +203,10 @@ module vga_ctrl(
     assign second_din = ~second_dout;
     assign second_wen = mRdata_last;
 
-    assign buf1_wen = axi_idx_dout == 0 & mRdata_data;
+    assign buf1_wen = axi_idx_dout == 0 & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
     assign buf1_addr = vga_idx_v == 0 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 10'd200 + axiOffset_dout : axiOffset_dout);
     assign buf1_din = {io_master_rdata[55:52], io_master_rdata[47:44], io_master_rdata[39:36], io_master_rdata[23:20], io_master_rdata[15:12], io_master_rdata[7:4]};
-    assign buf2_wen = axi_idx_dout == 1 & mRdata_data;
+    assign buf2_wen = axi_idx_dout == 1 & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
     assign buf2_addr = vga_idx_v == 1 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 10'd200 + axiOffset_dout : axiOffset_dout);
     assign buf2_din = buf1_din;
 
@@ -330,29 +307,5 @@ module vga_ctrl(
     assign io_slave_rdata   = srdata_dout;
     assign io_slave_rlast   = srlast_dout;
     assign io_slave_rid     = srid_dout;
-
-    assign out_offset = axiOffset_dout;
-    assign out_h_addr = h_addr;
-    assign out_v_addr = v_addr;
-    assign out_vga_idx_h = vga_idx_h;
-    assign out_vga_idx_v = vga_idx_v;
-    assign out_axi_vidx = vidx_dout;
-    assign out_axi_vaddr = vaddr_dout;
-    assign out_pre_axi_vidx = pre_vidx_dout;
-    assign out_x_next_dout = x_next_dout;
-    assign out_x_dout = x_dout;
-    assign out_y_next_dout = y_next_dout;
-    assign out_y_dout = y_dout;
-    assign out_mstate = mstate_dout;
-    assign out_mraddr = mraddr_din;
-    assign out_mIdle_s = mIdle_s;
-    assign out_buf1_addr = buf1_addr;
-    assign out_buf2_addr = buf2_addr;
-    assign out_buf1_din = buf1_din;
-    assign out_buf2_din = buf2_din;
-    assign out_buf1_dout = buf1_dout;
-    assign out_buf2_dout = buf2_dout;
-    assign out_buf1_wen = buf1_wen;
-    assign out_buf2_wen = buf2_wen;
 
 endmodule
