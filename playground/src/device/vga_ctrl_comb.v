@@ -69,7 +69,7 @@ module vga_ctrl(
 );
 
     wire vga_clk_din, vga_clk_dout;
-    preg #(2,0) vga_clk_gen(clock, ~resetn, ~vga_clk_dout, vga_clk_dout, 1);
+    preg #(1,0) vga_clk_gen(clock, ~resetn, ~vga_clk_dout, vga_clk_dout, 1);
     wire vga_clk_en = vga_clk_dout;
 
 	parameter h_frontporch = 120;
@@ -85,12 +85,12 @@ module vga_ctrl(
     parameter MODE800x600 = 0;
     parameter MODE400x300 = 1;
 
-    wire [9:0] buf1_addr, buf2_addr;
+    wire [8:0] buf1_addr, buf2_addr;
     wire [23:0] buf1_din, buf2_din, buf1_dout, buf2_dout;
     wire buf1_wen, buf2_wen;
 
-    S011HD1P_X256Y2D32_BW buffer1(buf1_dout, clock, 0, ~buf1_wen, 0, buf1_addr, buf1_din);
-    S011HD1P_X256Y2D32_BW buffer2(buf2_dout, clock, 0, ~buf2_wen, 0, buf2_addr, buf2_din);
+    S011HD1P_X256Y2D32 buffer1(buf1_dout, clock, 0, ~buf1_wen, buf1_addr, buf1_din);
+    S011HD1P_X256Y2D32 buffer2(buf2_dout, clock, 0, ~buf2_wen, buf2_addr, buf2_din);
 
     wire [31:0] status_din, status_dout, base_din, base_dout;
     wire status_wen, base_wen;
@@ -175,9 +175,11 @@ module vga_ctrl(
     preg #(1,0) mraddrEn(clock, ~resetn, mraddrEn_din, mraddrEn_dout, mraddrEn_wen);
     preg #(1,0) mrdataEn(clock, ~resetn, mrdataEn_din, mrdataEn_dout, mrdataEn_wen);
     preg #(1, 0) second (clock, ~resetn, second_din, second_dout, second_wen);
-    wire [31:0] mraddr_din, mraddr_dout, mraddr_wen;
+    wire [31:0] mraddr_din, mraddr_dout;
+    wire mraddr_wen;
     preg #(32,0) mraddr(clock, ~resetn, mraddr_din, mraddr_dout, mraddr_wen);
-    wire [8:0] axiOffset_din, axiOffset_dout, axiOffset_wen;
+    wire [8:0] axiOffset_din, axiOffset_dout;
+    wire axiOffset_wen;
     preg #(9,0) axiOffset(clock, ~resetn, axiOffset_din, axiOffset_dout, axiOffset_wen);
 
     wire mIdle_s = (base_dout != 0) & (mstate_dout == mIdle & (isMode800 ? pre_vidx_dout != vidx_dout || second_dout == 1 : pre_vidx_dout[10:1] != vidx_dout[10:1]));
@@ -204,10 +206,10 @@ module vga_ctrl(
     assign second_wen = mRdata_last;
 
     assign buf1_wen = axi_idx_dout == 0 & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
-    assign buf1_addr = vga_idx_v == 0 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 10'd200 + axiOffset_dout : axiOffset_dout);
+    assign buf1_addr = vga_idx_v == 0 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 9'd200 + axiOffset_dout : axiOffset_dout);
     assign buf1_din = {io_master_rdata[55:52], io_master_rdata[47:44], io_master_rdata[39:36], io_master_rdata[23:20], io_master_rdata[15:12], io_master_rdata[7:4]};
     assign buf2_wen = axi_idx_dout == 1 & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
-    assign buf2_addr = vga_idx_v == 1 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 10'd200 + axiOffset_dout : axiOffset_dout);
+    assign buf2_addr = vga_idx_v == 1 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 9'd200 + axiOffset_dout : axiOffset_dout);
     assign buf2_din = buf1_din;
 
 
