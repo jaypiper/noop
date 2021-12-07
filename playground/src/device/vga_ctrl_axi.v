@@ -239,7 +239,7 @@ module vga_ctrl(
                 swaddrEn <= 0;
                 swdataEn <= 1;
                 waddr_r <= io_slave_awaddr[2];
-                sbid <= io_slave_arid;
+                sbid <= io_slave_awid;
             end
         end else if (swstate == sWdata) begin
             if(swdataEn & io_slave_wvalid) begin
