@@ -85,12 +85,14 @@ module vga_ctrl(
     parameter MODE800x600 = 0;
     parameter MODE400x300 = 1;
 
-    wire [8:0] buf1_addr, buf2_addr;
-    wire [23:0] buf1_din, buf2_din, buf1_dout, buf2_dout;
-    wire buf1_wen, buf2_wen;
+    wire [7:0] buf11_addr, buf12_addr, buf21_addr, buf22_addr;
+    wire [23:0] buf11_din, buf12_din, buf21_din, buf22_din, buf11_dout, buf12_dout, buf21_dout, buf22_dout;
+    wire buf11_wen, buf12_wen, buf21_wen, buf22_wen;
 
-    S011HD1P_X256Y2D32 buffer1(buf1_dout, clock, 0, ~buf1_wen, buf1_addr, buf1_din);
-    S011HD1P_X256Y2D32 buffer2(buf2_dout, clock, 0, ~buf2_wen, buf2_addr, buf2_din);
+    S011HD1P_X64Y4D32_BW buffer11(buf11_dout, clock, 0, ~buf11_wen, 0, buf11_addr, buf11_din);
+    S011HD1P_X64Y4D32_BW buffer12(buf12_dout, clock, 0, ~buf12_wen, 0, buf12_addr, buf12_din);
+    S011HD1P_X64Y4D32_BW buffer21(buf21_dout, clock, 0, ~buf21_wen, 0, buf21_addr, buf21_din);
+    S011HD1P_X64Y4D32_BW buffer22(buf22_dout, clock, 0, ~buf22_wen, 0, buf22_addr, buf22_din);
 
     wire [31:0] status_din, status_dout, base_din, base_dout;
     wire status_wen, base_wen;
@@ -136,13 +138,17 @@ module vga_ctrl(
 	wire [9:0] v_addr = y_next_dout - (v_active + 1);
 	// 设置输出的颜色值
     wire vga_idx_v = isMode800? v_addr[0] : v_addr[1];
-    wire [9:0] vga_idx_h = isMode800 ? h_addr : h_addr[10:1];
+    wire [9:0] vga_idx_h = isMode800 ? (h_addr >= 400 ? h_addr - 400 : h_addr) : h_addr[10:1];
     wire [10:0] pixel_h = x_dout - (h_active + 1);
     wire [9:0] pixel_v = y_dout - (v_active + 1);
     wire secondHalf = isMode800? pixel_h[0]: pixel_h[1];
-    wire isBuf2 = isMode800? pixel_v[0]: pixel_v[1];
-    wire [11:0] pixel = ({12{!isBuf2 & !secondHalf}} & buf1_dout[11:0]) | ({12{!isBuf2 & secondHalf}} & buf1_dout[23:12]) | 
-                        ({12{isBuf2 & !secondHalf}} & buf2_dout[11:0]) | ({12{isBuf2 & secondHalf}} & buf2_dout[23:12]);
+    wire isBuf2x = isMode800? pixel_v[0]: pixel_v[1];
+    wire isBufx2 = isMode800? pixel_h >= 400 : 0;
+
+    wire [11:0] pixel = ({12{!isBuf2x & !isBufx2 & !secondHalf}} & buf11_dout[11:0]) | ({12{!isBuf2x & !isBufx2 & secondHalf}} & buf11_dout[23:12]) |
+                        ({12{!isBuf2x & isBufx2  & !secondHalf}} & buf12_dout[11:0]) | ({12{!isBuf2x & isBufx2  & secondHalf}} & buf12_dout[23:12]) |
+                        ({12{isBuf2x  & !isBufx2 & !secondHalf}} & buf21_dout[11:0]) | ({12{isBuf2x  & !isBufx2 & secondHalf}} & buf21_dout[23:12]) |
+                        ({12{isBuf2x  & isBufx2  & !secondHalf}} & buf22_dout[11:0]) | ({12{isBuf2x  & isBufx2  & secondHalf}} & buf22_dout[23:12]);
 
 	assign vga_r = valid ? pixel[11:8] : 0;
 	assign vga_g = valid ? pixel[7:4] : 0;
@@ -205,13 +211,18 @@ module vga_ctrl(
     assign second_din = ~second_dout;
     assign second_wen = mRdata_last;
 
-    assign buf1_wen = axi_idx_dout == 0 & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
-    assign buf1_addr = vga_idx_v == 0 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 9'd200 + axiOffset_dout : axiOffset_dout);
-    assign buf1_din = {io_master_rdata[55:52], io_master_rdata[47:44], io_master_rdata[39:36], io_master_rdata[23:20], io_master_rdata[15:12], io_master_rdata[7:4]};
-    assign buf2_wen = axi_idx_dout == 1 & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
-    assign buf2_addr = vga_idx_v == 1 ? vga_idx_h[9:1] : ((mRdata_data & second_dout & isMode800) ? 9'd200 + axiOffset_dout : axiOffset_dout);
-    assign buf2_din = buf1_din;
-
+    assign buf11_wen = axi_idx_dout == 0 & (!isMode800 || !second_dout) & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
+    assign buf12_wen = axi_idx_dout == 0 & (isMode800 && second_dout) & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
+    assign buf21_wen = axi_idx_dout == 1 & (!isMode800 || !second_dout) & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
+    assign buf22_wen = axi_idx_dout == 1 & (isMode800 && second_dout) & mRdata_data & (io_master_rresp == 0 | io_master_rresp == 1);
+    assign buf11_addr = vga_idx_v == 0 ? vga_idx_h[9:1] : axiOffset_dout;
+    assign buf12_addr = buf11_addr;
+    assign buf21_addr = vga_idx_v == 1 ? vga_idx_h[9:1] : axiOffset_dout;
+    assign buf22_addr = buf21_addr;
+    assign buf11_din = {io_master_rdata[55:52], io_master_rdata[47:44], io_master_rdata[39:36], io_master_rdata[23:20], io_master_rdata[15:12], io_master_rdata[7:4]};
+    assign buf12_din = buf11_din;
+    assign buf21_din = buf11_din;
+    assign buf22_din = buf11_din;
 
     parameter [1:0] sIdle = 0, sWdata = 1, sWresp = 2, sRaddr = 1, sRdata = 2;
     wire [1:0] swstate_din, swstate_dout, srstate_din, srstate_dout;
@@ -309,5 +320,6 @@ module vga_ctrl(
     assign io_slave_rdata   = srdata_dout;
     assign io_slave_rlast   = srlast_dout;
     assign io_slave_rid     = srid_dout;
+
 
 endmodule
