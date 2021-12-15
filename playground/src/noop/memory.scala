@@ -52,7 +52,7 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         }.elsewhen(is_plic){
             pre_type            := 3.U
             io.plicIO.arvalid   := io.dataRW.dc_mode(DC_L_BIT)
-            io.plicIO.wvalid    := io.dataRW.dc_mode(DC_L_BIT)
+            io.plicIO.wvalid    := io.dataRW.dc_mode(DC_S_BIT)
             data_r              := io.plicIO.rdata
             data_valid          := true.B
         }.elsewhen(inp_mem){
