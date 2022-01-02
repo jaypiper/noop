@@ -12,7 +12,7 @@ object common extends mem_access_mode{
     val INST_WIDTH  = 32
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
-    val PC_START    = "h80000000".U(VADDR_WIDTH.W)
+    val PC_START    = "h30000000".U(VADDR_WIDTH.W)
 
     val PAGE_WIDTH  = 12
 
