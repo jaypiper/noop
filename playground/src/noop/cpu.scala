@@ -16,6 +16,7 @@ import noop.regs._
 import noop.clint._
 import noop.plic._
 import noop.dma._
+import shared_ram._
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -53,6 +54,14 @@ class CPUIO extends Bundle{
     // val outAxi = new AxiMaster
     val master      = new CPU_AXI_IO
     val slave       = Flipped(new CPU_AXI_IO)
+    val sram0       = Flipped(new SharedRamIO)
+    val sram1       = Flipped(new SharedRamIO)
+    val sram2       = Flipped(new SharedRamIO)
+    val sram3       = Flipped(new SharedRamIO)
+    val sram4       = Flipped(new SharedRamIO)
+    val sram5       = Flipped(new SharedRamIO)
+    val sram6       = Flipped(new SharedRamIO)
+    val sram7       = Flipped(new SharedRamIO)
     val interrupt   = Input(Bool())
 }
 
@@ -150,6 +159,15 @@ class CPU extends Module{
 
     io.slave <> dmaBridge.io.dmaAxi
     dmaBridge.io.dcRW <> dcSelector.io.dma2dc
+
+    icache.io.ic2sr0 <> io.sram0
+    icache.io.ic2sr1 <> io.sram1
+    icache.io.ic2sr2 <> io.sram2
+    icache.io.ic2sr3 <> io.sram3
+    dcache.io.dc2sr0 <> io.sram4
+    dcache.io.dc2sr1 <> io.sram5
+    dcache.io.dc2sr2 <> io.sram6
+    dcache.io.dc2sr3 <> io.sram7
 
     crossBar.io.outAxi.wa.ready    := io.master.awready
     io.master.awvalid := crossBar.io.outAxi.wa.valid

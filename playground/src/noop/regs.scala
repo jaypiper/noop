@@ -13,8 +13,9 @@ class Regs extends Module{
         val dst = new RegWrite
     })
     val regs = RegInit(VecInit(Seq.fill(32)(0.U(DATA_WIDTH.W))))
-    io.rs1.data := regs(io.rs1.id)
-    io.rs2.data := regs(io.rs2.id)
+    // val regs = Mem(32, UInt(64.W)) //RegInit(VecInit(Seq.fill(32)(0.U(DATA_WIDTH.W))))
+    io.rs1.data := Mux(io.rs1.id === 0.U, 0.U, regs(io.rs1.id))
+    io.rs2.data := Mux(io.rs2.id === 0.U, 0.U, regs(io.rs2.id))
     when(io.dst.en && io.dst.id =/= 0.U){
         regs(io.dst.id) := io.dst.data
     }

@@ -10,7 +10,7 @@ import noop.datapath._
 import axi._
 import axi.axi_config._
 import ram._
-
+import shared_ram._
 class DcacheSelector extends Module{
     val io = IO(new Bundle{
         val tlb_if2dc   = new DcacheRW
@@ -83,15 +83,16 @@ class DataCache extends Module{
         val dcRW        = new DcacheRW
         val flush       = Input(Bool())
         val flush_out   = Output(Bool())
+        val dc2sr0      = Flipped(new SharedRamIO)
+        val dc2sr1      = Flipped(new SharedRamIO)
+        val dc2sr2      = Flipped(new SharedRamIO)
+        val dc2sr3      = Flipped(new SharedRamIO)
     })
 
     val tag     = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(0.U(DC_TAG_WIDTH.W))))))
     val valid   = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B)))))
     val dirty   = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B)))))
-    val data    = VecInit(Seq.fill(CACHE_WAY_NUM)(Module(new Ram_bw).io))
-    for(i <- 0 until CACHE_WAY_NUM){
-        data(i).init()
-    }
+
     val wait_r      = RegInit(false.B) // cache miss
     val valid_r     = RegInit(false.B)
     val flush_r     = RegInit(false.B)
@@ -150,7 +151,13 @@ class DataCache extends Module{
     val pre_tag     = addr_r(PADDR_WIDTH-1, DC_BLOCK_WIDTH+DC_INDEX_WIDTH)
     val sIdle :: sRaddr :: sRdata :: sWaddr :: sWdata :: sAtomic :: sFlush :: Nil = Enum(7)
     val state = RegInit(sIdle)
-    val rdata64 = data(matchWay_r).rdata >> Cat(addr_r(RAM_WIDTH_BIT-1, 0), 0.U(3.W))
+    val rdata128 = MuxLookup(matchWay_r, 0.U, Seq(
+        0.U -> io.dc2sr0.rdata,
+        1.U -> io.dc2sr1.rdata,
+        2.U -> io.dc2sr2.rdata,
+        3.U -> io.dc2sr3.rdata
+    ))
+    val rdata64 = rdata128 >> Cat(addr_r(RAM_WIDTH_BIT-1, 0), 0.U(3.W))
     io.dcRW.rdata := rdata_by_mode(mode_r, rdata64)
     val cur_mode_sl = cur_mode(3,2)
     val cur_mode_s  = cur_mode(DC_S_BIT)
@@ -180,12 +187,27 @@ class DataCache extends Module{
                         2.U   ->"hffffffff".U(RAM_MASK_WIDTH.W), 
                         3.U   ->"hffffffffffffffff".U(RAM_MASK_WIDTH.W), 
                     )) << (Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
-    data(cur_way).addr  := Mux(state === sIdle || state === sAtomic, cur_ram_addr, cur_axi_addr)
-    data(cur_way).cen   := wait_r || hs_in || flush_r
-    data(cur_way).wen   := wen
-    data(cur_way).wdata := Mux(state === sAtomic, amo_wdata, 
-                            Mux(state === sIdle, inp_wdata, Cat(io.dataAxi.rd.bits.data, rdatabuf)))
-    data(cur_way).mask  := mask
+    io.dc2sr0.addr := Mux(state === sIdle || state === sAtomic, cur_ram_addr, cur_axi_addr)
+    io.dc2sr1.addr := io.dc2sr0.addr
+    io.dc2sr2.addr := io.dc2sr0.addr
+    io.dc2sr3.addr := io.dc2sr0.addr
+    io.dc2sr0.cen := ~(cur_way === 0.U && (wait_r || hs_in || flush_r))
+    io.dc2sr1.cen := ~(cur_way === 1.U && (wait_r || hs_in || flush_r))
+    io.dc2sr2.cen := ~(cur_way === 2.U && (wait_r || hs_in || flush_r))
+    io.dc2sr3.cen := ~(cur_way === 3.U && (wait_r || hs_in || flush_r))
+    io.dc2sr0.wen := ~wen
+    io.dc2sr1.wen := io.dc2sr0.wen
+    io.dc2sr2.wen := io.dc2sr0.wen
+    io.dc2sr3.wen := io.dc2sr0.wen
+    io.dc2sr0.wdata := Mux(state === sAtomic, amo_wdata, 
+                        Mux(state === sIdle, inp_wdata, Cat(io.dataAxi.rd.bits.data, rdatabuf)))
+    io.dc2sr1.wdata := io.dc2sr0.wdata
+    io.dc2sr2.wdata := io.dc2sr0.wdata
+    io.dc2sr3.wdata := io.dc2sr0.wdata
+    io.dc2sr0.wmask := ~mask
+    io.dc2sr1.wmask := io.dc2sr0.wmask
+    io.dc2sr2.wmask := io.dc2sr0.wmask
+    io.dc2sr3.wmask := io.dc2sr0.wmask
     wen     := false.B
     mask    := Fill(RAM_MASK_WIDTH, 1.U(1.W))
     when(wen && (state === sIdle || state === sAtomic)){
@@ -198,7 +220,7 @@ class DataCache extends Module{
     val axiRdataEn      = RegInit(false.B)
     val axiWaddrEn      = RegInit(false.B)
     val axiWaddr        = Cat(tag(matchWay_r)(blockIdx_r), blockIdx_r, 0.U(DC_BLOCK_WIDTH.W))
-    val axiWdata        = Mux(offset(0), data(matchWay_r).rdata(127,64), data(matchWay_r).rdata(63,0))
+    val axiWdata        = Mux(offset(0), rdata128(127,64), rdata128(63,0))
     val axiWdataEn      = RegInit(false.B)
     val axiWdataLast    = offset === 7.U
 

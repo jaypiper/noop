@@ -10,7 +10,7 @@ import noop.datapath._
 import axi._
 import ram._
 import axi.axi_config._
-
+import shared_ram._
 class IcacheCrossBlock extends Module{
     val io = IO(new Bundle{
         val icIn    = new IcacheRead
@@ -60,14 +60,15 @@ class InstCache extends Module{
         val instAxi     = new AxiMaster
         val icRead      = new IcacheRead
         val flush       = Input(Bool())
+        val ic2sr0      = Flipped(new SharedRamIO)
+        val ic2sr1      = Flipped(new SharedRamIO)
+        val ic2sr2      = Flipped(new SharedRamIO)
+        val ic2sr3      = Flipped(new SharedRamIO)
     })
 
     val tag     = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(IC_BLOCK_NUM)(0.U(IC_TAG_WIDTH.W))))))
     val valid   = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(IC_BLOCK_NUM)(false.B)))))
-    val data    = VecInit(Seq.fill(CACHE_WAY_NUM)(Module(new Ram_bw).io))
-    for(i <- 0 until CACHE_WAY_NUM){
-        data(i).init()
-    }
+
     val wait_r      = RegInit(false.B) // cache miss
     val valid_r     = RegInit(false.B)
     valid_r := false.B
@@ -101,17 +102,37 @@ class InstCache extends Module{
     val sIdle :: sRaddr :: sRdata :: Nil = Enum(3)
     val state = RegInit(sIdle)
 
-    val rdata128 = data(matchWay_r).rdata
+    val rdata128 = MuxLookup(matchWay_r, 0.U, Seq(
+        0.U -> io.ic2sr0.rdata,
+        1.U -> io.ic2sr1.rdata,
+        2.U -> io.ic2sr2.rdata,
+        3.U -> io.ic2sr3.rdata
+    ))
     io.icRead.inst := MuxLookup(addr_r(3), 0.U, Seq( // can also be implemented using shift opeartion
         0.U     -> rdata128(63, 0),
         1.U     -> rdata128(127, 64)
     ))
     val wen     = Wire(Bool())
-    data(cur_way).addr  := Mux(state === sRdata, cur_raddr, cur_ram_addr)
-    data(cur_way).cen   := wait_r || hs_in
-    data(cur_way).wen   := wen
-    data(cur_way).wdata := Cat(io.instAxi.rd.bits.data, databuf)
-    data(cur_way).mask  := Fill(RAM_MASK_WIDTH, 1.U(1.W))
+    io.ic2sr0.addr := Mux(state === sRdata, cur_raddr, cur_ram_addr)
+    io.ic2sr1.addr := io.ic2sr0.addr
+    io.ic2sr2.addr := io.ic2sr0.addr
+    io.ic2sr3.addr := io.ic2sr0.addr
+    io.ic2sr0.cen  := ~(cur_way === 0.U && (wait_r || hs_in))
+    io.ic2sr1.cen  := ~(cur_way === 1.U && (wait_r || hs_in))
+    io.ic2sr2.cen  := ~(cur_way === 2.U && (wait_r || hs_in))
+    io.ic2sr3.cen  := ~(cur_way === 3.U && (wait_r || hs_in))
+    io.ic2sr0.wdata := Cat(io.instAxi.rd.bits.data, databuf)
+    io.ic2sr1.wdata := io.ic2sr0.wdata
+    io.ic2sr2.wdata := io.ic2sr0.wdata
+    io.ic2sr3.wdata := io.ic2sr0.wdata
+    io.ic2sr0.wmask := ~Fill(RAM_MASK_WIDTH, 1.U(1.W))
+    io.ic2sr1.wmask := io.ic2sr0.wmask
+    io.ic2sr2.wmask := io.ic2sr0.wmask
+    io.ic2sr3.wmask := io.ic2sr0.wmask
+    io.ic2sr0.wen := ~wen
+    io.ic2sr1.wen := io.ic2sr0.wen
+    io.ic2sr2.wen := io.ic2sr0.wen
+    io.ic2sr3.wen := io.ic2sr0.wen
     wen     := false.B
 // axi signal
     val raddrEn     = RegInit(false.B)
