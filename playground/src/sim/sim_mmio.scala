@@ -32,6 +32,7 @@ object port{
     val NEMU_VGA    = "ha0000000".U(PADDR_WIDTH.W)
     val PLIC        = "h0c000000".U(PADDR_WIDTH.W)
     val SDCARD_MMIO = "h43000000".U(PADDR_WIDTH.W)
+    val UART_FPGA   = "h40600000".U(PADDR_WIDTH.W)
 }
 
 class SimMMIOIO extends Bundle{
@@ -151,6 +152,8 @@ class SimMMIO extends Module{
 
                     }.elsewhen(waddr >= port.PLIC && waddr < (port.PLIC + 0x3000.U)){
 
+                    }.elsewhen(waddr === port.UART_FPGA + 4.U){
+                        printf("%c", inputwd(39, 32))
                     }.elsewhen(waddr >= port.SDCARD_MMIO && waddr < port.SDCARD_MMIO + 0x80.U){
                         sdcard.io.addr  := waddr(6,0)
                         sdcard.io.wdata := inputwd >> Cat(waddr(2,0), 0.U(3.W))
