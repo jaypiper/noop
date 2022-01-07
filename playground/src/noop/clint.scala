@@ -7,8 +7,8 @@ import noop.datapath._
 import clint_config._
 
 object clint_config{
-    val MTIME = "h200bff8".U(PADDR_WIDTH.W)
-    val MTIMECMP = "h2004000".U(PADDR_WIDTH.W)
+    val MTIME = "h3800bff8".U(PADDR_WIDTH.W)
+    val MTIMECMP = "h38004000".U(PADDR_WIDTH.W)
     val IPI = "h2000000".U(PADDR_WIDTH.W)
 }
 

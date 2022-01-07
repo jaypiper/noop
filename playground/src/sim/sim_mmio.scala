@@ -98,6 +98,8 @@ class SimMMIO extends Module{
                     rdata   := mtime
                 }.elsewhen(io.mmioAxi.ra.bits.addr === port.CLINT_MTIMECMP){
                     rdata   := mtimecmp
+                }.elsewhen(io.mmioAxi.ra.bits.addr === port.UART_FPGA + 8.U){
+                    rdata   := 0.U
                 }.elsewhen(io.mmioAxi.ra.bits.addr === "ha1000100".U(PADDR_WIDTH.W)){
                     rdata   := "h190012c".U(PADDR_WIDTH.W)
                 }.elsewhen(io.mmioAxi.ra.bits.addr === port.RTC_ADDR){
@@ -154,6 +156,8 @@ class SimMMIO extends Module{
 
                     }.elsewhen(waddr === port.UART_FPGA + 4.U){
                         printf("%c", inputwd(39, 32))
+                    }.elsewhen(waddr === port.UART_FPGA + 12.U){
+                        
                     }.elsewhen(waddr >= port.SDCARD_MMIO && waddr < port.SDCARD_MMIO + 0x80.U){
                         sdcard.io.addr  := waddr(6,0)
                         sdcard.io.wdata := inputwd >> Cat(waddr(2,0), 0.U(3.W))

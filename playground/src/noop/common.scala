@@ -422,7 +422,7 @@ object Insts{
     def CSRRCI  = BitPat("b?????????????????111?????1110011")
 
     //nemu_trap
-    def TRAP    = BitPat("b00000000000000000000000001101011")
+    def TRAP    = BitPat("b00000000000001010000000001101011")
     def FENCE_I = BitPat("b00000000000000000001000000001111")
     def FENCE   = BitPat("b0000????????00000000000000001111")
     def SFENCE_VMA  = BitPat("b0001001??????????000000001110011")
