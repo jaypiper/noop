@@ -87,7 +87,7 @@ class InstCache extends Module{
     val cur_raddr       = Cat(cur_addr(RAM_ADDR_WIDTH + RAM_WIDTH_BIT-1, IC_BLOCK_WIDTH), axiOffset(2,1))
     val cache_hit_vec   = VecInit((0 until CACHE_WAY_NUM).map(i => tag(i)(blockIdx) === instTag && valid(i)(blockIdx)))
     val cacheHit        = cache_hit_vec.asUInt().orR
-    val matchWay        = Mux(cacheHit, OHToUInt(cache_hit_vec), LFSR(2))
+    val matchWay        = Mux(cacheHit, OHToUInt(cache_hit_vec), LFSR(3)(2,1))
     val cur_way         = Mux(hs_in, matchWay, matchWay_r)
     val pre_blockIdx    = addr_r(IC_INDEX_WIDTH+IC_BLOCK_WIDTH-1, IC_BLOCK_WIDTH)
     val pre_instTag     = addr_r(PADDR_WIDTH-1, IC_BLOCK_WIDTH+IC_INDEX_WIDTH)

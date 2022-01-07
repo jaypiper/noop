@@ -115,7 +115,7 @@ class DataCache extends Module{
     val cur_tag         = cur_addr(PADDR_WIDTH-1, DC_BLOCK_WIDTH+DC_INDEX_WIDTH)
     val cache_hit_vec   = VecInit((0 until CACHE_WAY_NUM).map(i => tag(i)(blockIdx) === cur_tag && valid(i)(blockIdx)))
     val cacheHit        = cache_hit_vec.asUInt().orR
-    val matchWay        = Mux(cacheHit, OHToUInt(cache_hit_vec), Mux(hs_in, LFSR(2), matchWay_r))
+    val matchWay        = Mux(cacheHit, OHToUInt(cache_hit_vec), Mux(hs_in, LFSR(3)(2,1), matchWay_r))
     val is_dirty        = dirty(matchWay)(blockIdx)  // can get dirty bit concurrently with cacheHit, matchWay
     when(hs_in){
         addr_r := io.dcRW.addr
