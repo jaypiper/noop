@@ -75,20 +75,20 @@ class Writeback extends Module{
             }
         }
     }
-    val is_mmio_r   = RegNext(io.mem2rb.is_mmio)
-    val instFinish = Module(new InstFinish)
-    instFinish.io.clock     := clock
-    instFinish.io.is_mmio   := is_mmio_r
-    instFinish.io.valid     := valid_r
-    instFinish.io.pc        := pc_r
-    instFinish.io.inst      := inst_r
-    instFinish.io.rcsr_id   := rcsr_id_r
+    // val is_mmio_r   = RegNext(io.mem2rb.is_mmio)
+    // val instFinish = Module(new InstFinish)
+    // instFinish.io.clock     := clock
+    // instFinish.io.is_mmio   := is_mmio_r
+    // instFinish.io.valid     := valid_r
+    // instFinish.io.pc        := pc_r
+    // instFinish.io.inst      := inst_r
+    // instFinish.io.rcsr_id   := rcsr_id_r
 
-    val transExcep = Module(new TransExcep)
-    transExcep.io.clock     := clock
-    transExcep.io.intr      := excep_r.en && excep_r.etype === 0.U
-    transExcep.io.cause     := excep_r.cause
-    transExcep.io.pc        := excep_r.pc
+    // val transExcep = Module(new TransExcep)
+    // transExcep.io.clock     := clock
+    // transExcep.io.intr      := excep_r.en && excep_r.etype === 0.U
+    // transExcep.io.cause     := excep_r.cause
+    // transExcep.io.pc        := excep_r.pc
 
 }
 

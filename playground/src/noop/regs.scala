@@ -19,9 +19,9 @@ class Regs extends Module{
     when(io.dst.en && io.dst.id =/= 0.U){
         regs(io.dst.id) := io.dst.data
     }
-    val updateRegs = Module(new UpdateRegs)
-    updateRegs.io.regs_data := regs.asUInt
-    updateRegs.io.clock := clock
+    // val updateRegs = Module(new UpdateRegs)
+    // updateRegs.io.regs_data := regs.asUInt
+    // updateRegs.io.clock := clock
 }
 
 class Csrs extends Module{
@@ -296,25 +296,25 @@ class Csrs extends Module{
     }.otherwise{
 
     }
-    val updateCsrs = Module(new UpdateCsrs)
-    updateCsrs.io.priv      := priv
-    updateCsrs.io.mstatus   := Cat(CSR_MSTATUS,mstatus)
-    updateCsrs.io.mepc      := Cat(CSR_MEPC,mepc)
-    updateCsrs.io.mtval     := Cat(CSR_MTVAL,mtval)
-    updateCsrs.io.mscratch  := Cat(CSR_MSCRATCH,mscratch)
-    updateCsrs.io.mcause    := Cat(CSR_MCAUSE,mcause)
-    updateCsrs.io.mtvec     := Cat(CSR_MTVEC,mtvec)
-    updateCsrs.io.mie       := Cat(CSR_MIE,mie)
-    updateCsrs.io.mip       := Cat(CSR_MIP,mip)
-    updateCsrs.io.medeleg   := Cat(CSR_MEDELEG,medeleg)
-    updateCsrs.io.mideleg   := Cat(CSR_MIDELEG,mideleg)
-    updateCsrs.io.sepc      := Cat(CSR_SEPC,sepc)
-    updateCsrs.io.stval     := Cat(CSR_STVAL,stval)
-    updateCsrs.io.sscratch  := Cat(CSR_SSCRATCH,sscratch)
-    updateCsrs.io.stvec     := Cat(CSR_STVEC,stvec)
-    updateCsrs.io.satp      := Cat(CSR_SATP,satp)
-    updateCsrs.io.scause    := Cat(CSR_SCAUSE,scause)
-    updateCsrs.io.clock     := clock
+    // val updateCsrs = Module(new UpdateCsrs)
+    // updateCsrs.io.priv      := priv
+    // updateCsrs.io.mstatus   := Cat(CSR_MSTATUS,mstatus)
+    // updateCsrs.io.mepc      := Cat(CSR_MEPC,mepc)
+    // updateCsrs.io.mtval     := Cat(CSR_MTVAL,mtval)
+    // updateCsrs.io.mscratch  := Cat(CSR_MSCRATCH,mscratch)
+    // updateCsrs.io.mcause    := Cat(CSR_MCAUSE,mcause)
+    // updateCsrs.io.mtvec     := Cat(CSR_MTVEC,mtvec)
+    // updateCsrs.io.mie       := Cat(CSR_MIE,mie)
+    // updateCsrs.io.mip       := Cat(CSR_MIP,mip)
+    // updateCsrs.io.medeleg   := Cat(CSR_MEDELEG,medeleg)
+    // updateCsrs.io.mideleg   := Cat(CSR_MIDELEG,mideleg)
+    // updateCsrs.io.sepc      := Cat(CSR_SEPC,sepc)
+    // updateCsrs.io.stval     := Cat(CSR_STVAL,stval)
+    // updateCsrs.io.sscratch  := Cat(CSR_SSCRATCH,sscratch)
+    // updateCsrs.io.stvec     := Cat(CSR_STVEC,stvec)
+    // updateCsrs.io.satp      := Cat(CSR_SATP,satp)
+    // updateCsrs.io.scause    := Cat(CSR_SCAUSE,scause)
+    // updateCsrs.io.clock     := clock
 }
 
 class UpdateRegs extends BlackBox with HasBlackBoxPath{
