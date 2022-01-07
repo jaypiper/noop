@@ -5,6 +5,7 @@ import chisel3.util._
 import noop.param.common._
 import noop.param.regs_config._
 import noop.datapath._
+import difftest._
 
 class Regs extends Module{
     val io = IO(new Bundle{
@@ -18,9 +19,12 @@ class Regs extends Module{
     when(io.dst.en && io.dst.id =/= 0.U){
         regs(io.dst.id) := io.dst.data
     }
-    val updateRegs = Module(new UpdateRegs)
-    updateRegs.io.regs_data := regs.asUInt
-    updateRegs.io.clock := clock
+    // val updateRegs = Module(new UpdateRegs)
+    // updateRegs.io.regs_data := regs.asUInt
+    // updateRegs.io.clock := clock
+
+    // val regstate = Module(new DifftestArchIntRegState)
+    // regstate.io.gpr := regs
 }
 
 class Csrs extends Module{
@@ -295,25 +299,46 @@ class Csrs extends Module{
     }.otherwise{
 
     }
-    val updateCsrs = Module(new UpdateCsrs)
-    updateCsrs.io.priv      := priv
-    updateCsrs.io.mstatus   := Cat(CSR_MSTATUS,mstatus)
-    updateCsrs.io.mepc      := Cat(CSR_MEPC,mepc)
-    updateCsrs.io.mtval     := Cat(CSR_MTVAL,mtval)
-    updateCsrs.io.mscratch  := Cat(CSR_MSCRATCH,mscratch)
-    updateCsrs.io.mcause    := Cat(CSR_MCAUSE,mcause)
-    updateCsrs.io.mtvec     := Cat(CSR_MTVEC,mtvec)
-    updateCsrs.io.mie       := Cat(CSR_MIE,mie)
-    updateCsrs.io.mip       := Cat(CSR_MIP,mip)
-    updateCsrs.io.medeleg   := Cat(CSR_MEDELEG,medeleg)
-    updateCsrs.io.mideleg   := Cat(CSR_MIDELEG,mideleg)
-    updateCsrs.io.sepc      := Cat(CSR_SEPC,sepc)
-    updateCsrs.io.stval     := Cat(CSR_STVAL,stval)
-    updateCsrs.io.sscratch  := Cat(CSR_SSCRATCH,sscratch)
-    updateCsrs.io.stvec     := Cat(CSR_STVEC,stvec)
-    updateCsrs.io.satp      := Cat(CSR_SATP,satp)
-    updateCsrs.io.scause    := Cat(CSR_SCAUSE,scause)
-    updateCsrs.io.clock     := clock
+
+    // val csrstate = Module(new DifftestCSRState)
+    // csrstate.io.priviledgeMode  := priv
+    // csrstate.io.mstatus := mstatus
+    // csrstate.io.sstatus := sstatus
+    // csrstate.io.mepc    := mepc
+    // csrstate.io.sepc    := sepc
+    // csrstate.io.mtval   := mtval
+    // csrstate.io.stval   := stval
+    // csrstate.io.mtvec   := mtvec
+    // csrstate.io.stvec   := stvec
+    // csrstate.io.mcause  := mcause
+    // csrstate.io.scause  := scause
+    // csrstate.io.satp    := satp
+    // csrstate.io.mip := mip
+    // csrstate.io.mie := mie
+    // csrstate.io.mscratch    := mscratch
+    // csrstate.io.sscratch    := sscratch
+    // csrstate.io.mideleg := mideleg
+    // csrstate.io.medeleg := medeleg
+
+    // val updateCsrs = Module(new UpdateCsrs)
+    // updateCsrs.io.priv      := priv
+    // updateCsrs.io.mstatus   := Cat(CSR_MSTATUS,mstatus)
+    // updateCsrs.io.mepc      := Cat(CSR_MEPC,mepc)
+    // updateCsrs.io.mtval     := Cat(CSR_MTVAL,mtval)
+    // updateCsrs.io.mscratch  := Cat(CSR_MSCRATCH,mscratch)
+    // updateCsrs.io.mcause    := Cat(CSR_MCAUSE,mcause)
+    // updateCsrs.io.mtvec     := Cat(CSR_MTVEC,mtvec)
+    // updateCsrs.io.mie       := Cat(CSR_MIE,mie)
+    // updateCsrs.io.mip       := Cat(CSR_MIP,mip)
+    // updateCsrs.io.medeleg   := Cat(CSR_MEDELEG,medeleg)
+    // updateCsrs.io.mideleg   := Cat(CSR_MIDELEG,mideleg)
+    // updateCsrs.io.sepc      := Cat(CSR_SEPC,sepc)
+    // updateCsrs.io.stval     := Cat(CSR_STVAL,stval)
+    // updateCsrs.io.sscratch  := Cat(CSR_SSCRATCH,sscratch)
+    // updateCsrs.io.stvec     := Cat(CSR_STVEC,stvec)
+    // updateCsrs.io.satp      := Cat(CSR_SATP,satp)
+    // updateCsrs.io.scause    := Cat(CSR_SCAUSE,scause)
+    // updateCsrs.io.clock     := clock
 }
 
 class UpdateRegs extends BlackBox with HasBlackBoxPath{

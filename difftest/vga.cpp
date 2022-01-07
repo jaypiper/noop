@@ -1,6 +1,6 @@
 #include "vga.h"
 
-extern Vnewtop* cpu;
+extern VSimTop* cpu;
 
 SDL_Renderer *renderer = NULL;
 SDL_Texture *texture = NULL;

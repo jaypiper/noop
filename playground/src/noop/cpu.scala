@@ -47,6 +47,65 @@ class CPU_AXI_IO extends Bundle{
     val rdata   = Input(UInt(64.W))
     val rlast   = Input(Bool())
     val rid     = Input(UInt(4.W))
+
+    val awprot  = Output(UInt(3.W))
+    val awuser  = Output(Bool())
+    val awlock  = Output(Bool())
+    val awcache = Output(UInt(4.W))
+    val awqos   = Output(UInt(4.W))
+    val buser   = Input(Bool())
+    val arprot  = Input(UInt(3.W))
+    val aruser  = Output(Bool())
+    val arlock  = Output(Bool())
+    val arcache = Output(UInt(4.W))
+    val arqos   = Output(UInt(4.W))
+    val ruser   = Input(Bool())
+
+    def init_i() = {
+        awready := 0.U
+        wready  := 0.U
+        bvalid  := 0.U
+        bresp   := 0.U
+        bid     := 0.U
+        arready := 0.U
+        rvalid  := 0.U
+        rresp   := 0.U
+        rdata   := 0.U
+        rlast   := 0.U
+        rid     := 0.U
+        buser   := 0.U
+        arprot  := 0.U
+        ruser   := 0.U
+    }
+    def init_o() = {
+        awvalid := 0.U
+        awaddr  := 0.U
+        awid    := 0.U
+        awlen   := 0.U
+        awsize  := 0.U
+        awburst := 0.U
+        wvalid  := 0.U
+        wdata   := 0.U
+        wstrb   := 0.U
+        wlast   := 0.U
+        bready  := 0.U
+        arvalid := 0.U
+        araddr  := 0.U
+        arid    := 0.U
+        arlen   := 0.U
+        arsize  := 0.U
+        arburst := 0.U
+        rready  := 0.U
+        awprot  := 0.U
+        awuser  := 0.U
+        awlock  := 0.U
+        awcache := 0.U
+        awqos   := 0.U
+        aruser  := 0.U
+        arlock  := 0.U
+        arcache := 0.U
+        arqos   := 0.U
+    }
 }
 
 class CPUIO extends Bundle{
@@ -56,7 +115,7 @@ class CPUIO extends Bundle{
     val interrupt   = Input(Bool())
 }
 
-class CPU extends Module{
+class riscv_cpu_top extends Module{
     val io = IO(new CPUIO)
     dontTouch(io)
     val fetch       = Module(new Fetch)
@@ -184,5 +243,15 @@ class CPU extends Module{
     crossBar.io.outAxi.rd.bits.data    := io.master.rdata
     crossBar.io.outAxi.rd.bits.last    := io.master.rlast
     crossBar.io.outAxi.rd.bits.id      := io.master.rid
+
+    io.master.awprot   := 0.U
+    io.master.awuser   := 0.U
+    io.master.awlock   := 0.U
+    io.master.awcache  := 0.U
+    io.master.awqos    := 0.U
+    io.master.aruser   := 0.U
+    io.master.arlock   := 0.U
+    io.master.arcache  := 0.U
+    io.master.arqos    := 0.U
 
 }

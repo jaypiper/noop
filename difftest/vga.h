@@ -8,7 +8,7 @@
 #include "common.h"
 #include <SDL2/SDL.h>
 
-#include "../obj_dir/Vnewtop.h"
+#include "../obj_dir/VSimTop.h"
 
 #include "verilated.h"
 #include "verilated_fst_c.h"

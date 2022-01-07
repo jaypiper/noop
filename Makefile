@@ -65,8 +65,8 @@ else
 	VSRCS = $(CORE) $(PWD)/top/newtop.v #/home/chenlu/ysyx/ysyxSoC/ysyx/soc/ysyxSoCFull.v
 	VSRCS += $(shell find /home/chenlu/ysyx/ysyxSoC/ysyx/soc | grep -xo .*\.v)
 endif
-NAME = newtop
-VFLAGS += --top newtop
+NAME = SimTop
+VFLAGS += --top SimTop
 ifeq ($(DIFF),1)
 	CFLAGS += -DDIFFTEST
 endif

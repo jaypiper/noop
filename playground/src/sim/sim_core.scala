@@ -14,7 +14,7 @@ class newtop extends Module{
     
     val io = IO(new SimCoreIO)
 
-    val cpu = Module(new CPU)
+    val cpu = Module(new riscv_cpu_top)
     val mem = Module(new SimMEM)
     val mmio = Module(new SimMMIO)
     val dma = Module(new SimDma)

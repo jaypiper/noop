@@ -134,4 +134,14 @@ class SimDma extends Module{
     io.dmaAxi.arsize    := arsize_r
     io.dmaAxi.arburst   := arburst_r
     io.dmaAxi.rready    := rready_r
+
+    io.dmaAxi.awprot    := 0.U
+    io.dmaAxi.awuser    := 0.U
+    io.dmaAxi.awlock    := 0.U
+    io.dmaAxi.awcache   := 0.U
+    io.dmaAxi.awqos     := 0.U
+    io.dmaAxi.aruser    := 0.U
+    io.dmaAxi.arlock    := 0.U
+    io.dmaAxi.arcache   := 0.U
+    io.dmaAxi.arqos     := 0.U
 }

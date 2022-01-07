@@ -310,4 +310,10 @@ class Fetch extends Module{
     io.if2id.excep      := excep3_r
     io.if2id.valid      := valid3_r
     io.if2id.recov      := recov3_r
+    //printf("pc: %x inst: %x\n", io.if2id.pc, io.if2id.inst)
+    // when(io.if2id.ready){
+        
+    //     printf("pc: %x inst: %x\n", io.if2id.pc, io.if2id.inst)
+    //    // assert(false.B)
+    // }
 }

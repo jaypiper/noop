@@ -1,6 +1,6 @@
 #include "common.h"
 #include "svdpi.h"
-#include "Vnewtop__Dpi.h"
+#include "VSimTop__Dpi.h"
 
 extern "C" void update_reg(int id, long long val){
     state.gpr[id] = val;

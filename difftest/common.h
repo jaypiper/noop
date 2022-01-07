@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <signal.h>
 #include <ctime>
-#include "../obj_dir/Vnewtop.h"
+#include "../obj_dir/VSimTop.h"
 typedef uint64_t word_t;
 typedef int64_t sword_t;
 
@@ -36,7 +36,7 @@ typedef struct CPU_STATE{
 # define SCREEN_W 400
 # define SCREEN_H 300
 
-extern Vnewtop* cpu;
+extern VSimTop* cpu;
 extern CPU_state state;
 extern int is_mmio;
 extern int valid;

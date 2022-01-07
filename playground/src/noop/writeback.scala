@@ -5,6 +5,7 @@ import chisel3.util._
 import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
+import difftest._
 
 class Writeback extends Module{
     val io = IO(new Bundle{
@@ -75,20 +76,36 @@ class Writeback extends Module{
             }
         }
     }
-    val is_mmio_r   = RegNext(io.mem2rb.is_mmio)
-    val instFinish = Module(new InstFinish)
-    instFinish.io.clock     := clock
-    instFinish.io.is_mmio   := is_mmio_r
-    instFinish.io.valid     := valid_r
-    instFinish.io.pc        := pc_r
-    instFinish.io.inst      := inst_r
-    instFinish.io.rcsr_id   := rcsr_id_r
 
-    val transExcep = Module(new TransExcep)
-    transExcep.io.clock     := clock
-    transExcep.io.intr      := excep_r.en && excep_r.etype === 0.U
-    transExcep.io.cause     := excep_r.cause
-    transExcep.io.pc        := excep_r.pc
+    val diff_wen_r = RegNext(io.wReg.en)
+    val diff_wdata_r = RegNext(io.wReg.data)
+    val diff_id_r = RegNext(io.wReg.id)
+    val is_mmio_r   = RegNext(io.mem2rb.is_mmio)
+
+    // val instCommit = Module(new DifftestInstrCommit)
+    // instCommit.io.valid := valid_r
+    // instCommit.io.pc := pc_r
+    // instCommit.io.instr := inst_r
+    // instCommit.io.skip := true.B
+    // instCommit.io.isRVC := false.B
+    // instCommit.io.scFailed := false.B
+    // instCommit.io.wen := diff_wen_r
+    // instCommit.io.wdata := diff_wdata_r
+    // instCommit.io.wdest := diff_id_r
+
+    // val instFinish = Module(new InstFinish)
+    // instFinish.io.clock     := clock
+    // instFinish.io.is_mmio   := is_mmio_r
+    // instFinish.io.valid     := valid_r
+    // instFinish.io.pc        := pc_r
+    // instFinish.io.inst      := inst_r
+    // instFinish.io.rcsr_id   := rcsr_id_r
+
+    // val transExcep = Module(new TransExcep)
+    // transExcep.io.clock     := clock
+    // transExcep.io.intr      := excep_r.en && excep_r.etype === 0.U
+    // transExcep.io.cause     := excep_r.cause
+    // transExcep.io.pc        := excep_r.pc
 
 }
 

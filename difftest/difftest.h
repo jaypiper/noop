@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <csetjmp>
 #include <vector>
-#include "../obj_dir/Vnewtop.h"
+#include "../obj_dir/VSimTop.h"
 
 #include <iostream>
 #include <elf.h>

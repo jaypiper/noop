@@ -169,4 +169,8 @@ class DmaBridge extends Module{
     io.dcRW.wdata   := dc_wdata_r
     io.dcRW.dc_mode := dc_mode_r
     io.dcRW.amo     := 0.U
+
+    io.dmaAxi.arprot      := 0.U
+    io.dmaAxi.buser       := 0.U
+    io.dmaAxi.ruser       := 0.U
 }

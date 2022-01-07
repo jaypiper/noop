@@ -47,4 +47,51 @@ class TransAXI extends Module{
     io.raw_axi.rlast         := io.bun_axi.rd.bits.last
     io.raw_axi.rid           := io.bun_axi.rd.bits.id
 
+    io.raw_axi.arprot       := 0.U
+    io.raw_axi.buser        := 0.U
+    io.raw_axi.ruser        := 0.U
+
+}
+
+class TransAXI_R extends Module{
+    val io = IO(new Bundle{
+        val raw_axi = new AxiSlave
+        val bun_axi = new CPU_AXI_IO
+    })
+
+
+    io.bun_axi.awready       := io.raw_axi.wa.ready
+    io.raw_axi.wa.valid      := io.bun_axi.awvalid
+    io.raw_axi.wa.bits.addr  := io.bun_axi.awaddr
+    io.raw_axi.wa.bits.id    := io.bun_axi.awid
+    io.raw_axi.wa.bits.len   := io.bun_axi.awlen
+    io.raw_axi.wa.bits.size  := io.bun_axi.awsize
+    io.raw_axi.wa.bits.burst := io.bun_axi.awburst
+
+    io.bun_axi.wready        := io.raw_axi.wd.ready
+    io.raw_axi.wd.valid      := io.bun_axi.wvalid
+    io.raw_axi.wd.bits.data  := io.bun_axi.wdata
+    io.raw_axi.wd.bits.strb  := io.bun_axi.wstrb
+    io.raw_axi.wd.bits.last  := io.bun_axi.wlast
+
+    io.raw_axi.wr.ready      := io.bun_axi.bready
+    io.bun_axi.bvalid        := io.raw_axi.wr.valid
+    io.bun_axi.bresp         := io.raw_axi.wr.bits.resp
+    io.bun_axi.bid           := io.raw_axi.wr.bits.id
+
+    io.bun_axi.arready       := io.raw_axi.ra.ready
+    io.raw_axi.ra.valid      := io.bun_axi.arvalid
+    io.raw_axi.ra.bits.addr  := io.bun_axi.araddr
+    io.raw_axi.ra.bits.id    := io.bun_axi.arid
+    io.raw_axi.ra.bits.len   := io.bun_axi.arlen
+    io.raw_axi.ra.bits.size  := io.bun_axi.arsize
+    io.raw_axi.ra.bits.burst := io.bun_axi.arburst
+
+    io.raw_axi.rd.ready      := io.bun_axi.rready
+    io.bun_axi.rvalid        := io.raw_axi.rd.valid
+    io.bun_axi.rresp         := io.raw_axi.rd.bits.resp
+    io.bun_axi.rdata         := io.raw_axi.rd.bits.data
+    io.bun_axi.rlast         := io.raw_axi.rd.bits.last
+    io.bun_axi.rid           := io.raw_axi.rd.bits.id      
+
 }
