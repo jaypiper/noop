@@ -452,6 +452,7 @@ object Insts{
     def AMOMINU_D   = BitPat("b11000????????????011?????0101111")
     def AMOMAXU_D   = BitPat("b11100????????????011?????0101111")
     def WFI         = BitPat("b00010000010100000000000001110011")
+    def CTZ         = BitPat("b011000000001?????001?????0010011")
 
     def C_ADDI4SPN  = BitPat("b000???????????00")
     def C_LW        = BitPat("b010???????????00")
@@ -511,6 +512,7 @@ trait ALUOP{
          alu_MULHU  :: alu_MULHSU :: alu_DIV  :: alu_DIVU :: alu_REM ::
          alu_REMU   :: alu_NAND   :: Nil) = Enum(22)
     val ALUOP_WIDTH = 5
+    val alu_CTZ = 23.U
 }
 
 trait BrType{
@@ -560,6 +562,8 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.SLLI   -> List(IType, alu_SLL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.SRLI   -> List(IType, alu_SRL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.SRAI   -> List(IType, alu_SRA,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        
+        Insts.CTZ    -> List(RType, alu_CTZ,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
 
         Insts.ADD    -> List(RType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.SUB    -> List(RType, alu_SUB,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),

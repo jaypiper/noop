@@ -35,11 +35,50 @@ class ALUIO extends Bundle{
     val valid   = Output(Bool())
 }
 
+class CTZ_Compute extends Module{
+    val io = IO(new Bundle{
+        val in = Input(UInt(DATA_WIDTH.W))
+        val en  = Input(Bool())
+        val out = Output(UInt(DATA_WIDTH.W))
+        val valid = Output(Bool())
+    })
+
+    val sIdle :: sCompute :: Nil = Enum(2)
+    val idx = RegInit(0.U(8.W))
+    val state = RegInit(sIdle)
+    val out_r = RegInit(0.U(DATA_WIDTH.W))
+    val valid_r = RegInit(false.B)
+    val in_r = RegInit(0.U(DATA_WIDTH.W))
+    switch(state){
+        is(sIdle){
+            valid_r := false.B
+            when(io.en){
+                state := sCompute
+                in_r := io.in
+                idx := 0.U
+            }
+        }
+        is(sCompute){
+            when(((in_r & (1.U << idx)) =/= 0.U) || idx === 64.U){
+                state := sIdle
+                valid_r := true.B
+                out_r := idx
+                // printf("inp: %x out %x\n", in_r, out_r)
+            }.otherwise{
+                idx := idx + 1.U
+            }
+        }
+    }
+    io.valid := valid_r
+    io.out := out_r
+}
+
 class ALU extends Module{
     val io = IO(new ALUIO)
     val multiplier = Module(new MUL)
     val divider    = Module(new DIV)
-    val sIdle :: sWaitMul :: sWaitDiv :: Nil = Enum(3)
+    val ctz_comp   = Module(new CTZ_Compute)
+    val sIdle :: sWaitMul :: sWaitDiv :: sWaitCtz :: Nil = Enum(4)
     val pre_aluop = RegInit(0.U(ALUOP_WIDTH.W))
     val state = RegInit(sIdle)
 
@@ -53,6 +92,10 @@ class ALU extends Module{
     divider.io.b        := io.val2
     divider.io.sign     := div_type(1)
     divider.io.en       := false.B
+
+    ctz_comp.io.en := false.B
+    ctz_comp.io.in := io.val1
+
     io.valid := false.B
     io.out   := 0.U
     io.ready := state === sIdle
@@ -66,6 +109,9 @@ class ALU extends Module{
                 }.elsewhen(io.alu_op === alu_DIV || io.alu_op === alu_DIVU || io.alu_op ===  alu_REM || io.alu_op ===  alu_REMU){
                     divider.io.en       := true.B
                     state := sWaitDiv
+                }.elsewhen(io.alu_op === alu_CTZ){
+                    ctz_comp.io.en := true.B
+                    state := sWaitCtz
                 }.otherwise{
                     // val shamt  = Mux(io.alu64, io.val2(5, 0), Cat(0.U(1.W), io.val2(4, 0)))
                     val alu_val = MuxLookup(io.alu_op, 0.U(DATA_WIDTH.W), Seq(
@@ -101,6 +147,13 @@ class ALU extends Module{
                 io.out := Mux(pre_aluop === alu_DIV || pre_aluop === alu_DIVU, divider.io.qua, divider.io.rem)
                 io.valid := true.B
                 state := sIdle
+            }
+        }
+        is(sWaitCtz){
+            when(ctz_comp.io.valid){
+                io.out := ctz_comp.io.out
+                state := sIdle
+                io.valid := true.B
             }
         }
     }

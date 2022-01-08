@@ -21,7 +21,7 @@ class CLINT extends Module{
     val mtime = RegInit(0.U(DATA_WIDTH.W))
     val mtimecmp = RegInit(0.U(DATA_WIDTH.W))
     val ipi = RegInit(0.U(DATA_WIDTH.W))
-    val count = RegInit(0.U(2.W))
+    val count = RegInit(0.U(12.W))
     val clear_r = RegInit(false.B)
     clear_r := false.B
     count := count + 1.U
