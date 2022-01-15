@@ -1,0 +1,1 @@
+cat /home/chenlu/noop/playground/src/device/vga_ctrl_comb.v /home/chenlu/noop/playground/src/device/vga_ctrl_top.v /home/chenlu/noop/build/VgaCrossbar.v /home/chenlu/noop/build/Mapping.v  /home/chenlu/noop/playground/src/device/reg.v >  /home/chenlu/noop/build/vga_ctrl.v

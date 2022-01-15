@@ -1,4 +1,4 @@
-module vga_ctrl(
+module vga_ctrl_axi(
 	input clock,
 	input resetn,
 	input         io_master_awready,

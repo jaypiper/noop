@@ -47,6 +47,40 @@ class CPU_AXI_IO extends Bundle{
     val rdata   = Input(UInt(64.W))
     val rlast   = Input(Bool())
     val rid     = Input(UInt(4.W))
+
+    def init_i() = {
+        awready := 0.U
+        wready  := 0.U
+        bvalid  := 0.U
+        bresp   := 0.U
+        bid     := 0.U
+        arready := 0.U
+        rvalid  := 0.U
+        rresp   := 0.U
+        rdata   := 0.U
+        rlast   := 0.U
+        rid     := 0.U
+    }
+    def init_o() = {
+        awvalid := 0.U
+        awaddr  := 0.U
+        awid    := 0.U
+        awlen   := 0.U
+        awsize  := 0.U
+        awburst := 0.U
+        wvalid  := 0.U
+        wdata   := 0.U
+        wstrb   := 0.U
+        wlast   := 0.U
+        bready  := 0.U
+        arvalid := 0.U
+        araddr  := 0.U
+        arid    := 0.U
+        arlen   := 0.U
+        arsize  := 0.U
+        arburst := 0.U
+        rready  := 0.U
+    }
 }
 
 class CPUIO extends Bundle{

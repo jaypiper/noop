@@ -1,7 +1,7 @@
-module vga_ctrl(
-	input clock,
-	input resetn,
-	input         io_master_awready,
+module vga_ctrl_comb(
+    input clock,
+    input resetn,
+    input         io_master_awready,
     output        io_master_awvalid,
     output [31:0] io_master_awaddr,
     output [3:0]  io_master_awid,
@@ -61,11 +61,13 @@ module vga_ctrl(
     output        io_slave_rlast,
     output [3:0]  io_slave_rid,
 
-	output hsync,
-	output vsync,
-	output [3:0]vga_r,
-	output [3:0]vga_g,
-	output [3:0]vga_b
+    output [31:0] io_offset,
+
+    output hsync,
+    output vsync,
+    output [3:0]vga_r,
+    output [3:0]vga_g,
+    output [3:0]vga_b
 );
 
     wire vga_clk_din, vga_clk_dout;
@@ -89,15 +91,16 @@ module vga_ctrl(
     wire [23:0] buf11_din, buf12_din, buf21_din, buf22_din, buf11_dout, buf12_dout, buf21_dout, buf22_dout;
     wire buf11_wen, buf12_wen, buf21_wen, buf22_wen;
 
-    S011HD1P_X64Y4D32_BW buffer11(buf11_dout, clock, 0, ~buf11_wen, 0, buf11_addr, buf11_din);
-    S011HD1P_X64Y4D32_BW buffer12(buf12_dout, clock, 0, ~buf12_wen, 0, buf12_addr, buf12_din);
-    S011HD1P_X64Y4D32_BW buffer21(buf21_dout, clock, 0, ~buf21_wen, 0, buf21_addr, buf21_din);
-    S011HD1P_X64Y4D32_BW buffer22(buf22_dout, clock, 0, ~buf22_wen, 0, buf22_addr, buf22_din);
+    S011HD1P_X64Y4D32_BW buffer11(.Q(buf11_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf11_wen), .BWEN(32'h0), .A(buf11_addr), .D(buf11_din));
+    S011HD1P_X64Y4D32_BW buffer12(.Q(buf12_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf12_wen), .BWEN(32'h0), .A(buf12_addr), .D(buf12_din));
+    S011HD1P_X64Y4D32_BW buffer21(.Q(buf21_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf21_wen), .BWEN(32'h0), .A(buf21_addr), .D(buf21_din));
+    S011HD1P_X64Y4D32_BW buffer22(.Q(buf22_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf22_wen), .BWEN(32'h0), .A(buf22_addr), .D(buf22_din));
 
-    wire [31:0] status_din, status_dout, base_din, base_dout;
-    wire status_wen, base_wen;
+    wire [31:0] status_din, status_dout, base_din, base_dout, offset_din, offset_dout;
+    wire status_wen, base_wen, offset_wen;
     preg #(32, 0) status_r(clock, ~resetn, status_din, status_dout, status_wen);
     preg #(32, 0) base_r(clock, ~resetn, base_din, base_dout, base_wen);
+    preg #(32, 0) offset_r(clock, ~resetn, offset_din, offset_dout, offset_wen);
 
     wire isMode800 = status_dout[0] == MODE800x600;
 
@@ -157,13 +160,13 @@ module vga_ctrl(
 
     wire [10:0] vidx_din, vidx_dout, pre_vidx_din, pre_vidx_dout;
     wire vidx_wen, pre_vidx_wen, vaddr_wen;
-    wire [19:0] vaddr_din, vaddr_dout;
+    wire [31:0] vaddr_din, vaddr_dout;
     preg #(11, 0) axi_vidx(clock, ~resetn, vidx_din, vidx_dout, vidx_wen);
     preg #(11, 0) pre_axi_vidx(clock, ~resetn, pre_vidx_din, pre_vidx_dout, pre_vidx_wen);
-    preg #(20, 0) axi_vaddr(clock, ~resetn, vaddr_din, vaddr_dout, vaddr_wen);
+    preg #(32, 0) axi_vaddr(clock, ~resetn, vaddr_din, vaddr_dout, vaddr_wen);
     assign vidx_din = y_dout == v_backporch ? 0 : vidx_dout + 1;
     assign vidx_wen = v_valid && (x_dout == 1) && vga_clk_en;
-    assign vaddr_din = y_dout == v_backporch ? 0 : vaddr_dout + (isMode800 ? 20'd800 : 20'd400);
+    assign vaddr_din = y_dout == v_backporch ? 0 : vaddr_dout + 32'h400;//(isMode800 ? 20'd800 : 20'd400);
     assign vaddr_wen = v_valid && (x_dout == 1) && vga_clk_en;
     // wire [19:0] axi_vaddr = vidx_dout * (isMode800 ? 20'd800 : 20'd400);
     assign pre_vidx_din = vidx_dout;
@@ -230,8 +233,9 @@ module vga_ctrl(
     preg #(2, sIdle) swstate(clock, ~resetn, swstate_din, swstate_dout, swstate_wen);
     preg #(2, sIdle) srstate(clock, ~resetn, srstate_din, srstate_dout, srstate_wen);
 
-    wire waddr_din, waddr_dout, waddr_wen;
-    preg #(1, 0) waddr_r(clock, ~resetn, waddr_din, waddr_dout, waddr_wen);
+    wire [1:0]waddr_din, waddr_dout;
+    wire waddr_wen;
+    preg #(2, 0) waddr_r(clock, ~resetn, waddr_din, waddr_dout, waddr_wen);
 
     wire swaddrEn_din, swaddrEn_dout, swaddrEn_wen, swdataEn_din, swdataEn_dout, swdataEn_wen, sbEn_din, sbEn_dout, sbEn_wen;
     preg #(1,1) swaddrEn(clock, ~resetn, swaddrEn_din, swaddrEn_dout, swaddrEn_wen);
@@ -248,7 +252,7 @@ module vga_ctrl(
 
     assign swstate_din = sIdle_sw ? sWdata : sWdata_last ? sWresp : sWresp_sw ? sIdle : swstate_dout;
     assign swstate_wen = sIdle_sw | sWdata_last | sWresp_sw;
-    assign waddr_din = io_slave_awaddr[2];
+    assign waddr_din = io_slave_awaddr[3:2];
     assign waddr_wen = sIdle_sw;
     assign swaddrEn_din = sWresp_sw;
     assign swaddrEn_wen = sIdle_sw | sWresp_sw;
@@ -259,9 +263,11 @@ module vga_ctrl(
     assign sbid_din = io_slave_awid;
     assign sbid_wen = sIdle_sw;
     assign status_din = io_slave_wdata[31:0];
-    assign status_wen = sWdata_data & !waddr_dout;
+    assign status_wen = sWdata_data & (waddr_dout == 0);
     assign base_din = io_slave_wdata[63:32];
-    assign base_wen = sWdata_data & waddr_dout;
+    assign base_wen = sWdata_data & (waddr_dout == 1);
+    assign offset_din = io_slave_wdata[31:0];
+    assign offset_wen = sWdata_data & (waddr_dout == 2);
 
     wire sraddrEn_din, sraddrEn_dout, sraddrEn_wen, srdataEn_din, srdataEn_dout, srdataEn_wen, srlast_din, srlast_dout, srlast_wen;
     preg #(1,1) sraddrEn(clock, ~resetn, sraddrEn_din, sraddrEn_dout, sraddrEn_wen);
@@ -287,7 +293,7 @@ module vga_ctrl(
     assign srid_wen = sIdle_sr;
     assign srlast_din = sIdle_sr;
     assign srlast_wen = sIdle_sr | sRdata_data;
-    assign srdata_din = io_slave_araddr[2:0] == 0? {32'h0, status_dout}: {base_dout, 32'h0};
+    assign srdata_din = io_slave_araddr[3:0] == 0? {32'h0, status_dout}: io_slave_araddr[3:0] == 4? {base_dout, 32'h0} : {32'h0, offset_dout};
     assign srdata_wen = sIdle_sr;
 
     assign io_master_awvalid    = 0;
@@ -321,5 +327,6 @@ module vga_ctrl(
     assign io_slave_rlast   = srlast_dout;
     assign io_slave_rid     = srid_dout;
 
+    assign io_offset        = offset_dout;
 
 endmodule
