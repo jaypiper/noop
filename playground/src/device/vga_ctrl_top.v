@@ -227,19 +227,19 @@ module vga_ctrl(
     vga_ctrl_comb vga(
         .clock(clock),
         .resetn(resetn),
-        .io_master_awready(0),
+        .io_master_awready(1'b0),
         // .io_master_awvalid,
         // .io_master_awaddr,
         // .io_master_awid,
         // .io_master_awlen,
         // .io_master_awsize,
         // .io_master_awburst,
-        .io_master_wready(0),
+        .io_master_wready(1'b0),
         // .io_master_wvalid,
         // .io_master_wdata,
         // .io_master_wstrb,
         // .io_master_wlast,
-        .io_master_bready(0),
+        .io_master_bready(1'b0),
         // .io_master_bvalid,
         // .io_master_bresp,
         // .io_master_bid,
@@ -352,11 +352,11 @@ module vga_ctrl(
         // .io_map_out_arsize,
         // .io_map_out_arburst,
         // .io_map_out_rready,
-        .io_map_out_rvalid(0),
-        .io_map_out_rresp(0),
-        .io_map_out_rdata(0),
-        .io_map_out_rlast(0),
-        .io_map_out_rid(0)
+        .io_map_out_rvalid(1'b0),
+        .io_map_out_rresp(2'b0),
+        .io_map_out_rdata(32'b0),
+        .io_map_out_rlast(1'b0),
+        .io_map_out_rid(4'b0)
     );
 
 endmodule
