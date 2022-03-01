@@ -344,7 +344,7 @@ module vga_ctrl(
         .io_map_out_bvalid(io_master_bvalid),
         .io_map_out_bresp(io_master_bresp),
         .io_map_out_bid(io_master_bid),
-        .io_map_out_arready(0),
+        .io_map_out_arready(1'b0),
         // .io_map_out_arvalid,
         // .io_map_out_araddr,
         // .io_map_out_arid,
@@ -354,7 +354,7 @@ module vga_ctrl(
         // .io_map_out_rready,
         .io_map_out_rvalid(1'b0),
         .io_map_out_rresp(2'b0),
-        .io_map_out_rdata(32'b0),
+        .io_map_out_rdata(64'b0),
         .io_map_out_rlast(1'b0),
         .io_map_out_rid(4'b0)
     );

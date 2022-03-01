@@ -95,13 +95,14 @@ module vga_ctrl_comb(
     parameter bufnum_400 = 118;
 
     wire [7:0] buf11_addr, buf12_addr, buf21_addr, buf22_addr;
-    wire [23:0] buf11_din, buf12_din, buf21_din, buf22_din, buf11_dout, buf12_dout, buf21_dout, buf22_dout;
+    wire [23:0] buf11_din, buf12_din, buf21_din, buf22_din;
+    wire [31:0] buf11_dout, buf12_dout, buf21_dout, buf22_dout;
     wire buf11_wen, buf12_wen, buf21_wen, buf22_wen;
 
-    S011HD1P_X64Y4D32_BW buffer11(.Q(buf11_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf11_wen), .BWEN(32'h0), .A(buf11_addr), .D({12'b0, buf11_din}));
-    S011HD1P_X64Y4D32_BW buffer12(.Q(buf12_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf12_wen), .BWEN(32'h0), .A(buf12_addr), .D({12'b0, buf12_din}));
-    S011HD1P_X64Y4D32_BW buffer21(.Q(buf21_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf21_wen), .BWEN(32'h0), .A(buf21_addr), .D({12'b0, buf21_din}));
-    S011HD1P_X64Y4D32_BW buffer22(.Q(buf22_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf22_wen), .BWEN(32'h0), .A(buf22_addr), .D({12'b0, buf22_din}));
+    S011HD1P_X64Y4D32_BW buffer11(.Q(buf11_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf11_wen), .BWEN(32'h0), .A(buf11_addr), .D({8'b0, buf11_din}));
+    S011HD1P_X64Y4D32_BW buffer12(.Q(buf12_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf12_wen), .BWEN(32'h0), .A(buf12_addr), .D({8'b0, buf12_din}));
+    S011HD1P_X64Y4D32_BW buffer21(.Q(buf21_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf21_wen), .BWEN(32'h0), .A(buf21_addr), .D({8'b0, buf21_din}));
+    S011HD1P_X64Y4D32_BW buffer22(.Q(buf22_dout), .CLK(clock), .CEN(1'b0), .WEN(~buf22_wen), .BWEN(32'h0), .A(buf22_addr), .D({8'b0, buf22_din}));
 
     wire [31:0] status_din, status_dout, base_din, base_dout, offset_din, offset_dout;
     wire status_wen, base_wen, offset_wen;
