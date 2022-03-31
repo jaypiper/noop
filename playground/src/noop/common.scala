@@ -12,7 +12,7 @@ object common extends mem_access_mode{
     val INST_WIDTH  = 32
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
-    val PC_START    = "h80000000".U(VADDR_WIDTH.W)
+    val PC_START    = "h30000000".U(VADDR_WIDTH.W)
 
     val PAGE_WIDTH  = 12
 
@@ -259,19 +259,19 @@ object cache_config{ // U S L WIDTH
     val RAM_WIDTH       = 1 << RAM_WIDTH_BIT      // 16B
     val RAM_MASK_WIDTH  = 128
 
-    val CACHE_WAY_NUM   = 4
-    val IC_BLOCK_WIDTH  = 6
-    val IC_INDEX_WIDTH  = 4
+    // val CACHE_WAY_NUM   = 4
+    val IC_BLOCK_WIDTH  = 3
+    val IC_INDEX_WIDTH  = 0
     val IC_BLOCK_SIZE   = 1 << IC_BLOCK_WIDTH
     val IC_BLOCK_NUM    = 1 << IC_INDEX_WIDTH
     val IC_TAG_WIDTH    = PADDR_WIDTH - IC_BLOCK_WIDTH - IC_INDEX_WIDTH
-    val IC_BLOCK_MASK   = "hffffffc0".U(PADDR_WIDTH.W)
-    val DC_BLOCK_WIDTH  = 6
-    val DC_INDEX_WIDTH  = 4
+    val IC_BLOCK_MASK   = "hfffffff8".U(PADDR_WIDTH.W)
+    val DC_BLOCK_WIDTH  = 3
+    val DC_INDEX_WIDTH  = 0
     val DC_BLOCK_SIZE   = 1 << DC_BLOCK_WIDTH
     val DC_BLOCK_NUM    = 1 << DC_INDEX_WIDTH
     val DC_TAG_WIDTH    = PADDR_WIDTH - DC_BLOCK_WIDTH - DC_INDEX_WIDTH
-    val DC_BLOCK_MASK   = "hffffffc0".U(PADDR_WIDTH.W)
+    val DC_BLOCK_MASK   = "hfffffff8".U(PADDR_WIDTH.W)
 
     val DC_MODE_WIDTH = 5
     val mode_NOP = "b00000".U(DC_MODE_WIDTH.W)

@@ -121,7 +121,7 @@ extern "C" void sdcard_write(int offset, long long wdata){
 
 
 #define CONFIG_SDCARD_CTL_MMIO 0x43000000
-#define CONFIG_SDCARD_IMG_PATH "bin/debian16.img"
+#define CONFIG_SDCARD_IMG_PATH "bin/debian-standard.img"
 
 void init_sdcard() {
   base = (uint32_t *)malloc(0x80);

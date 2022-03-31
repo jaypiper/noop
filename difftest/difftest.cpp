@@ -114,7 +114,7 @@ long long inst_num = 0;
 long long cycle = 0;
 time_t init_time;
 void disp_ipc(){
-     std :: cout << "cycle: " << cycle << " inst_num: " << inst_num << " ipc: " << (double)inst_num / cycle << " time(min): " << (time(NULL) - init_time) /  60 << std::endl;
+    std :: cout << "cycle: " << cycle << " inst_num: " << inst_num << " ipc: " << (double)inst_num / cycle << " time(min): " << (time(NULL) - init_time) /  60 << std::endl;
 }
 
 static int diff_csrs[] = {

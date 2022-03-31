@@ -85,13 +85,11 @@ class DataCache extends Module{
         val flush_out   = Output(Bool())
     })
 
-    val tag     = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(0.U(DC_TAG_WIDTH.W))))))
-    val valid   = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B)))))
-    val dirty   = RegInit(VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B)))))
-    val data    = VecInit(Seq.fill(CACHE_WAY_NUM)(Module(new Ram_bw).io))
-    for(i <- 0 until CACHE_WAY_NUM){
-        data(i).init()
-    }
+    val data  = RegInit(0.U(64.W))
+    val tag   = RegInit(0.U(64.W))
+    val dirty = RegInit(false.B)
+    val valid = RegInit(false.B)
+
     val wait_r      = RegInit(false.B) // cache miss
     val valid_r     = RegInit(false.B)
     val flush_r     = RegInit(false.B)
@@ -103,26 +101,18 @@ class DataCache extends Module{
     val hs_in       = io.dcRW.dc_mode =/= mode_NOP && io.dcRW.ready
     io.dcRW.ready := valid_in && !wait_r
     io.dcRW.rvalid := valid_r
-    io.flush_out := flush_r
+    io.flush_out := false.B
     val addr_r          = RegInit(0.U(PADDR_WIDTH.W))
     val cur_addr        = Mux(hs_in, io.dcRW.addr, addr_r)
-    val matchWay_r      = RegInit(0.U(2.W))
-    val offset          = RegInit(0.U(3.W))
     val rdatabuf        = RegInit(0.U(DATA_WIDTH.W))
-    val blockIdx        = cur_addr(DC_INDEX_WIDTH+DC_BLOCK_WIDTH-1, DC_BLOCK_WIDTH)
-    val blockIdx_r      = RegInit(0.U(DC_INDEX_WIDTH.W))
     val cur_tag         = cur_addr(PADDR_WIDTH-1, DC_BLOCK_WIDTH+DC_INDEX_WIDTH)
-    val cache_hit_vec   = VecInit((0 until CACHE_WAY_NUM).map(i => tag(i)(blockIdx) === cur_tag && valid(i)(blockIdx)))
-    val cacheHit        = cache_hit_vec.asUInt().orR
-    val matchWay        = Mux(cacheHit, OHToUInt(cache_hit_vec), Mux(hs_in, LFSR(2), matchWay_r))
-    val is_dirty        = dirty(matchWay)(blockIdx)  // can get dirty bit concurrently with cacheHit, matchWay
+    val cacheHit        = tag === cur_tag
+    val is_dirty        = dirty  // can get dirty bit concurrently with cacheHit, matchWay
     when(hs_in){
         addr_r := io.dcRW.addr
-        matchWay_r := matchWay
         mode_r  := io.dcRW.dc_mode
         wdata_r := io.dcRW.wdata
         amo_r   := io.dcRW.amo
-        blockIdx_r := io.dcRW.addr(DC_INDEX_WIDTH+DC_BLOCK_WIDTH-1, DC_BLOCK_WIDTH)
     }
 // flush
     when(io.flush){
@@ -131,32 +121,20 @@ class DataCache extends Module{
     val flush_way   = Wire(UInt(2.W))
     val flush_idx   = Wire(UInt(DC_INDEX_WIDTH.W))
     val flush_done  = Wire(Bool())
-    flush_way := 0.U; flush_idx := 0.U; flush_done := true.B
-    for(i <- 0 until CACHE_WAY_NUM){
-        for(j <- 0 until DC_BLOCK_NUM){
-            when(valid(i)(j) && dirty(i)(j)){
-                flush_way := i.U
-                flush_idx := j.U
-                flush_done := false.B
-            }
-        }
-    }
-    val cur_way         = Mux(hs_in, matchWay, matchWay_r)
-    val cur_ram_addr    = cur_addr(RAM_ADDR_WIDTH+RAM_WIDTH_BIT-1, RAM_WIDTH_BIT)
-    val cur_axi_addr    = Mux(flush_r, Cat(flush_idx, offset(2,1)), Cat(cur_addr(RAM_ADDR_WIDTH + RAM_WIDTH_BIT-1, DC_BLOCK_WIDTH), offset(2,1)))
+    flush_way := 0.U; flush_idx := 0.U; flush_done := !(valid && dirty)
+
     val cur_mode        = Mux(hs_in, io.dcRW.dc_mode, mode_r)
     val cur_wdata       = Mux(hs_in, io.dcRW.wdata, wdata_r)
-    val pre_blockIdx    = addr_r(DC_INDEX_WIDTH+DC_BLOCK_WIDTH-1, DC_BLOCK_WIDTH)
     val pre_tag     = addr_r(PADDR_WIDTH-1, DC_BLOCK_WIDTH+DC_INDEX_WIDTH)
     val sIdle :: sRaddr :: sRdata :: sWaddr :: sWdata :: sAtomic :: sFlush :: Nil = Enum(7)
     val state = RegInit(sIdle)
-    val rdata64 = data(matchWay_r).rdata >> Cat(addr_r(RAM_WIDTH_BIT-1, 0), 0.U(3.W))
+    val rdata64 = data >> Cat(addr_r(2, 0), 0.U(3.W))
     io.dcRW.rdata := rdata_by_mode(mode_r, rdata64)
     val cur_mode_sl = cur_mode(3,2)
     val cur_mode_s  = cur_mode(DC_S_BIT)
     val cur_mode_l  = cur_mode(DC_L_BIT)
     val wen     = Wire(Bool())
-    val mask    = Wire(UInt(RAM_MASK_WIDTH.W))
+    val mask    = Wire(UInt(64.W))
 // atomic
     val amo_rdata = signTruncateData(mode_r(1,0), rdata64)
     val amo_imm = signTruncateData(mode_r(1,0), wdata_r)
@@ -171,25 +149,24 @@ class DataCache extends Module{
         amoMinU -> Mux(amo_imm > amo_rdata, amo_rdata, amo_imm),
         amoMaxU -> Mux(amo_imm > amo_rdata, amo_imm, amo_rdata)
     ))
-    val amo_wdata = zeroTruncateData(mode_r(1,0), amo_alu) << (Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
+    val amo_wdata = zeroTruncateData(mode_r(1,0), amo_alu) << (Cat(cur_addr(2, 0), 0.U(3.W)))
 
-    val inp_wdata   = cur_wdata<<(Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
-    val inp_mask    = MuxLookup(cur_mode(1,0), 0.U(RAM_MASK_WIDTH.W), Seq(
-                        0.U   ->"hff".U(RAM_MASK_WIDTH.W),
-                        1.U   ->"hffff".U(RAM_MASK_WIDTH.W),
-                        2.U   ->"hffffffff".U(RAM_MASK_WIDTH.W), 
-                        3.U   ->"hffffffffffffffff".U(RAM_MASK_WIDTH.W), 
-                    )) << (Cat(cur_addr(RAM_WIDTH_BIT-1, 0), 0.U(3.W)))
-    data(cur_way).addr  := Mux(state === sIdle || state === sAtomic, cur_ram_addr, cur_axi_addr)
-    data(cur_way).cen   := wait_r || hs_in || flush_r
-    data(cur_way).wen   := wen
-    data(cur_way).wdata := Mux(state === sAtomic, amo_wdata, 
-                            Mux(state === sIdle, inp_wdata, Cat(io.dataAxi.rd.bits.data, rdatabuf)))
-    data(cur_way).mask  := mask
+    val inp_wdata   = cur_wdata<<(Cat(cur_addr(2, 0), 0.U(3.W)))
+    val inp_mask    = MuxLookup(cur_mode(1,0), 0.U(64.W), Seq(
+                        0.U   ->"hff".U(64.W),
+                        1.U   ->"hffff".U(64.W),
+                        2.U   ->"hffffffff".U(64.W),
+                        3.U   ->"hffffffffffffffff".U(64.W),
+                    )) << (Cat(cur_addr(2, 0), 0.U(3.W)))
+    when(wen){
+        data := (data & ~mask) | Mux(state === sAtomic, amo_wdata, 
+                Mux(state === sIdle, inp_wdata, io.dataAxi.rd.bits.data) & mask)
+    }
+
     wen     := false.B
-    mask    := Fill(RAM_MASK_WIDTH, 1.U(1.W))
+    mask    := Fill(64, 1.U(1.W))
     when(wen && (state === sIdle || state === sAtomic)){
-        dirty(cur_way)(blockIdx) := true.B
+        dirty := true.B
     }
 
 // axi signal
@@ -197,10 +174,10 @@ class DataCache extends Module{
     val axiRaddr        = cur_addr & DC_BLOCK_MASK
     val axiRdataEn      = RegInit(false.B)
     val axiWaddrEn      = RegInit(false.B)
-    val axiWaddr        = Cat(tag(matchWay_r)(blockIdx_r), blockIdx_r, 0.U(DC_BLOCK_WIDTH.W))
-    val axiWdata        = Mux(offset(0), data(matchWay_r).rdata(127,64), data(matchWay_r).rdata(63,0))
+    val axiWaddr        = Cat(tag, 0.U(DC_BLOCK_WIDTH.W))
+    val axiWdata        = data
     val axiWdataEn      = RegInit(false.B)
-    val axiWdataLast    = offset === 7.U
+    val axiWdataLast    = axiWdataEn
 
     switch(state){
         is(sIdle){
@@ -232,7 +209,7 @@ class DataCache extends Module{
             }
         }
         is(sRaddr){
-            offset := 0.U
+            // offset := 0.U
             when(axiRaddrEn && io.dataAxi.ra.ready){
                 state   := sRdata
                 axiRaddrEn := false.B
@@ -241,22 +218,23 @@ class DataCache extends Module{
         }
         is(sRdata){
             when(axiRdataEn && io.dataAxi.rd.valid){
-                offset := offset + 1.U
-                when(offset(0)){
-                    wen := true.B
-                }.otherwise{
-                    rdatabuf := io.dataAxi.rd.bits.data
-                }
+                wen := true.B
+                // offset := offset + 1.U
+                // when(offset(0)){
+                //     wen := true.B
+                // }.otherwise{
+                //     rdatabuf := io.dataAxi.rd.bits.data
+                // }
                 when(io.dataAxi.rd.bits.last){
                     axiRdataEn := false.B
-                    tag(matchWay_r)(pre_blockIdx) := pre_tag
-                    valid(matchWay_r)(pre_blockIdx) := true.B
+                    tag := pre_tag
+                    valid := true.B
                     state := sIdle
                 }
             }
         }
         is(sWaddr){
-            offset := 0.U
+            // offset := 0.U
             when(axiWaddrEn && io.dataAxi.wa.ready){
                 state       := sWdata
                 axiWaddrEn  := false.B
@@ -266,13 +244,13 @@ class DataCache extends Module{
         is(sWdata){
             axiWdataEn := true.B
             when(axiWdataEn && io.dataAxi.wd.ready){
-                offset := offset + 1.U
+                // offset := offset + 1.U
                 axiWdataEn := false.B
                 when(io.dataAxi.wd.bits.last){
                     state := sIdle
                     axiWdataEn := false.B
-                    valid(matchWay_r)(blockIdx_r) := false.B
-                    dirty(matchWay_r)(blockIdx_r) := false.B
+                    valid := false.B
+                    dirty := false.B
                 }
             }
         }
@@ -286,12 +264,12 @@ class DataCache extends Module{
             when(flush_done){
                 flush_r := false.B
                 state := sIdle
-                valid := VecInit(Seq.fill(CACHE_WAY_NUM)(VecInit(Seq.fill(DC_BLOCK_NUM)(false.B))))
+                valid := false.B
             }.otherwise{
                 state := sWaddr
                 axiWaddrEn := true.B
-                matchWay_r := flush_way
-                blockIdx_r := flush_idx
+                // matchWay_r := flush_way
+                // blockIdx_r := flush_idx
             }
         }
     }
@@ -299,7 +277,7 @@ class DataCache extends Module{
     //ra
     io.dataAxi.ra.valid      := axiRaddrEn
     io.dataAxi.ra.bits.addr  := axiRaddr
-    io.dataAxi.ra.bits.len   := 7.U
+    io.dataAxi.ra.bits.len   := 0.U
     io.dataAxi.ra.bits.size  := 3.U
     io.dataAxi.ra.bits.burst := BURST_INCR
     //rd
@@ -307,7 +285,7 @@ class DataCache extends Module{
     //wa
     io.dataAxi.wa.valid      := axiWaddrEn
     io.dataAxi.wa.bits.addr  := axiWaddr
-    io.dataAxi.wa.bits.len   := 7.U
+    io.dataAxi.wa.bits.len   := 0.U
     io.dataAxi.wa.bits.size  := 3.U
     io.dataAxi.wa.bits.burst := BURST_INCR
     //wd
