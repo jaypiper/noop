@@ -32,6 +32,7 @@ object port{
     val NEMU_VGA    = "ha0000000".U(PADDR_WIDTH.W)
     val PLIC        = "h0c000000".U(PADDR_WIDTH.W)
     val SDCARD_MMIO = "h43000000".U(PADDR_WIDTH.W)
+    val DISK_ADDR   = "h40000000".U(PADDR_WIDTH.W)
 }
 
 class SimMMIOIO extends Bundle{
@@ -50,6 +51,7 @@ class SimMMIO extends Module{
     val mtimecmp = RegInit(0.U(64.W))
     val vga = Mem(480000, UInt(8.W))
     val vga_ctrl = RegInit(VecInit(Seq.fill(2)(0.U(32.W))))
+    val disk = Mem(0x4000000, UInt(8.W))
     // loadMemoryFromFile()
     val waready  = RegInit(false.B)
     val wdready  = RegInit(false.B)
@@ -75,6 +77,7 @@ class SimMMIO extends Module{
     val islast  = (offset === 0.U)
     val addr    = io.mmioAxi.wa.bits.addr
     val inputwd = Cat((0 until 8).reverse.map(i => Mux(io.mmioAxi.wd.bits.strb(i) === 1.U, io.mmioAxi.wd.bits.data(8*i+7, 8*i), 0.U(8.W))))
+    val disk_rdata   = Cat((0 until 8).reverse.map(i => disk((io.mmioAxi.ra.bits.addr + i.U)&0x3ffffff.U)))
     uart(5) := 0x20.U
     switch(state){
         is(sIdle){
@@ -114,6 +117,8 @@ class SimMMIO extends Module{
                     sdcard.io.addr  := io.mmioAxi.ra.bits.addr(6,0)
                     sdcard.io.cen   := true.B
                     state           := sSDread
+                }.elsewhen(io.mmioAxi.ra.bits.addr >= port.DISK_ADDR && io.mmioAxi.ra.bits.addr < (port.DISK_ADDR + "h4000000".U)){
+                    rdata := disk_rdata
                 }.otherwise{
                     rdata   := 0.U
                     printf("mmio invalid raddr: %x\n", io.mmioAxi.ra.bits.addr)
@@ -155,6 +160,10 @@ class SimMMIO extends Module{
                         sdcard.io.addr  := waddr(6,0)
                         sdcard.io.wdata := inputwd >> Cat(waddr(2,0), 0.U(3.W))
                         sdcard.io.wen   := true.B
+                    }.elsewhen(io.mmioAxi.ra.bits.addr >= port.DISK_ADDR && io.mmioAxi.ra.bits.addr < (port.DISK_ADDR + "h4000000".U)){
+                        for(i <- 0 until 8){
+                            disk(waddr + i.U) := io.mmioAxi.wd.bits.data(8*i+7, 8*i)
+                        }
                     }.otherwise{
                         printf("mmio invalid waddr: %x\n", io.mmioAxi.wa.bits.addr)
                     }

@@ -214,20 +214,20 @@ void dut_step(uint32_t n){
         clock_click(1);
         while(!state.valid){
             clock_click(1);
-            count ++;
-            if(count > 50000) {
-                print_info(NULL);
-                disp_ipc();
-#ifdef TRACE
-                tfp->close();
-#endif
-                assert(0);
-            }
+//             count ++;
+//             if(count > 50000) {
+//                 print_info(NULL);
+//                 disp_ipc();
+// #ifdef TRACE
+//                 tfp->close();
+// #endif
+//                 assert(0);
+//             }
         }
 
         inst_num ++;
-        state_buf[inst_p] = state;
-        inst_p = (inst_p + 1) % 4;
+        // state_buf[inst_p] = state;
+        // inst_p = (inst_p + 1) % 4;
         if(state.valid && state.inst == 0x6b){
             dut_end = 1;
             break;
@@ -346,9 +346,9 @@ int main(int argc, char **argv){
 #else
         while(!dut_end){
             dut_step(1);
-            if(inst_num % 10000000 == 0){
-                disp_ipc();
-            }
+            // if(inst_num % 10000000 == 0){
+            //     disp_ipc();
+            // }
         }
 #endif
     }else{

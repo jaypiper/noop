@@ -50,7 +50,7 @@ class Ram_bw extends Module{
     val io = IO(new Ram_bwIO)
     val ram = Module(new S011HD1P_X32Y2D128_BW)
     io.rdata := ram.io.Q
-    ram.io.CLK := clock
+    // ram.io.CLK := clock
     ram.io.CEN := ~io.cen
     ram.io.WEN := ~io.wen
     ram.io.A := io.addr
@@ -70,15 +70,36 @@ class S011HD1P_X32Y2D128 extends BlackBox with HasBlackBoxPath{
     addPath("playground/src/ram/S011HD1P_X32Y2D128.v")
 }
 
-class S011HD1P_X32Y2D128_BW extends BlackBox with HasBlackBoxPath{
+// class S011HD1P_X32Y2D128_BW extends BlackBox with HasBlackBoxPath{
+//     val io = IO(new Bundle{
+//         val Q    = Output(UInt(128.W))
+//         val CLK  = Input(Clock())
+//         val CEN  = Input(Bool())
+//         val WEN  = Input(Bool())
+//         val BWEN = Input(UInt(128.W))
+//         val A    = Input(UInt(6.W))
+//         val D    = Input(UInt(128.W))
+//     })
+//     addPath("playground/src/ram/S011HD1P_X32Y2D128_BW.v")
+// }
+
+class S011HD1P_X32Y2D128_BW extends Module{
     val io = IO(new Bundle{
-        val Q    = Output(UInt(128.W))
-        val CLK  = Input(Clock())
-        val CEN  = Input(Bool())
-        val WEN  = Input(Bool())
+        val Q = Output(UInt(128.W))
+        // val CLK = Input(Bool())
+        val CEN = Input(Bool())
+        val WEN = Input(Bool())
         val BWEN = Input(UInt(128.W))
-        val A    = Input(UInt(6.W))
-        val D    = Input(UInt(128.W))
+        val A = Input(UInt(6.W))
+        val D = Input(UInt(128.W))
     })
-    addPath("playground/src/ram/S011HD1P_X32Y2D128_BW.v")
+    val ram = Mem(64, UInt(128.W))
+    val output = RegInit(0.U(128.W))
+    when(!io.CEN && ! io.WEN){
+        ram(io.A) := (io.D & ~io.BWEN) | (ram(io.A) & io.BWEN)
+        output := 0.U
+    }.otherwise{
+        output := ram(io.A)
+    }
+    io.Q := output
 }
