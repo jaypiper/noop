@@ -31,10 +31,10 @@ PWD = $(shell pwd)
 # PERP_DIR = $(PWD)/peripheral
 PERP_DIR = /home/chenlu/ysyx/ysyxSoC/ysyx/peripheral
 # component = $(shell ls peripheral)
-component = $(shell ls /home/chenlu/ysyx/ysyxSoC/ysyx/peripheral)
+# component = $(shell ls /home/chenlu/ysyx/ysyxSoC/ysyx/peripheral)
 # INC_DIR = $(addprefix $(PERP_DIR)/, $(component))
 INC_DIR +=  $(PERP_DIR)/uart16550/rtl $(PERP_DIR)/spi/rtl $(PERP_DIR)/spiFlash# $(PERP_DIR)/axi2apb/inner
-VFLAGS = $(addprefix -I, $(INC_DIR))
+# VFLAGS = $(addprefix -I, $(INC_DIR))
 VFLAGS += --exe --trace-fst --trace-underscore --timescale "1ns/1ns"
 # VFLAGS += --trace-threads 4 --threads 3
 VFLAGS += --autoflush
@@ -49,7 +49,7 @@ CFLAGS = -O3 -Og -pthread $(shell sdl2-config --cflags) -fPIE -g
 TRACE?=0
 SIM?=1
 FLASH?=0
-DIFF?=1
+DIFF?=0
 
 ifeq ($(FLASH),1)
 	CFLAGS += -DFLASH
@@ -73,7 +73,7 @@ endif
 
 
 PROGRAM_DIR = ./bin
-BIN?=hello-riscv64-mycpu
+BIN?=coremark-riscv64-mycpu-rv64imfd
 
 compile-verilator:
 	# verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSED ./build/CPU.v ./build/ram.v

@@ -11,6 +11,7 @@
 #include <csetjmp>
 #include <vector>
 #include "../obj_dir/Vnewtop.h"
+#include "../obj_dir/Vnewtop___024root.h"
 
 #include <iostream>
 #include <elf.h>

@@ -106,7 +106,7 @@ void init_difftest(char *ref_so_file){
 #ifdef FLASH
     flash_memcpy(program, program_sz);
 #else
-    memcpy(((unsigned char *)(&cpu->newtop__DOT__socfull__DOT__mem__DOT__srams__DOT__mem__DOT__mem_ext__DOT__ram[0])), program, program_sz);
+    memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__socfull__DOT__mem__DOT__srams__DOT__mem__DOT__mem_ext__DOT__ram[0])), program, program_sz);
 #endif
 }
 
@@ -327,8 +327,8 @@ int main(int argc, char **argv){
     printf("after initialization\n");
     reset();
     init_csr();
-    cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(uscratch)=state.csr[USCRATCH];
-    cpu->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(mstatus)=state.csr[MSTATUS_ID];
+    cpu->rootp->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(uscratch)=state.csr[USCRATCH];
+    cpu->rootp->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(mstatus)=state.csr[MSTATUS_ID];
     init_vga();
     init_sdcard();
     uint32_t is_end = 0;
