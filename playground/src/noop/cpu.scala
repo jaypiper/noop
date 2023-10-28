@@ -3,7 +3,6 @@ package noop.cpu
 import chisel3._
 import chisel3.util._
 import noop.param.common._
-import noop.tlb._
 import noop.cache._
 import noop.bus._
 import noop.bpu._
@@ -15,7 +14,6 @@ import noop.writeback._
 import noop.regs._
 import noop.clint._
 import noop.plic._
-import noop.dma._
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -52,8 +50,8 @@ class CPU_AXI_IO extends Bundle{
 class CPUIO extends Bundle{
     // val outAxi = new AxiMaster
     val master      = new CPU_AXI_IO
-    val slave       = Flipped(new CPU_AXI_IO)
-    val interrupt   = Input(Bool())
+    // val slave       = Flipped(new CPU_AXI_IO)
+    // val interrupt   = Input(Bool())
 }
 
 class CPU extends Module{
@@ -69,28 +67,30 @@ class CPU extends Module{
 
     val regs        = Module(new Regs)
     val csrs        = Module(new Csrs)
-    val icache      = Module(new InstCache)
-    val dcache      = Module(new DataCache)
+    val icache      = Module(new ICache)
+    val dcache      = Module(new DCache)
 
     val mem2Axi     = Module(new ToAXI)
-    val flash2Axi   = Module(new ToAXI)
+    // val flash2Axi   = Module(new ToAXI)
 
-    val crossBar    = Module(new CrossBar)
-    val fetchCrossbar = Module(new FetchCrossBar)
-    val split64to32 = Module(new Splite64to32)
+    // val crossBar    = Module(new CrossBar)
+    // val fetchCrossbar = Module(new FetchCrossBar)
     val memCrossbar = Module(new MemCrossBar)
-    val tlb_if       = Module(new TLB)
-    val tlb_mem      = Module(new TLB)
-    val dcSelector  = Module(new DcacheSelector)
-    val clint       = Module(new CLINT)
-    val plic        = Module(new Plic)
-    val dmaBridge   = Module(new DmaBridge)
+    // val tlb_if       = Module(new TLB)
+    // val tlb_mem      = Module(new TLB)
+    // val dcSelector  = Module(new DcacheSelector)
+    // val clint       = Module(new CLINT)
+    // val plic        = Module(new Plic)
+    // val dmaBridge   = Module(new DmaBridge)
 
-    fetch.io.instRead   <> fetchCrossbar.io.instIO
-    fetch.io.va2pa      <> tlb_if.io.va2pa
+    fetch.io.instRead  <> icache.io.icPort
+
+
+    // fetch.io.instRead   <> fetchCrossbar.io.instIO
+    // fetch.io.va2pa      <> tlb_if.io.va2pa
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
-    fetch.io.intr_in    <> csrs.io.intr_out
+    // fetch.io.intr_in    <> csrs.io.intr_out
     fetch.io.branchFail <> execute.io.ex2if
     fetch.io.if2id      <> decode.io.if2id
     fetch.io.recov      <> writeback.io.recov
@@ -101,8 +101,7 @@ class CPU extends Module{
     forwading.io.d_rr   <> readregs.io.d_rr
     forwading.io.d_ex   <> execute.io.d_ex
     forwading.io.d_mem1 <> memory.io.d_mem1
-    forwading.io.d_mem2 <> memory.io.d_mem2
-    forwading.io.d_mem3 <> memory.io.d_mem3
+
     readregs.io.rr2ex   <> execute.io.rr2ex
     readregs.io.rs1Read <> regs.io.rs1
     readregs.io.rs2Read <> regs.io.rs2
@@ -112,77 +111,54 @@ class CPU extends Module{
     execute.io.updateNextPc <> csrs.io.updateNextPc
     memory.io.mem2rb    <> writeback.io.mem2rb
     memory.io.dataRW    <> memCrossbar.io.dataRW
-    memory.io.va2pa     <> tlb_mem.io.va2pa
+    // memory.io.va2pa     <> tlb_mem.io.va2pa
 
     writeback.io.wReg   <> regs.io.dst
     writeback.io.wCsr   <> csrs.io.rd
     writeback.io.excep  <> csrs.io.excep
-    clint.io.intr       <> csrs.io.clint
-    clint.io.intr_msip  <> csrs.io.intr_msip
+    // clint.io.intr       <> csrs.io.clint
+    // clint.io.intr_msip  <> csrs.io.intr_msip
 
-    icache.io.flush     <> writeback.io.flush_cache
-    dcache.io.flush     <> writeback.io.flush_cache
-    tlb_if.io.flush     <> writeback.io.flush_tlb
-    tlb_mem.io.flush    <> writeback.io.flush_tlb
-
-    fetchCrossbar.io.icRead     <> icache.io.icRead
-    fetchCrossbar.io.flashRead  <> split64to32.io.data_in
-    split64to32.io.data_out     <> flash2Axi.io.dataIO
-    memCrossbar.io.dcRW         <> dcSelector.io.mem2dc
+    memCrossbar.io.dcRW         <> dcache.io.dcPort
     memCrossbar.io.mmio         <> mem2Axi.io.dataIO
-    memCrossbar.io.clintIO      <> clint.io.rw
-    dcSelector.io.select        <> dcache.io.dcRW
-    tlb_if.io.dcacheRW          <> dcSelector.io.tlb_if2dc
-    tlb_if.io.mmuState          <> csrs.io.mmuState
-    tlb_mem.io.dcacheRW         <> dcSelector.io.tlb_mem2dc
-    tlb_mem.io.mmuState         <> csrs.io.mmuState
 
-    crossBar.io.icAxi   <> icache.io.instAxi
-    crossBar.io.memAxi  <> dcache.io.dataAxi
-    crossBar.io.mmioAxi <> mem2Axi.io.outAxi
-    crossBar.io.flashAxi <> flash2Axi.io.outAxi
-    crossBar.io.selectMem <> dcache.io.flush_out
+    // crossBar.io.mmioAxi <> mem2Axi.io.outAxi
 
-    plic.io.intr_in1    <> io.interrupt
-    plic.io.intr_out_m  <> csrs.io.plic_m
-    plic.io.intr_out_s  <> csrs.io.plic_s
-    plic.io.rw          <> memCrossbar.io.plicIO
+    // io.slave <> dmaBridge.io.dmaAxi
+    // dmaBridge.io.dcRW <> dcSelector.io.dma2dc
 
-    io.slave <> dmaBridge.io.dmaAxi
-    dmaBridge.io.dcRW <> dcSelector.io.dma2dc
+    mem2Axi.io.outAxi.wa.ready    := io.master.awready
+    io.master.awvalid := mem2Axi.io.outAxi.wa.valid
+    io.master.awaddr  := mem2Axi.io.outAxi.wa.bits.addr
+    io.master.awid    := mem2Axi.io.outAxi.wa.bits.id
+    io.master.awlen   := mem2Axi.io.outAxi.wa.bits.len
+    io.master.awsize  := mem2Axi.io.outAxi.wa.bits.size
+    io.master.awburst := mem2Axi.io.outAxi.wa.bits.burst
 
-    crossBar.io.outAxi.wa.ready    := io.master.awready
-    io.master.awvalid := crossBar.io.outAxi.wa.valid
-    io.master.awaddr  := crossBar.io.outAxi.wa.bits.addr
-    io.master.awid    := crossBar.io.outAxi.wa.bits.id
-    io.master.awlen   := crossBar.io.outAxi.wa.bits.len
-    io.master.awsize  := crossBar.io.outAxi.wa.bits.size
-    io.master.awburst := crossBar.io.outAxi.wa.bits.burst
+    mem2Axi.io.outAxi.wd.ready   := io.master.wready
+    io.master.wvalid  :=  mem2Axi.io.outAxi.wd.valid
+    io.master.wdata   :=  mem2Axi.io.outAxi.wd.bits.data
+    io.master.wstrb   :=  mem2Axi.io.outAxi.wd.bits.strb
+    io.master.wlast   :=  mem2Axi.io.outAxi.wd.bits.last
 
-    crossBar.io.outAxi.wd.ready   := io.master.wready
-    io.master.wvalid  := crossBar.io.outAxi.wd.valid
-    io.master.wdata   := crossBar.io.outAxi.wd.bits.data
-    io.master.wstrb   := crossBar.io.outAxi.wd.bits.strb
-    io.master.wlast   := crossBar.io.outAxi.wd.bits.last
+    io.master.bready  := mem2Axi.io.outAxi.wr.ready
+    mem2Axi.io.outAxi.wr.valid        := io.master.bvalid
+    mem2Axi.io.outAxi.wr.bits.resp    := io.master.bresp
+    mem2Axi.io.outAxi.wr.bits.id      := io.master.bid
 
-    io.master.bready  := crossBar.io.outAxi.wr.ready
-    crossBar.io.outAxi.wr.valid        := io.master.bvalid
-    crossBar.io.outAxi.wr.bits.resp    := io.master.bresp
-    crossBar.io.outAxi.wr.bits.id      := io.master.bid
+    mem2Axi.io.outAxi.ra.ready  := io.master.arready
+    io.master.arvalid := mem2Axi.io.outAxi.ra.valid
+    io.master.araddr  := mem2Axi.io.outAxi.ra.bits.addr
+    io.master.arid    := mem2Axi.io.outAxi.ra.bits.id
+    io.master.arlen   := mem2Axi.io.outAxi.ra.bits.len
+    io.master.arsize  := mem2Axi.io.outAxi.ra.bits.size
+    io.master.arburst := mem2Axi.io.outAxi.ra.bits.burst
 
-    crossBar.io.outAxi.ra.ready  := io.master.arready
-    io.master.arvalid := crossBar.io.outAxi.ra.valid
-    io.master.araddr  := crossBar.io.outAxi.ra.bits.addr
-    io.master.arid    := crossBar.io.outAxi.ra.bits.id
-    io.master.arlen   := crossBar.io.outAxi.ra.bits.len
-    io.master.arsize  := crossBar.io.outAxi.ra.bits.size
-    io.master.arburst := crossBar.io.outAxi.ra.bits.burst
-
-    io.master.rready  := crossBar.io.outAxi.rd.ready
-    crossBar.io.outAxi.rd.valid   := io.master.rvalid
-    crossBar.io.outAxi.rd.bits.resp    := io.master.rresp
-    crossBar.io.outAxi.rd.bits.data    := io.master.rdata
-    crossBar.io.outAxi.rd.bits.last    := io.master.rlast
-    crossBar.io.outAxi.rd.bits.id      := io.master.rid
+    io.master.rready  := mem2Axi.io.outAxi.rd.ready
+    mem2Axi.io.outAxi.rd.valid   := io.master.rvalid
+    mem2Axi.io.outAxi.rd.bits.resp    := io.master.rresp
+    mem2Axi.io.outAxi.rd.bits.data    := io.master.rdata
+    mem2Axi.io.outAxi.rd.bits.last    := io.master.rlast
+    mem2Axi.io.outAxi.rd.bits.id      := io.master.rid
 
 }

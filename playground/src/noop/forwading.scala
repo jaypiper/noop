@@ -13,8 +13,8 @@ class Forwarding extends Module{
         val d_rr    = Input(new RegForward)
         val d_ex    = Input(new RegForward)
         val d_mem1  = Input(new RegForward)
-        val d_mem2  = Input(new RegForward)
-        val d_mem3  = Input(new RegForward)
+        // val d_mem2  = Input(new RegForward)
+        // val d_mem3  = Input(new RegForward)
     })
     val drop_r      = RegInit(false.B)
     val stall_r     = RegInit(false.B)
@@ -87,20 +87,6 @@ class Forwarding extends Module{
             }.otherwise{
                 rs1_wait := true.B
             }
-        }.elsewhen((cur_rs1 === io.d_mem2.id) && (io.d_mem2.state =/= d_invalid)){
-            when(io.d_mem2.state === d_valid){
-                rs1_data := io.d_mem2.data
-                rs1_valid := true.B
-            }.otherwise{
-                rs1_wait := true.B
-            }
-        }.elsewhen((cur_rs1 === io.d_mem3.id) && (io.d_mem3.state =/= d_invalid)){
-            when(io.d_mem3.state === d_valid){
-                rs1_data := io.d_mem3.data
-                rs1_valid := true.B
-            }.otherwise{
-                rs1_wait := true.B
-            }
         }
     }
     when(cur_rrs2){
@@ -126,20 +112,6 @@ class Forwarding extends Module{
         }.elsewhen((cur_rs2 === io.d_mem1.id) && (io.d_mem1.state =/= d_invalid)){
             when(io.d_mem1.state === d_valid){
                 rs2_data := io.d_mem1.data
-                rs2_valid := true.B
-            }.otherwise{
-                rs2_wait := true.B
-            }
-        }.elsewhen((cur_rs2 === io.d_mem2.id) && (io.d_mem2.state =/= d_invalid)){
-            when(io.d_mem2.state === d_valid){
-                rs2_data := io.d_mem2.data
-                rs2_valid := true.B
-            }.otherwise{
-                rs2_wait := true.B
-            }
-        }.elsewhen((cur_rs2 === io.d_mem3.id) && (io.d_mem3.state =/= d_invalid)){
-            when(io.d_mem3.state === d_valid){
-                rs2_data := io.d_mem3.data
                 rs2_valid := true.B
             }.otherwise{
                 rs2_wait := true.B

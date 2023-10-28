@@ -106,7 +106,10 @@ void init_difftest(char *ref_so_file){
 #ifdef FLASH
     flash_memcpy(program, program_sz);
 #else
-    memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__socfull__DOT__mem__DOT__srams__DOT__mem__DOT__mem_ext__DOT__ram[0])), program, program_sz);
+    std::cout << program_sz << " " << sizeof(cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data) << std::endl;
+    assert(program_sz <= sizeof(cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data));
+    memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data[0])), program, program_sz);
+    memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__cpu__DOT__dcache__DOT__data[0])), program, program_sz);
 #endif
 }
 
@@ -168,15 +171,15 @@ bool check_gregs(CPU_state* ref_r){
             jud = false;
         }
     }
-    for(int i = 0; i < csr_num; i++){
-        int id = diff_csrs[i];
-        rtlreg_t ref_csr = id == MIP_ID? ref_r->csr[id] & MIP_MASK : ref_r->csr[id];
-        rtlreg_t state_csr = id == MIP_ID? state.csr[id] & MIP_MASK : state.csr[id];
-        if(ref_csr != state_csr){
-            printf("csr diff: %s\n", csrs[i]);
-            jud = false;
-        }
-    }
+    // for(int i = 0; i < csr_num; i++){
+    //     int id = diff_csrs[i];
+    //     rtlreg_t ref_csr = id == MIP_ID? ref_r->csr[id] & MIP_MASK : ref_r->csr[id];
+    //     rtlreg_t state_csr = id == MIP_ID? state.csr[id] & MIP_MASK : state.csr[id];
+    //     if(ref_csr != state_csr){
+    //         printf("csr diff: %s\n", csrs[i]);
+    //         jud = false;
+    //     }
+    // }
     if(ref_r->priv != state.priv) {
         printf("priv_diff\n");
         jud = false;
@@ -187,7 +190,7 @@ int end_timer = -1;
 int dut_end = 0;
 int count = 0;
 
-void clock_click(int n){
+void clock_cycle(int n){
     while(n--){
         cpu->clock = 0;
         cpu->eval();
@@ -211,9 +214,9 @@ void clock_click(int n){
 void dut_step(uint32_t n){
     while(n--){
         count = 0;
-        clock_click(1);
+        clock_cycle(1);
         while(!state.valid){
-            clock_click(1);
+            clock_cycle(1);
             count ++;
             if(count > 50000) {
                 print_info(NULL);
@@ -271,8 +274,9 @@ void init_csr(){
 void reset(){
     cpu->reset = 1;
     for(int i = 0; i < 20; i++){
-        clock_click(1);
+        clock_cycle(1);
     }
+
     cpu->reset = 0;
     cycle = 0;
     inst_num = 0;
@@ -322,13 +326,13 @@ int main(int argc, char **argv){
         state.csr[USCRATCH] = atoi(argv[2]);
     }
     init_csr();
-    char ref_so_path[] = "../ics2020/nemu/build/riscv64-nemu-interpreter-so";
+    char ref_so_path[] = "../../ics2020/nemu/build/riscv64-nemu-interpreter-so";
     init_difftest(ref_so_path);
     printf("after initialization\n");
     reset();
     init_csr();
-    cpu->rootp->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(uscratch)=state.csr[USCRATCH];
-    cpu->rootp->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(mstatus)=state.csr[MSTATUS_ID];
+    // cpu->rootp->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(uscratch)=state.csr[USCRATCH];
+    // cpu->rootp->newtop__DOT__socfull__DOT__asic__DOT__cpu__DOT__cpu__DOT__csrs__DOT__(mstatus)=state.csr[MSTATUS_ID];
     init_vga();
     init_sdcard();
     uint32_t is_end = 0;

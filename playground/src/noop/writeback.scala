@@ -14,14 +14,11 @@ class Writeback extends Module{
         val excep   = Output(new Exception)
         val wb2if   = Output(new ForceJmp)
         val recov   = Output(Bool())
-        val flush_tlb = Output(Bool())
-        val flush_cache = Output(Bool())
     })
     dontTouch(io)
-    val drop_r      = RegInit(false.B)
     val recov_r     = RegInit(false.B)
     val stall_r     = RegInit(false.B)
-    drop_r := false.B; recov_r := false.B;  stall_r := false.B
+    recov_r := false.B;  stall_r := false.B
     val forceJmp    = RegInit(0.U.asTypeOf(new ForceJmp))
     val tlb_r       = RegInit(false.B)
     val cache_r     = RegInit(false.B)
@@ -35,7 +32,6 @@ class Writeback extends Module{
     excep_r.en      := false.B
     rcsr_id_r       := 0.U
 
-    io.mem2rb.drop  := drop_r
     io.recov        := recov_r
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
@@ -47,32 +43,23 @@ class Writeback extends Module{
     io.wCsr.en      := false.B
     io.excep        := io.mem2rb.excep
     io.excep.en     := false.B
-    io.flush_tlb    := tlb_r
-    io.flush_cache  := cache_r
     io.wb2if        := forceJmp
     io.mem2rb.ready := false.B
     io.mem2rb.stall := stall_r
-    when(!drop_r){
-        when(io.mem2rb.valid){
-            io.mem2rb.ready := true.B
-            io.wReg.en      := io.mem2rb.dst_en
-            io.wCsr.en      := io.mem2rb.csr_en
-            io.excep.en     := io.mem2rb.excep.en
-            valid_r := true.B
-            inst_r  := io.mem2rb.inst
-            pc_r    := io.mem2rb.pc
-            recov_r := io.mem2rb.recov
-            excep_r := io.mem2rb.excep
-            rcsr_id_r   := io.mem2rb.rcsr_id
-            when(io.mem2rb.special =/= 0.U || (io.mem2rb.recov && !io.mem2rb.excep.en)){
-                forceJmp.valid  := true.B
-                forceJmp.seq_pc := io.mem2rb.pc + 4.U
-                when(io.mem2rb.special === SPECIAL_FENCE_I){
-                    cache_r := true.B
-                }.elsewhen(io.mem2rb.special === SPECIAL_SFENCE_VMA){
-                    tlb_r   := true.B
-                }
-            }
+    when(io.mem2rb.valid){
+        io.mem2rb.ready := true.B
+        io.wReg.en      := io.mem2rb.dst_en
+        io.wCsr.en      := io.mem2rb.csr_en
+        io.excep.en     := io.mem2rb.excep.en
+        valid_r := true.B
+        inst_r  := io.mem2rb.inst
+        pc_r    := io.mem2rb.pc
+        recov_r := io.mem2rb.recov
+        excep_r := io.mem2rb.excep
+        rcsr_id_r   := io.mem2rb.rcsr_id
+        when(io.mem2rb.special =/= 0.U || (io.mem2rb.recov && !io.mem2rb.excep.en)){
+            forceJmp.valid  := true.B
+            forceJmp.seq_pc := io.mem2rb.pc + 4.U
         }
     }
     val is_mmio_r   = RegNext(io.mem2rb.is_mmio)

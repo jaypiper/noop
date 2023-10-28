@@ -81,14 +81,17 @@ class DcacheRW extends Bundle{
     val rdata   = Output(UInt(DATA_WIDTH.W))
     val rvalid  = Output(Bool())
     val wdata   = Input(UInt(DATA_WIDTH.W))
-    val dc_mode = Input(UInt(DC_MODE_WIDTH.W))
-    val amo     = Input(UInt(AMO_WIDTH.W))
+    val wen     = Input(Bool())
+    val avalid  = Input(Bool())
+    // val dc_mode = Input(UInt(DC_MODE_WIDTH.W))
+    val wmask   = Input(UInt(DATA_WIDTH.W))
+    // val amo     = Input(UInt(AMO_WIDTH.W))
     val ready   = Output(Bool())
 }
 
 class IcacheRead extends Bundle{
     val addr    = Input(UInt(PADDR_WIDTH.W))
-    val inst    = Output(UInt(DATA_WIDTH.W))
+    val inst    = Output(UInt(INST_WIDTH.W))
     val arvalid = Input(Bool())
     val ready   = Output(Bool())
     val rvalid  = Output(Bool())
@@ -225,7 +228,6 @@ class MEM2RB extends Bundle{
     val rcsr_id = Output(UInt(CSR_WIDTH.W))
     val special = Output(UInt(2.W))
     val is_mmio = Output(Bool())
-    val drop    = Input(Bool())
     val stall   = Input(Bool())
     val recov   = Output(Bool())
     val valid   = Output(Bool())

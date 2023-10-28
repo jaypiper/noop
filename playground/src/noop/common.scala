@@ -9,6 +9,7 @@ object common extends mem_access_mode{
     val VADDR_WIDTH = 64
     val PADDR_WIDTH = 32
     val DATA_WIDTH  = 64
+    val DATA_BITS_WIDTH = log2Ceil(DATA_WIDTH)
     val INST_WIDTH  = 32
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
@@ -177,6 +178,7 @@ trait csr_config extends priv_encoding{
     val CSR_MISA        = 0x301.U
     val CSR_SCOUNTEREN  = 0x106.U
     val CSR_MCOUNTEREN  = 0x306.U
+    val CSR_MCYCLE      = 0xb00.U
 
     val MEDELEG_MASK = ((1 << CAUSE_MISALIGNED_FETCH) | (1 << CAUSE_BREAKPOINT) |
                     (1 << CAUSE_USER_ECALL) | (1 << CAUSE_SUPERVISOR_ECALL) |
@@ -252,6 +254,22 @@ object tlb_config extends satp_mode with pte_encoding with csr_config{
 }
 
 object cache_config{ // U S L WIDTH
+    val ICACHE_DEPTH    = 8192
+    val ICACHE_WIDTH    = 64
+    val DCACHE_DEPTH    = 8192
+    val DCACHE_WIDTH    = 64
+
+    val ICACHE_IDX_WIDTH = log2Ceil(ICACHE_DEPTH)
+    val ICACHE_OFFEST_WIDTH = log2Ceil(ICACHE_WIDTH / 8)
+    val ICACHE_IDX_START = ICACHE_IDX_WIDTH + ICACHE_OFFEST_WIDTH - 1
+    val ICACHE_IDX_END = ICACHE_OFFEST_WIDTH
+    val DCACHE_IDX_WIDTH = log2Ceil(DCACHE_DEPTH)
+    val DCACHE_OFFEST_WIDTH = log2Ceil(DCACHE_WIDTH / 8)
+    val DCACHE_IDX_START = DCACHE_IDX_WIDTH + DCACHE_OFFEST_WIDTH - 1
+    val DCACHE_IDX_END = DCACHE_OFFEST_WIDTH
+    
+    // old params below
+
     val RAM_DATA_WIDTH  = 128
     val RAM_ADDR_WIDTH  = 6
     val RAM_DEPTH       = 1 << RAM_ADDR_WIDTH     // 64
@@ -292,7 +310,7 @@ object cache_config{ // U S L WIDTH
     val DC_S_BIT = 3
     val DC_L_BIT = 2
     def rdata_by_mode(mode: UInt, rdata64: UInt) = {
-        MuxLookup(mode, 0.U, Seq(  // can take advantage of the encoding of dc_mode
+        MuxLookup(mode, 0.U, Seq(  // take advantage of the encoding of dc_mode
             mode_LB  -> Cat(Fill(DATA_WIDTH - 8, rdata64(7)), rdata64(7, 0)),
             mode_LBU -> rdata64(7, 0).asUInt,
             mode_LH  -> Cat(Fill(DATA_WIDTH - 16, rdata64(15)), rdata64(15, 0)),
@@ -427,66 +445,6 @@ object Insts{
     def FENCE   = BitPat("b0000????????00000000000000001111")
     def SFENCE_VMA  = BitPat("b0001001??????????000000001110011")
 
-    //atomic
-    def LR_W        = BitPat("b00010??00000?????010?????0101111")
-    def SC_W        = BitPat("b00011????????????010?????0101111")
-    def AMOSWAP_W   = BitPat("b00001????????????010?????0101111")
-    def AMOADD_W    = BitPat("b00000????????????010?????0101111")
-    def AMOXOR_W    = BitPat("b00100????????????010?????0101111")
-    def AMOAND_W    = BitPat("b01100????????????010?????0101111")
-    def AMOOR_W     = BitPat("b01000????????????010?????0101111")
-    def AMOMIN_W    = BitPat("b10000????????????010?????0101111")
-    def AMOMAX_W    = BitPat("b10100????????????010?????0101111")
-    def AMOMINU_W   = BitPat("b11000????????????010?????0101111")
-    def AMOMAXU_W   = BitPat("b11100????????????010?????0101111")
-
-    def LR_D        = BitPat("b00010??00000?????011?????0101111")
-    def SC_D        = BitPat("b00011????????????011?????0101111")
-    def AMOSWAP_D   = BitPat("b00001????????????011?????0101111")
-    def AMOADD_D    = BitPat("b00000????????????011?????0101111")
-    def AMOXOR_D    = BitPat("b00100????????????011?????0101111")
-    def AMOAND_D    = BitPat("b01100????????????011?????0101111")
-    def AMOOR_D     = BitPat("b01000????????????011?????0101111")
-    def AMOMIN_D    = BitPat("b10000????????????011?????0101111")
-    def AMOMAX_D    = BitPat("b10100????????????011?????0101111")
-    def AMOMINU_D   = BitPat("b11000????????????011?????0101111")
-    def AMOMAXU_D   = BitPat("b11100????????????011?????0101111")
-    def WFI         = BitPat("b00010000010100000000000001110011")
-
-    def C_ADDI4SPN  = BitPat("b000???????????00")
-    def C_LW        = BitPat("b010???????????00")
-    def C_LD        = BitPat("b011???????????00")
-    def C_SW        = BitPat("b110???????????00")
-    def C_SD        = BitPat("b111???????????00")
-
-    def C_ADDI      = BitPat("b000???????????01")  // include c_nop
-    def C_ADDIW     = BitPat("b001???????????01")
-    def C_LI        = BitPat("b010???????????01")
-    def C_ADDI16SP  = BitPat("b011?00010?????01")
-    def C_LUI       = BitPat("b011???????????01")
-    def C_SRLI      = BitPat("b100?00????????01")
-    def C_SRAI      = BitPat("b100?01????????01")
-    def C_ANDI      = BitPat("b100?10????????01")
-    def C_SUB       = BitPat("b100011???00???01")
-    def C_XOR       = BitPat("b100011???01???01")
-    def C_OR        = BitPat("b100011???10???01")
-    def C_AND       = BitPat("b100011???11???01")
-    def C_SUBW      = BitPat("b100111???00???01")
-    def C_ADDW      = BitPat("b100111???01???01")
-    def C_J         = BitPat("b101???????????01")
-    def C_BEQZ      = BitPat("b110???????????01")
-    def C_BNEZ      = BitPat("b111???????????01")
-
-    def C_SLLI      = BitPat("b000???????????10")
-    def C_LWSP      = BitPat("b010???????????10")
-    def C_LDSP      = BitPat("b011???????????10")
-    def C_JR        = BitPat("b1000?????0000010")
-    def C_MV        = BitPat("b1000??????????10")
-    def C_EBREAK    = BitPat("b1001000000000010")
-    def C_JALR      = BitPat("b1001?????0000010")
-    def C_ADD       = BitPat("b1001??????????10")
-    def C_SWSP      = BitPat("b110???????????10")
-    def C_SDSP      = BitPat("b111???????????10")
 }
 
 trait DeType{
@@ -498,10 +456,6 @@ trait DeType{
     val UType = 5.U(3.W)
     val JType = 6.U(3.W)
     val INVALID  = 7.U(3.W)
-
-    val c_invalid :: cr :: ci :: css :: ciw :: cl :: cs :: cb :: cj :: Nil = Enum(9)
-    val (no_imm :: ciw_u :: cls_w :: cls_d :: ci_u :: ci_s :: ci_u2 ::
-         ci_u3 :: ci_s4 :: ci_s12 :: cj_s1 :: cb_s1 :: css_u2 :: css_u3 :: Nil) = Enum(14)
 }
 
 trait ALUOP{
@@ -604,92 +558,17 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.CSRRSI -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
         Insts.CSRRCI -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
 
-        Insts.LR_W      -> List(RType, alu_MV1, IS_ALU64, mode_LW,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.SC_W      -> List(RType, alu_MV1, IS_ALU64, mode_SW,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOSWAP_W -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOADD_W  -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOXOR_W  -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOAND_W  -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOOR_W   -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMIN_W  -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMAX_W  -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMINU_W -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMAXU_W -> List(RType, alu_MV1, IS_ALU64, mode_LSW, true.B,  false.B, false.B, false.B, false.B),
-
-        Insts.LR_D      -> List(RType, alu_MV1, IS_ALU64, mode_LD,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.SC_D      -> List(RType, alu_MV1, IS_ALU64, mode_SD,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOSWAP_D -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOADD_D  -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOOR_D   -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOXOR_D  -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOAND_D  -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMIN_D  -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMAX_D  -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMINU_D -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AMOMAXU_D -> List(RType, alu_MV1, IS_ALU64, mode_LSD, true.B,  false.B, false.B, false.B, false.B),
-
         Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
-        Insts.WFI       -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
     )
-    val decodeDefault_c = List(c_invalid, no_imm,  alu_NOP, IS_ALU64, mode_NOP, false.B)
-    val decodeTable_c = Array(                                      // write-reg
-        Insts.C_ADDI4SPN-> List(ciw, ciw_u,  alu_ADD, IS_ALU64, mode_NOP, true.B),
-        Insts.C_LW      -> List(cl,  cls_w,  alu_ADD, IS_ALU64, mode_LW,  true.B),
-        Insts.C_LD      -> List(cl,  cls_d,  alu_ADD, IS_ALU64, mode_LD,  true.B),
-        Insts.C_SW      -> List(cs,  cls_w,  alu_ADD, IS_ALU64, mode_SW,  false.B),
-        Insts.C_SD      -> List(cs,  cls_d,  alu_ADD, IS_ALU64, mode_SD,  false.B),
-
-        Insts.C_ADDI    -> List(ci,  ci_s,   alu_ADD, IS_ALU64, mode_NOP, true.B),
-        Insts.C_ADDIW   -> List(ci,  ci_s,   alu_ADD, IS_ALU32, mode_NOP, true.B),
-        Insts.C_LI      -> List(ci,  ci_s,   alu_MV2, IS_ALU64, mode_NOP, true.B),
-        Insts.C_ADDI16SP-> List(ci,  ci_s4,  alu_ADD, IS_ALU64, mode_NOP, true.B),
-        Insts.C_LUI     -> List(ci,  ci_s12, alu_MV2, IS_ALU64, mode_NOP, true.B),
-        Insts.C_SRLI    -> List(cb,  ci_u,   alu_SRL, IS_ALU64, mode_NOP, true.B),
-        Insts.C_SRAI    -> List(cb,  ci_u,   alu_SRA, IS_ALU64, mode_NOP, true.B),
-        Insts.C_ANDI    -> List(cb,  ci_s,   alu_AND, IS_ALU64, mode_NOP, true.B),
-        Insts.C_SUB     -> List(cs,  no_imm, alu_SUB, IS_ALU64, mode_NOP, true.B),
-        Insts.C_XOR     -> List(cs,  no_imm, alu_XOR, IS_ALU64, mode_NOP, true.B),
-        Insts.C_OR      -> List(cs,  no_imm, alu_OR,  IS_ALU64, mode_NOP, true.B),
-        Insts.C_AND     -> List(cs,  no_imm, alu_AND, IS_ALU64, mode_NOP, true.B),
-        Insts.C_SUBW    -> List(cs,  no_imm, alu_SUB, IS_ALU32, mode_NOP, true.B),
-        Insts.C_ADDW    -> List(cs,  no_imm, alu_ADD, IS_ALU32, mode_NOP, true.B),
-        Insts.C_J       -> List(cj,  cj_s1,  alu_MV2, IS_ALU64, mode_NOP, false.B),
-        Insts.C_BEQZ    -> List(cb,  cb_s1,  alu_NOP, IS_ALU64, mode_NOP, false.B),
-        Insts.C_BNEZ    -> List(cb,  cb_s1,  alu_NOP, IS_ALU64, mode_NOP, false.B),
-
-        Insts.C_SLLI    -> List(ci,  ci_u,   alu_SLL, IS_ALU64, mode_NOP, true.B),
-        Insts.C_LWSP    -> List(ci,  ci_u2,  alu_ADD, IS_ALU64, mode_LW,  true.B),
-        Insts.C_LDSP    -> List(ci,  ci_u3,  alu_ADD, IS_ALU64, mode_LD,  true.B),
-        Insts.C_JR      -> List(cr,  no_imm, alu_MV1, IS_ALU64, mode_NOP, false.B),
-        Insts.C_MV      -> List(cr,  no_imm, alu_MV2, IS_ALU64, mode_NOP, true.B),
-        Insts.C_JALR    -> List(cr,  no_imm, alu_MV2, IS_ALU64, mode_NOP, true.B),
-        Insts.C_ADD     -> List(cr,  no_imm, alu_ADD, IS_ALU64, mode_NOP, true.B),
-        Insts.C_SWSP    -> List(css, css_u2, alu_ADD, IS_ALU64, mode_SW,  false.B),
-        Insts.C_SDSP    -> List(css, css_u3, alu_ADD, IS_ALU64, mode_SD,  false.B)
-    )
-
-    def decode_r3(rvc: UInt) = {
-        Cat(1.U(1.W), rvc(2,0))
-    }
 
     val NO_JMP     = "b00".U(2.W)
     val JMP_UNCOND = "b01".U(2.W)
     val JMP_COND   = "b10".U(2.W)
     val JMP_CSR    = "b11".U(2.W)
 
-    val AMO_WIDTH = 5
-    val amoSwap = "b00001".U(AMO_WIDTH.W)
-    val amoAdd  = "b00000".U(AMO_WIDTH.W)
-    val amoXor  = "b00100".U(AMO_WIDTH.W)
-    val amoAnd  = "b01100".U(AMO_WIDTH.W)
-    val amoOr   = "b01000".U(AMO_WIDTH.W)
-    val amoMin  = "b10000".U(AMO_WIDTH.W)
-    val amoMax  = "b10100".U(AMO_WIDTH.W)
-    val amoMinU = "b11100".U(AMO_WIDTH.W)
-    val amoMaxU = "b11100".U(AMO_WIDTH.W)
 
     val SPECIAL_FENCE_I = 1.U(2.W)
     val SPECIAL_SFENCE_VMA = 2.U(2.W)

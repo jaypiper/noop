@@ -8,55 +8,6 @@ import noop.datapath._
 import axi._
 import axi.axi_config._
 
-class Splite64to32 extends Module{
-    val io = IO(new Bundle{
-        val data_in = new DcacheRW
-        val data_out = Flipped(new DcacheRW)
-    })
-    val data_buf = RegInit(0.U(32.W))
-    val sIdle :: sWait :: Nil = Enum(2)
-    val addr_r = RegInit(0.U(PADDR_WIDTH.W))
-    val is_64 = RegInit(false.B)
-    val busy = RegInit(false.B)
-    val state = RegInit(sIdle)
-    val hs_out = (io.data_out.dc_mode =/= mode_NOP) && io.data_out.ready
-    io.data_out.amo := 0.U;  io.data_out.wdata := 0.U;  io.data_out.dc_mode := mode_NOP;  io.data_out.addr := 0.U
-    io.data_in.ready := false.B; io.data_in.rvalid := false.B
-    io.data_in.rdata := Mux(is_64, Cat(io.data_out.rdata(31,0), data_buf), io.data_out.rdata)
-    switch(state){
-        is(sIdle){
-                when(io.data_in.dc_mode =/= mode_NOP){
-                    busy := true.B
-                    io.data_out.addr := Cat(io.data_in.addr(PADDR_WIDTH-1, 3), 0.U(3.W))
-                    io.data_out.dc_mode := mode_LWU
-                    io.data_in.ready := io.data_out.ready
-                    when(hs_out && io.data_out.dc_mode =/= mode_LD){
-                        state := sWait
-                        addr_r := Cat(io.data_in.addr(PADDR_WIDTH-1, 3), 0.U(3.W))
-                        is_64 := true.B
-                    }.elsewhen(hs_out){
-                        is_64 := false.B
-                    }
-                }.elsewhen(io.data_in.rvalid){
-                    busy := false.B
-                }
-                when(busy){
-                    io.data_in.rvalid := io.data_out.rvalid
-                }
-            }
-        is(sWait){
-            when(io.data_out.rvalid){
-                data_buf := io.data_out.rdata
-            }
-            io.data_out.addr := addr_r + 4.U
-            io.data_out.dc_mode := mode_LWU
-            when(hs_out){
-                state := sIdle
-            }
-        }
-    }
-}
-
 class ToAXI extends Module{
     val io = IO(new Bundle{
         val dataIO = new DcacheRW
@@ -82,10 +33,9 @@ class ToAXI extends Module{
     // 和Mem交互
     val addr    = Wire(UInt(PADDR_WIDTH.W))
 
-    val mode = RegInit(mode_NOP)
+    // val mode = RegInit(mode_NOP)
     val curAddr     = io.dataIO.addr
     val curWdata    = io.dataIO.wdata
-    val curMode     = io.dataIO.dc_mode
     //
     io.dataIO.ready := false.B
     val (sIdle:: sWaddr :: sWdata :: sWresp :: sRaddr :: sRdata :: sFinish :: Nil) = Enum(7)
@@ -94,35 +44,32 @@ class ToAXI extends Module{
     //store
     switch(state){
         is(sIdle){
-            mode    := curMode
-            when(curMode =/= mode_NOP){
+            when(io.dataIO.avalid){
                 io.dataIO.ready := true.B
             }
-            when(curMode(3) === 1.U){
+            when(io.dataIO.avalid && io.dataIO.wen){
                 state   := sWaddr
                 waddr   := curAddr
                 // wdata   := curWdata
                 waddrEn := true.B
-                val wtype   = ListLookup(curMode, List(0.U(3.W), 0.U(8.W)) , Array(
-                    BitPat(mode_SB) -> List(0.U(3.W), 0x1.U(8.W)),
-                    BitPat(mode_SH) -> List(1.U(3.W), 0x3.U(8.W)),
-                    BitPat(mode_SW) -> List(2.U(3.W), 0xf.U(8.W)),
-                    BitPat(mode_SD) -> List(3.U(3.W), 0xff.U(8.W))
+
+                val wtype   = ListLookup(io.dataIO.wmask, List(0.U(3.W), 0.U(8.W)) , Array(
+                    BitPat("hff".U(DATA_BITS_WIDTH)) -> List(0.U(3.W), 0x1.U(8.W)),
+                    BitPat("hffff".U(DATA_BITS_WIDTH)) -> List(1.U(3.W), 0x3.U(8.W)),
+                    BitPat("hffffffff".U(DATA_BITS_WIDTH)) -> List(2.U(3.W), 0xf.U(8.W)),
+                    BitPat("hffffffffffffffff".U(DATA_BITS_WIDTH)) -> List(3.U(3.W), 0xff.U(8.W))
                 ))
                 wsize   := wtype(0)
                 wstrb   := wtype(1) << curAddr(2, 0)
                 wdata   := (curWdata << (curAddr(2, 0)*8.U))(63, 0)
                 pre_addr := curAddr
-            }.elsewhen(curMode(2) === 1.U){
+            }.elsewhen(io.dataIO.avalid){
                 state := sRaddr
-                rsize := MuxLookup(curMode, 0.U , Array(
-                    mode_LB -> (0.U(3.W)),
-                    mode_LBU -> (0.U(3.W)),
-                    mode_LH -> (1.U(3.W)),
-                    mode_LHU -> (1.U(3.W)),
-                    mode_LW -> (2.U(3.W)),
-                    mode_LWU -> (2.U(3.W)),
-                    mode_LD -> (3.U(3.W))
+                rsize := MuxLookup(io.dataIO.wmask, 0.U , Seq(
+                    "hff".U(DATA_BITS_WIDTH) -> (0.U(3.W)),
+                    "hffff".U(DATA_BITS_WIDTH) -> (1.U(3.W)),
+                    "hffffffff".U(DATA_BITS_WIDTH) -> (2.U(3.W)),
+                    "hffffffffffffffff".U(DATA_BITS_WIDTH) -> (3.U(3.W))
                 ))
 
                 // raddr := Cat(curAddr(31, 8), 0.U(8.W))
@@ -164,33 +111,19 @@ class ToAXI extends Module{
             rdataEn := true.B
 
             when(rdataEn && io.outAxi.rd.valid){
-                val tem_rdata = Wire(SInt(DATA_WIDTH.W))
-                tem_rdata   := 0.S
                 val strb_offset = pre_addr(2, 0)
-                switch(mode){
-                    is(mode_LB){
-                        tem_rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(7, 0).asSInt
-                        rdata       := tem_rdata.asUInt
-                    }
-                    is(mode_LH){
-                        tem_rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(15, 0).asSInt
-                        rdata       := tem_rdata.asUInt
-                    }
-                    is(mode_LW){
-                        tem_rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(31, 0).asSInt
-                        rdata       := tem_rdata.asUInt
-                    }
-                    is(mode_LD){
-                        rdata       := io.outAxi.rd.bits.data
-                    }
-                    is(mode_LBU){
+                switch(rsize){
+                    is(0.U){
                         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(7, 0)
                     }
-                    is(mode_LHU){
+                    is(1.U){
                         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(15, 0)
                     }
-                    is(mode_LWU){
+                    is(2.U){
                         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(31, 0)
+                    }
+                    is(3.U){
+                        rdata       := io.outAxi.rd.bits.data
                     }
                 }
                 offset := offset + 1.U
