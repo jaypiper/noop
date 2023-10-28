@@ -128,5 +128,5 @@ void init_sdcard() {
 
   const char *img = CONFIG_SDCARD_IMG_PATH;
   fp = fopen(img, "r+");
-  if (fp == NULL) printf("Can not find sdcard image: %s", img);
+  if (fp == NULL) printf("Can not find sdcard image: %s\n", img);
 }

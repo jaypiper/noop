@@ -24,13 +24,10 @@ class Fetch extends Module{
     val pc = RegInit(PC_START)
 
     val drop1_r = RegInit(false.B)
-    val drop2_r = RegInit(false.B)
     val stall1_r = RegInit(false.B)
-    val stall2_r = RegInit(false.B)
     val recov1_r = RegInit(false.B)
-    val recov2_r = RegInit(false.B)
-    drop1_r := false.B; drop2_r := false.B;
-    stall1_r := false.B; stall2_r := false.B;
+    drop1_r := false.B;
+    stall1_r := false.B;
     def stall_pipe1(){
         drop1_r := true.B;  stall1_r := true.B; recov1_r := true.B
     }
@@ -58,8 +55,15 @@ class Fetch extends Module{
     val hs1         = io.instRead.arvalid && io.instRead.ready
     val hs_in       = state === sIdle && (!valid1_r || hs1)
 
+    val pc_r           = RegInit(0.U(VADDR_WIDTH.W))
+    val valid_r        = RegInit(false.B)
+    val excep_r        = RegInit(0.U.asTypeOf(new Exception))
+    val inst_r          = RegInit(0.U(INST_WIDTH.W))
+    val hs_out  = io.if2id.ready && io.if2id.valid
+    val inst_valid_r    = RegInit(false.B)
+
     val cur_pc = PriorityMux(Seq(
-        (hs1,                       pc + 4.U),
+        (hs_out,                       pc + 4.U),
         (true.B,                    pc)
     ))
     val next_pc = PriorityMux(Seq(
@@ -71,37 +75,45 @@ class Fetch extends Module{
     // pc1_r := pc
     //intr
 
-    io.instRead.addr := pc
-    io.instRead.arvalid := true.B
 
 // stage 3
-    val pc_r           = RegInit(0.U(VADDR_WIDTH.W))
-    val valid_r        = RegInit(false.B)
-    val excep_r        = RegInit(0.U.asTypeOf(new Exception))
-    val inst_r          = RegInit(0.U(INST_WIDTH.W))
-    val hs_out  = io.if2id.ready && io.if2id.valid
+    
+
+    io.instRead.addr := next_pc
+    io.instRead.arvalid := !valid_r || hs_out
 
     when(hs1) {
-        pc_r := pc
+        pc_r := next_pc
+        valid_r := true.B
+    }.elsewhen(hs_out) {
+        valid_r := false.B
     }
     when (io.instRead.rvalid) {
         inst_r := io.instRead.inst
     }
+
     when(!drop_in) {
         when(hs_out) {
-            valid_r := false.B
+            inst_valid_r := false.B
             excep_r := 0.U.asTypeOf(new Exception)
         } .elsewhen(io.instRead.rvalid) {
-            valid_r := true.B
+            inst_valid_r := true.B
             inst_r := io.instRead.inst
         }
+        when(hs1) {
+            pc_r := next_pc
+            valid_r := true.B
+        }.elsewhen(hs_out) {
+            valid_r := false.B
+        }
     } .otherwise {
+        inst_valid_r := false.B
         valid_r := false.B
     }
 
-    io.if2id.inst       := Mux(valid_r, inst_r, io.instRead.inst)
+    io.if2id.inst       := Mux(inst_valid_r, inst_r, io.instRead.inst)
     io.if2id.pc         := pc_r
     io.if2id.excep      := 0.U.asTypeOf(new Exception)
-    io.if2id.valid      := Mux(valid_r, true.B, io.instRead.rvalid)
+    io.if2id.valid      := !drop_in && valid_r && (io.instRead.rvalid || inst_valid_r)
     io.if2id.recov      := false.B
 }

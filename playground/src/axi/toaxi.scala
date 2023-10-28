@@ -52,24 +52,37 @@ class ToAXI extends Module{
                 waddr   := curAddr
                 // wdata   := curWdata
                 waddrEn := true.B
-
-                val wtype   = ListLookup(io.dataIO.wmask, List(0.U(3.W), 0.U(8.W)) , Array(
-                    BitPat("hff".U(DATA_BITS_WIDTH)) -> List(0.U(3.W), 0x1.U(8.W)),
-                    BitPat("hffff".U(DATA_BITS_WIDTH)) -> List(1.U(3.W), 0x3.U(8.W)),
-                    BitPat("hffffffff".U(DATA_BITS_WIDTH)) -> List(2.U(3.W), 0xf.U(8.W)),
-                    BitPat("hffffffffffffffff".U(DATA_BITS_WIDTH)) -> List(3.U(3.W), 0xff.U(8.W))
-                ))
-                wsize   := wtype(0)
-                wstrb   := wtype(1) << curAddr(2, 0)
+                val lowMask = io.dataIO.wmask >> (Cat(curAddr(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)))
+                when(lowMask === "hff".U) {
+                    wsize := 0.U
+                    wstrb := 1.U << curAddr(2, 0)
+                }.elsewhen(lowMask === "hffff".U) {
+                    wsize := 1.U
+                    wstrb := 0x3.U << curAddr(2, 0)
+                }.elsewhen(lowMask === "hffffffff".U) {
+                    wsize := 2.U
+                    wstrb := 0xf.U << curAddr(2, 0)
+                }.elsewhen(lowMask === "hffffffffffffffff".U) {
+                    wsize := 3.U
+                    wstrb := 0xff.U << curAddr(2, 0)
+                }
+                // val wtype   = ListLookup(lowMask, List(0.U(3.W), 0.U(8.W)) , Array(
+                //     BitPat("hff".U(DATA_WIDTH)) -> List(0.U(3.W), 0x1.U(8.W)),
+                //     BitPat("hffff".U(DATA_WIDTH)) -> List(1.U(3.W), 0x3.U(8.W)),
+                //     BitPat("hffffffff".U(DATA_WIDTH)) -> List(2.U(3.W), 0xf.U(8.W)),
+                //     BitPat("hffffffffffffffff".U(DATA_WIDTH)) -> List(3.U(3.W), 0xff.U(8.W))
+                // ))
+                // wsize   := wtype(0)
+                // wstrb   := wtype(1) << curAddr(2, 0)
                 wdata   := (curWdata << (curAddr(2, 0)*8.U))(63, 0)
                 pre_addr := curAddr
             }.elsewhen(io.dataIO.avalid){
                 state := sRaddr
-                rsize := MuxLookup(io.dataIO.wmask, 0.U , Seq(
-                    "hff".U(DATA_BITS_WIDTH) -> (0.U(3.W)),
-                    "hffff".U(DATA_BITS_WIDTH) -> (1.U(3.W)),
-                    "hffffffff".U(DATA_BITS_WIDTH) -> (2.U(3.W)),
-                    "hffffffffffffffff".U(DATA_BITS_WIDTH) -> (3.U(3.W))
+                rsize := MuxLookup(io.dataIO.wmask >> Cat(curAddr(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)), 0.U , Seq(
+                    "hff".U(DATA_WIDTH) -> (0.U(3.W)),
+                    "hffff".U(DATA_WIDTH) -> (1.U(3.W)),
+                    "hffffffff".U(DATA_WIDTH) -> (2.U(3.W)),
+                    "hffffffffffffffff".U(DATA_WIDTH) -> (3.U(3.W))
                 ))
 
                 // raddr := Cat(curAddr(31, 8), 0.U(8.W))
@@ -112,20 +125,21 @@ class ToAXI extends Module{
 
             when(rdataEn && io.outAxi.rd.valid){
                 val strb_offset = pre_addr(2, 0)
-                switch(rsize){
-                    is(0.U){
-                        rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(7, 0)
-                    }
-                    is(1.U){
-                        rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(15, 0)
-                    }
-                    is(2.U){
-                        rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(31, 0)
-                    }
-                    is(3.U){
-                        rdata       := io.outAxi.rd.bits.data
-                    }
-                }
+                // switch(rsize){
+                //     is(0.U){
+                //         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(7, 0)
+                //     }
+                //     is(1.U){
+                //         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(15, 0)
+                //     }
+                //     is(2.U){
+                //         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(31, 0)
+                //     }
+                //     is(3.U){
+                //         rdata       := io.outAxi.rd.bits.data
+                //     }
+                // }
+                rdata       := io.outAxi.rd.bits.data
                 offset := offset + 1.U
 
                 rdataEn := false.B

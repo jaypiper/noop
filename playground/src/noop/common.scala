@@ -9,7 +9,7 @@ object common extends mem_access_mode{
     val VADDR_WIDTH = 64
     val PADDR_WIDTH = 32
     val DATA_WIDTH  = 64
-    val DATA_BITS_WIDTH = log2Ceil(DATA_WIDTH)
+    val DATA_BITS_WIDTH = log2Ceil(DATA_WIDTH / 8)
     val INST_WIDTH  = 32
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12

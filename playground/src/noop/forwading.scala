@@ -57,9 +57,9 @@ class Forwarding extends Module{
     rs1_valid := false.B;   rs1_wait    := false.B; rs1_data := 0.U
     rs2_valid := false.B;   rs2_wait    := false.B; rs2_data := 0.U
     val cur_rs1     = Mux(hs_in, io.id2df.rs1, rs1_r)
-    val cur_rrs1    = Mux(hs_in,io.id2df.rrs1, rrs1_r)
+    val cur_rrs1    = Mux(hs_in, io.id2df.rrs1, rrs1_r)
     val cur_rs2     = Mux(hs_in, io.id2df.rs2, rs2_r)
-    val cur_rrs2    = Mux(hs_in,io.id2df.rrs2, rrs2_r)
+    val cur_rrs2    = Mux(hs_in, io.id2df.rrs2, rrs2_r)
     when(cur_rrs1){
         // rs1 state
         when(cur_rs1 === 0.U){

@@ -121,9 +121,8 @@ void disp_ipc(){
 }
 
 static int diff_csrs[] = {
-    SEPC_ID, STVEC_ID, SCAUSE_ID, STVAL_ID, SSCRATCH_ID,
-    SATP_ID, MTVEC_ID, MEPC_ID, MCAUSE_ID, MIE_ID, MIP_ID, MTVAL_ID,
-    MSCRATCH_ID, MSTATUS_ID, MEDELEG_ID, MIDELEG_ID
+    MTVEC_ID, MEPC_ID, MCAUSE_ID, MIE_ID, MIP_ID, MTVAL_ID,
+    MSCRATCH_ID, MSTATUS_ID
 };
 
 static int csr_num = sizeof(diff_csrs)/sizeof(int);
@@ -137,6 +136,7 @@ void disp_state_buf(){
 
 void print_info(CPU_state* ref_r){
     if(ref_r){
+        printf("   ref                    |    dut  \n");
         for(int i = 0; i < 32; i++){
             printf("%-4s    %016lx  | %016lx  \n", regs[i], ref_r->gpr[i], state.gpr[i]);
         }
@@ -218,7 +218,7 @@ void dut_step(uint32_t n){
         while(!state.valid){
             clock_cycle(1);
             count ++;
-            if(count > 50000) {
+            if(count > 100) {
                 print_info(NULL);
                 disp_ipc();
 #ifdef TRACE
