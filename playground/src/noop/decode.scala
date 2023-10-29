@@ -20,6 +20,7 @@ class Decode extends Module{
     val drop_in     = drop_r || io.id2df.drop
     io.if2id.drop   := drop_in
     io.if2id.stall  := (stall_r && !io.id2df.drop) || io.id2df.stall
+    dontTouch(io.if2id.stall)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
@@ -35,7 +36,6 @@ class Decode extends Module{
     val jmp_type_r  = RegInit(0.U(2.W))
     val special_r   = RegInit(0.U(2.W))
     val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
-    val indi_r      = RegInit(0.U(INDI_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
 
@@ -182,7 +182,6 @@ class Decode extends Module{
         rrs2_r          := false.B
         jmp_type_r      := NO_JMP
         special_r       := 0.U
-        indi_r          := 0.U
         swap_r          := NO_SWAP
         recov_r         := io.if2id.recov
     }
@@ -219,7 +218,6 @@ class Decode extends Module{
     io.id2df.jmp_type   := jmp_type_r
     io.id2df.special    := special_r
     io.id2df.swap       := swap_r
-    io.id2df.indi       := indi_r
     io.id2df.recov      := recov_r
     io.id2df.valid      := valid_r
 }

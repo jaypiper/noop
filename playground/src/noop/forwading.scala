@@ -35,7 +35,6 @@ class Forwarding extends Module{
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
     val special_r   = RegInit(0.U(2.W))
-    val indi_r      = RegInit(0.U(INDI_WIDTH.W))
     val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
@@ -134,7 +133,6 @@ class Forwarding extends Module{
         dst_d_r     := io.id2df.dst_d
         jmp_type_r  := io.id2df.jmp_type
         special_r   := io.id2df.special
-        indi_r      := io.id2df.indi
         swap_r      := io.id2df.swap
         recov_r     := io.id2df.recov
     }
@@ -200,7 +198,6 @@ class Forwarding extends Module{
     io.df2rr.dst_d      := dst_d_r
     io.df2rr.jmp_type   := jmp_type_r
     io.df2rr.special    := special_r
-    io.df2rr.indi       := indi_r
     io.df2rr.swap       := swap_r
     io.df2rr.recov      := recov_r
     io.df2rr.valid      := valid_r

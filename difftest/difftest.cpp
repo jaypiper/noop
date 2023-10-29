@@ -106,7 +106,6 @@ void init_difftest(char *ref_so_file){
 #ifdef FLASH
     flash_memcpy(program, program_sz);
 #else
-    std::cout << program_sz << " " << sizeof(cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data) << std::endl;
     assert(program_sz <= sizeof(cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data));
     memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data[0])), program, program_sz);
     memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__cpu__DOT__dcache__DOT__data[0])), program, program_sz);
@@ -231,7 +230,7 @@ void dut_step(uint32_t n){
         inst_num ++;
         state_buf[inst_p] = state;
         inst_p = (inst_p + 1) % 4;
-        if(state.valid && state.inst == 0x6b){
+        if(state.valid && (state.inst == 0x6b || state.inst == 0x100073)){
             dut_end = 1;
             break;
         }
@@ -244,7 +243,7 @@ void difftest_step(uint32_t n){
     while(n --){
         dut_step(1);
         //ref执行一步
-        if(state.is_mmio || state.rcsr_id == MIP_ID){
+        if(state.is_mmio || state.rcsr_id == MIP_ID || state.rcsr_id == 0xc00){
             memcpy(ref_r.gpr, state.gpr, sizeof(state.gpr));
             ref_r.pc = state.pc + ((state.inst&0x3) == 0x3 ? 4 : 2);
             memcpy(ref_r.csr, state.csr, sizeof(state.csr));

@@ -178,7 +178,7 @@ trait csr_config extends priv_encoding{
     val CSR_MISA        = 0x301.U
     val CSR_SCOUNTEREN  = 0x106.U
     val CSR_MCOUNTEREN  = 0x306.U
-    val CSR_MCYCLE      = 0xb00.U
+    val CSR_MCYCLE      = 0xc00.U
 
     val MEDELEG_MASK = ((1 << CAUSE_MISALIGNED_FETCH) | (1 << CAUSE_BREAKPOINT) |
                     (1 << CAUSE_USER_ECALL) | (1 << CAUSE_SUPERVISOR_ECALL) |
@@ -441,6 +441,7 @@ object Insts{
 
     //nemu_trap
     def TRAP    = BitPat("b00000000000000000000000001101011")
+    def EBREAK  = BitPat("b00000000000100000000000001110011")
     def FENCE_I = BitPat("b00000000000000000001000000001111")
     def FENCE   = BitPat("b0000????????00000000000000001111")
     def SFENCE_VMA  = BitPat("b0001001??????????000000001110011")
@@ -530,16 +531,16 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.MULH   -> List(RType, alu_MULH,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.MULHU  -> List(RType, alu_MULHU, IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.MULHSU -> List(RType, alu_MULHSU,IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.DIV    -> List(RType, alu_DIV,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.DIVU   -> List(RType, alu_DIVU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.REM    -> List(RType, alu_REM,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.REMU   -> List(RType, alu_REMU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.DIV    -> List(RType, alu_DIV,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.DIVU   -> List(RType, alu_DIVU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.REM    -> List(RType, alu_REM,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.REMU   -> List(RType, alu_REMU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
 
         Insts.MULW   -> List(RType, alu_MUL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.DIVW   -> List(RType, alu_DIV,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.DIVUW  -> List(RType, alu_DIVU,  IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.REMW   -> List(RType, alu_REM,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.REMUW  -> List(RType, alu_REMU,  IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.DIVW   -> List(RType, alu_DIV,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.DIVUW  -> List(RType, alu_DIVU,  IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.REMW   -> List(RType, alu_REM,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        // Insts.REMUW  -> List(RType, alu_REMU,  IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
 
         Insts.ADDIW  -> List(IType, alu_ADD,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         Insts.SLLIW  -> List(IType, alu_SLL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
@@ -561,7 +562,8 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
-        Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
+        Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        Insts.EBREAK    -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
     )
 
     val NO_JMP     = "b00".U(2.W)

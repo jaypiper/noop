@@ -48,39 +48,25 @@ class Fetch extends Module{
             }
         }
     }
-// stage 1
-    val pc1_r       = RegInit(0.U(PADDR_WIDTH.W)) // ready when ic.valid
-    val valid1_r    = RegInit(false.B)
-    // val hs_in       = state === sIdle && !drop1_in && (!valid1_r || hs1)
+
     val hs1         = io.instRead.arvalid && io.instRead.ready
-    val hs_in       = state === sIdle && (!valid1_r || hs1)
+    val hs_out      = io.if2id.ready && io.if2id.valid
 
     val pc_r           = RegInit(0.U(VADDR_WIDTH.W))
     val valid_r        = RegInit(false.B)
-    val excep_r        = RegInit(0.U.asTypeOf(new Exception))
     val inst_r          = RegInit(0.U(INST_WIDTH.W))
-    val hs_out  = io.if2id.ready && io.if2id.valid
     val inst_valid_r    = RegInit(false.B)
 
-    val cur_pc = PriorityMux(Seq(
-        (hs_out,                       pc + 4.U),
-        (true.B,                    pc)
-    ))
     val next_pc = PriorityMux(Seq(
             (io.reg2if.valid,               io.reg2if.seq_pc),
             (io.wb2if.valid,                io.wb2if.seq_pc),
             (io.branchFail.valid,           io.branchFail.seq_pc),
-            (true.B,                        cur_pc)))
-    pc := next_pc
-    // pc1_r := pc
-    //intr
-
-
-// stage 3
-    
+            (hs_out,                        pc + 4.U),
+            (true.B,                        pc)))
+    pc := next_pc    
 
     io.instRead.addr := next_pc
-    io.instRead.arvalid := !valid_r || hs_out
+    io.instRead.arvalid := state === sIdle && !valid_r || hs_out
 
     when(hs1) {
         pc_r := next_pc
@@ -95,7 +81,6 @@ class Fetch extends Module{
     when(!drop_in) {
         when(hs_out) {
             inst_valid_r := false.B
-            excep_r := 0.U.asTypeOf(new Exception)
         } .elsewhen(io.instRead.rvalid) {
             inst_valid_r := true.B
             inst_r := io.instRead.inst

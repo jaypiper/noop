@@ -66,14 +66,6 @@ class ToAXI extends Module{
                     wsize := 3.U
                     wstrb := 0xff.U << curAddr(2, 0)
                 }
-                // val wtype   = ListLookup(lowMask, List(0.U(3.W), 0.U(8.W)) , Array(
-                //     BitPat("hff".U(DATA_WIDTH)) -> List(0.U(3.W), 0x1.U(8.W)),
-                //     BitPat("hffff".U(DATA_WIDTH)) -> List(1.U(3.W), 0x3.U(8.W)),
-                //     BitPat("hffffffff".U(DATA_WIDTH)) -> List(2.U(3.W), 0xf.U(8.W)),
-                //     BitPat("hffffffffffffffff".U(DATA_WIDTH)) -> List(3.U(3.W), 0xff.U(8.W))
-                // ))
-                // wsize   := wtype(0)
-                // wstrb   := wtype(1) << curAddr(2, 0)
                 wdata   := (curWdata << (curAddr(2, 0)*8.U))(63, 0)
                 pre_addr := curAddr
             }.elsewhen(io.dataIO.avalid){
@@ -125,20 +117,6 @@ class ToAXI extends Module{
 
             when(rdataEn && io.outAxi.rd.valid){
                 val strb_offset = pre_addr(2, 0)
-                // switch(rsize){
-                //     is(0.U){
-                //         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(7, 0)
-                //     }
-                //     is(1.U){
-                //         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(15, 0)
-                //     }
-                //     is(2.U){
-                //         rdata   := (io.outAxi.rd.bits.data >> (8.U * strb_offset))(31, 0)
-                //     }
-                //     is(3.U){
-                //         rdata       := io.outAxi.rd.bits.data
-                //     }
-                // }
                 rdata       := io.outAxi.rd.bits.data
                 offset := offset + 1.U
 

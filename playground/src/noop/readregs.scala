@@ -39,7 +39,6 @@ class ReadRegs extends Module{
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
     val special_r   = RegInit(0.U(2.W))
-    val indi_r      = RegInit(0.U(INDI_WIDTH.W))
 
     val valid_r     = RegInit(false.B)
 
@@ -73,7 +72,6 @@ class ReadRegs extends Module{
         rcsr_id_r   := Mux(io.df2rr.ctrl.writeCSREn, io.df2rr.rs2, 0.U)
         jmp_type_r  := io.df2rr.jmp_type
         special_r   := io.df2rr.special
-        indi_r      := io.df2rr.indi
         recov_r     := io.df2rr.recov
         when(io.df2rr.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
             excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
@@ -116,7 +114,6 @@ class ReadRegs extends Module{
     io.rr2ex.rcsr_id    := rcsr_id_r
     io.rr2ex.jmp_type   := jmp_type_r
     io.rr2ex.special    := special_r
-    io.rr2ex.indi       := indi_r
     io.rr2ex.recov      := recov_r
     io.rr2ex.valid      := valid_r
 

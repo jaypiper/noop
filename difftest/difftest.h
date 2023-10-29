@@ -25,8 +25,7 @@ const char *regs[] = {
 };
 
 const char *csrs[] = {
-  "sepc", "stvec", "scause", "stval", "sscratch", "satp",
-  "mtvec", "mepc", "mcause", "mie", "mip", "mtval", "mscratch", "mstatus", "medeleg", "mideleg"
+  "mtvec", "mepc", "mcause", "mie", "mip", "mtval", "mscratch", "mstatus",
 };
 
 extern "C" void flash_memcpy(uint8_t* src, size_t len);

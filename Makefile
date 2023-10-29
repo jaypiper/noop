@@ -49,7 +49,7 @@ CFLAGS = -O3 -Og -pthread $(shell sdl2-config --cflags) -fPIE -g
 TRACE?=0
 SIM?=1
 FLASH?=0
-DIFF?=0
+DIFF?=1
 
 ifeq ($(FLASH),1)
 	CFLAGS += -DFLASH
@@ -73,7 +73,7 @@ endif
 
 
 PROGRAM_DIR = ./bin
-BIN?=coremark-riscv64-mycpu-rv64imfd
+BIN?=coremark-riscv64-kjw
 
 compile-verilator:
 	# verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSED ./build/CPU.v ./build/ram.v

@@ -84,7 +84,6 @@ class Memory extends Module{
     val csr_en_r   = RegInit(false.B)
     val rcsr_id_r  = RegInit(0.U(CSR_WIDTH.W))
     val special_r  = RegInit(0.U(2.W))
-    val indi_r     = RegInit(0.U(INDI_WIDTH.W))
     val recov_r    = RegInit(false.B)
     val valid_r    = RegInit(false.B)
     val bitmap_r     = RegInit(0.U(DATA_WIDTH.W))
@@ -120,14 +119,12 @@ class Memory extends Module{
         csr_d_r    := io.ex2mem.csr_d
         csr_en_r   := io.ex2mem.ctrl.writeCSREn
         rcsr_id_r  := io.ex2mem.rcsr_id
-        indi_r     := io.ex2mem.indi
         special_r  := io.ex2mem.special
         recov_r    := io.ex2mem.recov
         valid_r    := true.B
         bitmap_r     := bitmap
     } .elsewhen(hs_out) {
         valid_r := false.B
-        // ctrl_r  := 0.U.asTypeOf(new Ctrl)
     }
 
     // io.dataRW.avalid := curMode =/= mode_NOP
