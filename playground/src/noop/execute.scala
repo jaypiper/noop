@@ -26,10 +26,10 @@ class Execute extends Module{
     io.rr2ex.stall  := io.ex2mem.stall || (stall_r && !io.ex2mem.drop)
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
+    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
-    val mem_addr_r  = RegInit(0.U(VADDR_WIDTH.W))
+    val mem_addr_r  = RegInit(0.U(PADDR_WIDTH.W))
     val mem_data_r  = RegInit(0.U(DATA_WIDTH.W))
     val csr_id_r    = RegInit(0.U(CSR_WIDTH.W))
     val csr_d_r     = RegInit(0.U(DATA_WIDTH.W))
@@ -38,7 +38,7 @@ class Execute extends Module{
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val special_r   = RegInit(0.U(2.W))
     val alu64_r     = RegInit(false.B)
-    val next_pc_r   = RegInit(0.U(VADDR_WIDTH.W))  // for intr; updated by branch
+    val next_pc_r   = RegInit(0.U(PADDR_WIDTH.W))  // for intr; updated by branch
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)    
 
@@ -155,11 +155,20 @@ class Execute extends Module{
     when(hs_in){
         next_pc_r       := real_target      // for intr
     }
+    val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
+    val branchCounter = RegInit(0.U(DATA_WIDTH.W))
+    dontTouch(branchMissCounter)
+    dontTouch(branchCounter)
     when(!drop_in){
-        when(hs_in && !io.rr2ex.excep.en && real_is_target && io.rr2ex.jmp_type =/= NO_JMP){
+        when(hs_in && !io.rr2ex.excep.en && io.rr2ex.jmp_type =/= NO_JMP && real_target =/= io.rr2ex.nextPC){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
             drop_r  := true.B
+            branchMissCounter := branchMissCounter + 1.U
+            // printf("failed pc=%x inst=%x next=%x real=%x\n", io.rr2ex.pc, io.rr2ex.inst, io.rr2ex.nextPC, real_target)
+        }
+        when(hs_in && !io.rr2ex.excep.en && io.rr2ex.jmp_type =/= NO_JMP) {
+            branchCounter := branchCounter + 1.U
         }
     }
     io.ex2if.seq_pc := forceJmp.seq_pc

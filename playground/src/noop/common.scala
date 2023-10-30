@@ -6,14 +6,13 @@ import noop.param.common._
 import noop.param.cache_config._
 
 object common extends mem_access_mode{
-    val VADDR_WIDTH = 64
     val PADDR_WIDTH = 32
     val DATA_WIDTH  = 64
     val DATA_BITS_WIDTH = log2Ceil(DATA_WIDTH / 8)
     val INST_WIDTH  = 32
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
-    val PC_START    = "h80000000".U(VADDR_WIDTH.W)
+    val PC_START    = "h80000000".U(PADDR_WIDTH.W)
 
     val PAGE_WIDTH  = 12
 
@@ -230,7 +229,7 @@ trait pte_encoding{
 object tlb_config extends satp_mode with pte_encoding with csr_config{
     val TLB_ENTRY_WIDTH = 4
     val TLB_ENTRY_NUM   = 1 << TLB_ENTRY_WIDTH
-    val TLB_TAG_WIDTH   = VADDR_WIDTH - PAGE_WIDTH
+    val TLB_TAG_WIDTH   = PADDR_WIDTH - PAGE_WIDTH
     val TLB_PA_WIDTH    = PADDR_WIDTH - PAGE_WIDTH
     val TLB_INFO_WIDTH  = 10
 

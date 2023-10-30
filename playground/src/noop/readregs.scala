@@ -27,7 +27,8 @@ class ReadRegs extends Module{
     io.df2rr.drop   := drop_in
     io.df2rr.stall  := (stall_r && !io.rr2ex.drop) || io.rr2ex.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
+    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
+    val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val rs1_r       = RegInit(0.U(REG_WIDTH.W))
@@ -61,6 +62,7 @@ class ReadRegs extends Module{
     when(hs_in){
         inst_r      := io.df2rr.inst
         pc_r        := io.df2rr.pc
+        nextPC_r    := io.df2rr.nextPC
         excep_r     := io.df2rr.excep
         ctrl_r      := io.df2rr.ctrl
         rs1_r       := io.df2rr.rs1
@@ -103,6 +105,7 @@ class ReadRegs extends Module{
     }
     io.rr2ex.inst       := inst_r
     io.rr2ex.pc         := pc_r
+    io.rr2ex.nextPC     := nextPC_r
     io.rr2ex.excep      := excep_r
     io.rr2ex.ctrl       := ctrl_r
     io.rr2ex.rs1        := rs1_r

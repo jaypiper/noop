@@ -71,10 +71,10 @@ class Memory extends Module{
     io.ex2mem.stall := false.B
 // stage 1
     val inst_r     = RegInit(0.U(INST_WIDTH.W))
-    val pc_r       = RegInit(0.U(VADDR_WIDTH.W))
+    val pc_r       = RegInit(0.U(PADDR_WIDTH.W))
     val excep_r    = RegInit(0.U.asTypeOf(new Exception))
     val ctrl_r     = RegInit(0.U.asTypeOf(new Ctrl))
-    val mem_addr_r = RegInit(0.U(VADDR_WIDTH.W))
+    val mem_addr_r = RegInit(0.U(PADDR_WIDTH.W))
     val mem_data_r = RegInit(0.U(DATA_WIDTH.W))
     val dst_r      = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r    = RegInit(0.U(DATA_WIDTH.W))

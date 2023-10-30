@@ -4,17 +4,19 @@ import chisel3._
 import chisel3.util._
 import noop.param.common._
 import noop.bpu.bpu_config._
+import noop.datapath._
+import noop.param.regs_config._
 
 class BPUSearch extends Bundle{
-    val vaddr       = Input(UInt(VADDR_WIDTH.W))
+    val vaddr       = Input(UInt(PADDR_WIDTH.W))
     val va_valid    = Input(Bool())
-    val target      = Output(UInt(VADDR_WIDTH.W))
+    val target      = Output(UInt(PADDR_WIDTH.W))
     val is_target   = Output(Bool())
 }
 
 class BPUUpdate extends Bundle{
-    val vaddr       = UInt(VADDR_WIDTH.W)
-    val target      = UInt(VADDR_WIDTH.W)
+    val vaddr       = UInt(PADDR_WIDTH.W)
+    val target      = UInt(PADDR_WIDTH.W)
     val is_target   = Bool()
     val valid       = Bool()
 }
@@ -68,7 +70,7 @@ class BPU extends Module{
     val search_is_target_r  = RegInit(false.B)
     val search_target_r     = RegInit(0.U(BTB_TARGET_WIDTH.W))
     io.search.is_target := search_is_target_r
-    io.search.target := Cat(Fill(VADDR_WIDTH-PADDR_WIDTH ,search_target_r(BTB_TARGET_WIDTH-1)), search_target_r, 0.U(2.W))
+    io.search.target := Cat(Fill(PADDR_WIDTH-PADDR_WIDTH ,search_target_r(BTB_TARGET_WIDTH-1)), search_target_r, 0.U(2.W))
     when(io.search.va_valid){
         val search_idx = io.search.vaddr(INDEX_WIDTH+INST_ALIGN-1, INST_ALIGN)
         val search_origin = io.search.vaddr(BTB_ADDR_WIDTH-1, INDEX_WIDTH+INST_ALIGN)
@@ -80,5 +82,65 @@ class BPU extends Module{
         }
     }.otherwise{
         search_is_target_r := false.B
+    }
+}
+
+class SimpleBPU extends Module {
+    val io = IO(new Bundle {
+        val predict = new PredictIO
+        val updateTrace = Input(new UpdateTrace)
+        // val priv = Input(UInt(2.W))
+        // val ra = Input(UInt(64.W))
+    })
+    val imm = Wire(SInt(DATA_WIDTH.W))
+
+    val callTrace = RegInit(VecInit(Seq.fill(16)(0.U(PADDR_WIDTH.W))))
+    val idx = RegInit(0.U(5.W))
+
+    io.predict.target := io.predict.pc + imm.asUInt
+    io.predict.jmp := false.B
+    imm := 0.S
+    val inst = io.predict.inst
+    when(io.predict.inst(6,2) === "b11000".U) { // branch
+        imm := Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)).asSInt
+        io.predict.jmp := inst(31) && io.predict.valid
+    }.elsewhen(inst(6,2) === "b11011".U) { // jal
+        imm := Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)).asSInt
+        io.predict.jmp := io.predict.valid
+    }.elsewhen(inst(6,2) === "b11001".U) {
+        when(inst(19,15) === 1.U && io.predict.valid) {
+            io.predict.jmp := true.B
+            io.predict.target := callTrace(idx-1.U)
+        }
+    }.otherwise{ // branch instructions        
+        io.predict.jmp := false.B
+        imm := 0.S
+    }
+    val rs1 = io.updateTrace.inst(19,15)
+    val rd = io.updateTrace.inst(11,7)
+    val rs1Link = rs1 === 1.U || rs1 === 5.U
+    val rdLink  = rd === 1.U || rd === 5.U
+    when(io.updateTrace.valid) {
+        when(io.updateTrace.inst(6,2) === "b11011".U && rdLink) {
+            idx := idx + 1.U
+            callTrace(idx) := io.updateTrace.pc + 4.U
+            // printf("call pc=%x inst=%x idx=%d\n", io.updateTrace.pc, io.updateTrace.inst, idx+1.U)
+        }.elsewhen(io.updateTrace.inst(6,2) === "b11001".U) {
+            when(rs1Link && !rdLink) {
+                idx := idx - 1.U
+            }.elsewhen(!rs1Link && rdLink) {
+                callTrace(idx) := io.updateTrace.pc + 4.U
+                idx := idx + 1.U
+            }.elsewhen(rs1Link && rdLink && rs1 =/= rd) {
+                callTrace(idx-1.U) := io.updateTrace.pc + 4.U
+            }.elsewhen(rs1Link && rdLink && rs1 === rd) {
+                callTrace(idx) := io.updateTrace.pc + 4.U
+                idx := idx + 1.U
+            }
+            // printf("ret pc=%x inst=%x idx=%d\n", io.updateTrace.pc, inst, idx-1.U)
+            // when (callTrace(idx-1.U) =/= io.ra) {
+            //     printf("ret mismatch ra=%x trace=%x\n", io.ra, callTrace(idx-1.U))
+            // }
+        }
     }
 }

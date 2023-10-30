@@ -14,6 +14,7 @@ class Writeback extends Module{
         val excep   = Output(new Exception)
         val wb2if   = Output(new ForceJmp)
         val recov   = Output(Bool())
+        val updateTrace = Output(new UpdateTrace)
     })
     dontTouch(io)
     val recov_r     = RegInit(false.B)
@@ -34,7 +35,7 @@ class Writeback extends Module{
 
     io.recov        := recov_r
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
+    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     io.wReg.id      := io.mem2rb.dst
     io.wReg.data    := io.mem2rb.dst_d
     io.wReg.en      := false.B
@@ -62,6 +63,9 @@ class Writeback extends Module{
             forceJmp.seq_pc := io.mem2rb.pc + 4.U
         }
     }
+    io.updateTrace.valid := io.mem2rb.valid
+    io.updateTrace.inst := io.mem2rb.inst
+    io.updateTrace.pc := io.mem2rb.pc
     val is_mmio_r   = RegNext(io.mem2rb.is_mmio)
     val instFinish = Module(new InstFinish)
     instFinish.io.clock     := clock
@@ -84,7 +88,7 @@ class InstFinish extends BlackBox with HasBlackBoxPath{
         val clock   = Input(Clock())
         val is_mmio = Input(Bool())
         val valid   = Input(Bool())
-        val pc      = Input(UInt(VADDR_WIDTH.W))
+        val pc      = Input(UInt(PADDR_WIDTH.W))
         val inst    = Input(UInt(INST_WIDTH.W))
         val rcsr_id = Input(UInt(CSR_WIDTH.W))
     })
@@ -96,7 +100,7 @@ class TransExcep extends BlackBox with HasBlackBoxPath{
         val clock   = Input(Clock())
         val intr    = Input(Bool())
         val cause   = Input(UInt(DATA_WIDTH.W))
-        val pc      = Input(UInt(VADDR_WIDTH.W))
+        val pc      = Input(UInt(PADDR_WIDTH.W))
     })
     addPath("playground/src/interface/TransExcep.v")
 }

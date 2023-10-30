@@ -119,6 +119,12 @@ void disp_ipc(){
      std :: cout << "cycle: " << cycle << " inst_num: " << inst_num << " ipc: " << (double)inst_num / cycle << " time(min): " << (time(NULL) - init_time) /  60 << std::endl;
 }
 
+void disp_counter() {
+    std::cout << "branchNum: " << cpu->rootp->newtop__DOT__cpu__DOT__execute__DOT__branchCounter << \
+                " branchMiss: " << cpu->rootp->newtop__DOT__cpu__DOT__execute__DOT__branchMissCounter << \
+                " missRate: " << (double)cpu->rootp->newtop__DOT__cpu__DOT__execute__DOT__branchMissCounter / cpu->rootp->newtop__DOT__cpu__DOT__execute__DOT__branchCounter << std::endl;
+}
+
 static int diff_csrs[] = {
     MTVEC_ID, MEPC_ID, MCAUSE_ID, MIE_ID, MIP_ID, MTVAL_ID,
     MSCRATCH_ID, MSTATUS_ID
@@ -291,6 +297,7 @@ void int_handeler(int sig) {
 void check_and_exit(){
   if(!flag) return;
   disp_ipc();
+  disp_counter();
 #ifdef TRACE
   tfp->close();
 #endif
@@ -368,6 +375,7 @@ int main(int argc, char **argv){
         printf("\33[1;31mCPU HIT BAD TRAP\033[0m\n");
     }
     disp_ipc();
+    disp_counter();
 #ifdef TRACE
     tfp->close();
 #endif

@@ -46,7 +46,7 @@ class Exception_BASIC extends Bundle{
 }
 
 class Exception extends Exception_BASIC{
-    val pc      = UInt(VADDR_WIDTH.W)
+    val pc      = UInt(PADDR_WIDTH.W)
     val etype   = UInt(2.W)
 }
 
@@ -108,18 +108,19 @@ class Intr extends Bundle{
 }
 
 class BranchInfo extends Bundle{
-    val seq_pc = Output(UInt(VADDR_WIDTH.W))
+    val seq_pc = Output(UInt(PADDR_WIDTH.W))
     val is_jmp = Output(Bool())
 }
 
 class ForceJmp extends Bundle{
-    val seq_pc = UInt(VADDR_WIDTH.W)
+    val seq_pc = UInt(PADDR_WIDTH.W)
     val valid  = Bool()
 }
 
 class IF2ID extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
-    val pc      = Output(UInt(DATA_WIDTH.W))
+    val pc      = Output(UInt(PADDR_WIDTH.W))
+    val nextPC  = Output(UInt(PADDR_WIDTH.W))
     val excep   = Output(new Exception)
     val drop    = Input(Bool())
     val stall   = Input(Bool())
@@ -141,6 +142,7 @@ class Ctrl extends Bundle{
 class ID2DF extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
+    val nextPC  = Output(UInt(PADDR_WIDTH.W))
     val excep   = Output(new Exception)
     val ctrl    = Output(new Ctrl)
     val rs1     = Output(UInt(REG_WIDTH.W))
@@ -173,7 +175,8 @@ class DF2RR extends ID2DF{
 
 class RR2EX extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
-    val pc      = Output(UInt(DATA_WIDTH.W))
+    val pc      = Output(UInt(PADDR_WIDTH.W))
+    val nextPC  = Output(UInt(PADDR_WIDTH.W))
     val excep   = Output(new Exception)
     val ctrl    = Output(new Ctrl)
     val rs1     = Output(UInt(REG_WIDTH.W))
@@ -197,7 +200,7 @@ class EX2MEM extends Bundle{
     val pc      = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
     val ctrl    = Output(new Ctrl)
-    val mem_addr = Output(UInt(VADDR_WIDTH.W))
+    val mem_addr = Output(UInt(PADDR_WIDTH.W))
     val mem_data = Output(UInt(DATA_WIDTH.W))
     val csr_id  = Output(UInt(CSR_WIDTH.W))
     val csr_d   = Output(UInt(DATA_WIDTH.W))
@@ -229,4 +232,18 @@ class MEM2RB extends Bundle{
     val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
+}
+
+class PredictIO extends Bundle {
+    val inst = Input(UInt(INST_WIDTH.W))
+    val pc = Input(UInt(PADDR_WIDTH.W))
+    val valid = Input(Bool())
+    val target = Output(UInt(PADDR_WIDTH.W))
+    val jmp = Output(Bool())
+}
+
+class UpdateTrace extends Bundle {
+    val valid = Bool()
+    val inst = UInt(INST_WIDTH.W)
+    val pc = UInt(PADDR_WIDTH.W)
 }

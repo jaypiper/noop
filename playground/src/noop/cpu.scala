@@ -69,6 +69,7 @@ class CPU extends Module{
     val csrs        = Module(new Csrs)
     val icache      = Module(new ICache)
     val dcache      = Module(new DCache)
+    val bpu         = Module(new SimpleBPU)
 
     val mem2Axi     = Module(new ToAXI)
     // val flash2Axi   = Module(new ToAXI)
@@ -84,6 +85,7 @@ class CPU extends Module{
     // val dmaBridge   = Module(new DmaBridge)
 
     fetch.io.instRead  <> icache.io.icPort
+    fetch.io.bp <> bpu.io.predict
 
 
     // fetch.io.instRead   <> fetchCrossbar.io.instIO
@@ -116,11 +118,14 @@ class CPU extends Module{
     writeback.io.wReg   <> regs.io.dst
     writeback.io.wCsr   <> csrs.io.rd
     writeback.io.excep  <> csrs.io.excep
+    writeback.io.updateTrace <> bpu.io.updateTrace
     // clint.io.intr       <> csrs.io.clint
     // clint.io.intr_msip  <> csrs.io.intr_msip
 
     memCrossbar.io.dcRW         <> dcache.io.dcPort
     memCrossbar.io.mmio         <> mem2Axi.io.dataIO
+    // bpu.io.priv := csrs.io.priv
+    // bpu.io.ra := regs.io.ra
 
     // crossBar.io.mmioAxi <> mem2Axi.io.outAxi
 

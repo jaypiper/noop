@@ -22,7 +22,7 @@ class Decode extends Module{
     io.if2id.stall  := (stall_r && !io.id2df.drop) || io.id2df.stall
     dontTouch(io.if2id.stall)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(VADDR_WIDTH.W))
+    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val rs1_r       = RegInit(0.U(REG_WIDTH.W))
@@ -38,6 +38,7 @@ class Decode extends Module{
     val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
+    val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
 
     def stall_pipe() = {
         stall_r := true.B;  drop_r := true.B; recov_r := true.B
@@ -76,6 +77,7 @@ class Decode extends Module{
         dst_r           := inst_in(11,7)
         jmp_type_r      := NO_JMP
         special_r       := 0.U
+        nextPC_r        := io.if2id.nextPC
 
         swap_r          := NO_SWAP
         recov_r         := io.if2id.recov
@@ -117,7 +119,7 @@ class Decode extends Module{
         when(dType === BType){
             rrs1_r      := true.B
             rrs2_r      := true.B
-            dst_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(VADDR_WIDTH-1,0).asUInt
+            dst_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(PADDR_WIDTH-1,0).asUInt
             ctrl_r.brType := inst_in(14,12)
             jmp_type_r  := JMP_COND
         }
@@ -126,7 +128,7 @@ class Decode extends Module{
             rs2_d_r     := io.if2id.pc
         }
         when(dType === JType){
-            rs1_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(VADDR_WIDTH-1,0).asUInt
+            rs1_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(PADDR_WIDTH-1,0).asUInt
             rs2_d_r     := io.if2id.pc + 4.U
             dst_d_r     := 0.U
             jmp_type_r := JMP_UNCOND
@@ -205,6 +207,7 @@ class Decode extends Module{
     }
     io.id2df.inst       := inst_r
     io.id2df.pc         := pc_r
+    io.id2df.nextPC     := nextPC_r
     io.id2df.excep      := excep_r
     io.id2df.ctrl       := ctrl_r
     io.id2df.rs1        := rs1_r
