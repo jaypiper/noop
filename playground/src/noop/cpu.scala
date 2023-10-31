@@ -60,7 +60,6 @@ class CPU extends Module{
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
     val forwading   = Module(new Forwarding)
-    val readregs    = Module(new ReadRegs)
     val execute     = Module(new Execute)
     val memory      = Module(new Memory)
     val writeback   = Module(new Writeback)
@@ -72,42 +71,26 @@ class CPU extends Module{
     val bpu         = Module(new SimpleBPU)
 
     val mem2Axi     = Module(new ToAXI)
-    // val flash2Axi   = Module(new ToAXI)
 
-    // val crossBar    = Module(new CrossBar)
-    // val fetchCrossbar = Module(new FetchCrossBar)
     val memCrossbar = Module(new MemCrossBar)
-    // val tlb_if       = Module(new TLB)
-    // val tlb_mem      = Module(new TLB)
-    // val dcSelector  = Module(new DcacheSelector)
-    // val clint       = Module(new CLINT)
-    // val plic        = Module(new Plic)
-    // val dmaBridge   = Module(new DmaBridge)
 
     fetch.io.instRead  <> icache.io.icPort
     fetch.io.bp <> bpu.io.predict
 
-
-    // fetch.io.instRead   <> fetchCrossbar.io.instIO
-    // fetch.io.va2pa      <> tlb_if.io.va2pa
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
-    // fetch.io.intr_in    <> csrs.io.intr_out
     fetch.io.branchFail <> execute.io.ex2if
     fetch.io.if2id      <> decode.io.if2id
     fetch.io.recov      <> writeback.io.recov
 
     decode.io.id2df     <> forwading.io.id2df
     decode.io.idState   <> csrs.io.idState
-    forwading.io.df2rr  <> readregs.io.df2rr
-    forwading.io.d_rr   <> readregs.io.d_rr
+    forwading.io.df2rr  <> execute.io.rr2ex
     forwading.io.d_ex   <> execute.io.d_ex
     forwading.io.d_mem1 <> memory.io.d_mem1
-
-    readregs.io.rr2ex   <> execute.io.rr2ex
-    readregs.io.rs1Read <> regs.io.rs1
-    readregs.io.rs2Read <> regs.io.rs2
-    readregs.io.csrRead <> csrs.io.rs
+    forwading.io.rs1Read <> regs.io.rs1
+    forwading.io.rs2Read <> regs.io.rs2
+    forwading.io.csrRead <> csrs.io.rs
 
     execute.io.ex2mem   <> memory.io.ex2mem
     execute.io.updateNextPc <> csrs.io.updateNextPc
@@ -119,18 +102,9 @@ class CPU extends Module{
     writeback.io.wCsr   <> csrs.io.rd
     writeback.io.excep  <> csrs.io.excep
     writeback.io.updateTrace <> bpu.io.updateTrace
-    // clint.io.intr       <> csrs.io.clint
-    // clint.io.intr_msip  <> csrs.io.intr_msip
 
     memCrossbar.io.dcRW         <> dcache.io.dcPort
     memCrossbar.io.mmio         <> mem2Axi.io.dataIO
-    // bpu.io.priv := csrs.io.priv
-    // bpu.io.ra := regs.io.ra
-
-    // crossBar.io.mmioAxi <> mem2Axi.io.outAxi
-
-    // io.slave <> dmaBridge.io.dmaAxi
-    // dmaBridge.io.dcRW <> dcSelector.io.dma2dc
 
     mem2Axi.io.outAxi.wa.ready    := io.master.awready
     io.master.awvalid := mem2Axi.io.outAxi.wa.valid
