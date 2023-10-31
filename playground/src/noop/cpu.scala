@@ -91,6 +91,7 @@ class CPU extends Module{
     forwading.io.rs1Read <> regs.io.rs1
     forwading.io.rs2Read <> regs.io.rs2
     forwading.io.csrRead <> csrs.io.rs
+    forwading.io.d_ex0 <> execute.io.d_ex0
 
     execute.io.ex2mem   <> memory.io.ex2mem
     execute.io.updateNextPc <> csrs.io.updateNextPc

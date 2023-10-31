@@ -10,6 +10,7 @@ class Forwarding extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(new ID2DF)
         val df2rr = new RR2EX
+        val d_ex0    = Input(new RegForward)
         val d_ex    = Input(new RegForward)
         val d_mem1  = Input(new RegForward)
         val rs1Read = Flipped(new RegRead)
@@ -70,8 +71,13 @@ class Forwarding extends Module{
         when(cur_rs1 === 0.U){
             rs1_wait := false.B
             rs1_valid := true.B
-        }.elsewhen(valid_r && pre_wr &&cur_rs1=== pre_dst){
-            rs1_wait := true.B
+        }.elsewhen((cur_rs1 === io.d_ex0.id) && (io.d_ex0.state =/= d_invalid)){
+            when(io.d_ex0.state === d_valid){
+                rs1_data := io.d_ex0.data
+                rs1_valid := true.B
+            }.otherwise{
+                rs1_wait := true.B
+            }
         }.elsewhen((cur_rs1 === io.d_ex.id) && (io.d_ex.state =/= d_invalid)){
             when(io.d_ex.state === d_valid){
                 rs1_data := io.d_ex.data
@@ -96,8 +102,13 @@ class Forwarding extends Module{
         when(cur_rs2 === 0.U){
             rs2_wait := false.B
             rs2_valid := true.B
-        }.elsewhen(valid_r && pre_wr && cur_rs2=== pre_dst){
-            rs2_wait := true.B
+        }.elsewhen((cur_rs2 === io.d_ex0.id) && (io.d_ex0.state =/= d_invalid)){
+            when(io.d_ex0.state === d_valid){
+                rs2_data := io.d_ex0.data
+                rs2_valid := true.B
+            }.otherwise{
+                rs2_wait := true.B
+            }
         }.elsewhen((cur_rs2 === io.d_ex.id) && (io.d_ex.state =/= d_invalid)){
             when(io.d_ex.state === d_valid){
                 rs2_data := io.d_ex.data

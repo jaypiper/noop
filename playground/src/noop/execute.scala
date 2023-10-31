@@ -14,6 +14,7 @@ class Execute extends Module{
     val io = IO(new Bundle{
         val rr2ex       = Flipped(new RR2EX)
         val ex2mem      = new EX2MEM
+        val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
         val updateNextPc = Input(new ForceJmp)
@@ -179,6 +180,14 @@ class Execute extends Module{
     io.d_ex.id     := dst_r
     io.d_ex.data   := dst_d_r
     io.d_ex.state  := d_invalid
+    io.d_ex0.id := io.rr2ex.dst
+    io.d_ex0.data :=  wdata
+    io.d_ex0.state := d_invalid
+    when(hs_in && alu.io.valid) {
+        io.d_ex0.state := Mux(io.rr2ex.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.rr2ex.ctrl.writeRegEn, d_valid, d_invalid))
+    }.elsewhen(hs_in) {
+        io.d_ex0.state := d_wait
+    }
     when(valid_r){
         io.d_ex.state   := Mux(ctrl_r.dcMode(DC_L_BIT), d_wait, Mux(ctrl_r.writeRegEn, d_valid, d_invalid))
     }.elsewhen(state =/= sIdle){
