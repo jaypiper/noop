@@ -12,7 +12,7 @@ import noop.alu._
 
 class Execute extends Module{
     val io = IO(new Bundle{
-        val rr2ex       = Flipped(new RR2EX)
+        val rr2ex       = Flipped(new DF2EX)
         val ex2mem      = new EX2MEM
         val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)

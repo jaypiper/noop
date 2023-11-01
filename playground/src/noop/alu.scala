@@ -10,9 +10,9 @@ object mulDivDecode{
     val mul_decode = Array(
                     //     is_hi    a_sign  b_sign
         BitPat(alu_MUL)     -> List(false.B, false.B, false.B),
-        BitPat(alu_MULH)    -> List(true.B,  true.B,  true.B),
-        BitPat(alu_MULHU)   -> List(true.B,  false.B, false.B),
-        BitPat(alu_MULHSU)  -> List(true.B,  true.B,  false.B)
+        // BitPat(alu_MULH)    -> List(true.B,  true.B,  true.B),
+        // BitPat(alu_MULHU)   -> List(true.B,  false.B, false.B),
+        // BitPat(alu_MULHSU)  -> List(true.B,  true.B,  false.B)
     )
     val div_default = List( false.B, false.B)
     val div_decode = Array(
@@ -38,7 +38,7 @@ class ALUIO extends Bundle{
 class ALU extends Module{
     val io = IO(new ALUIO)
     val multiplier = Module(new MUL)
-    val divider    = Module(new DIV)
+    // val divider    = Module(new DIV)
     val sIdle :: sWaitMul :: sWaitDiv :: Nil = Enum(3)
     val pre_aluop = RegInit(0.U(ALUOP_WIDTH.W))
     val state = RegInit(sIdle)
@@ -47,12 +47,12 @@ class ALU extends Module{
     multiplier.io.b     := io.val2
     multiplier.io.en    := false.B
     multiplier.io.aluop  := io.alu_op
-    val div_type = ListLookup(io.alu_op, div_default, div_decode)
-    divider.io.alu64    := io.alu64
-    divider.io.a        := io.val1
-    divider.io.b        := io.val2
-    divider.io.sign     := div_type(1)
-    divider.io.en       := false.B
+    // val div_type = ListLookup(io.alu_op, div_default, div_decode)
+    // divider.io.alu64    := io.alu64
+    // divider.io.a        := io.val1
+    // divider.io.b        := io.val2
+    // divider.io.sign     := div_type(1)
+    // divider.io.en       := false.B
     io.valid := false.B
     io.out   := 0.U
     io.ready := state === sIdle
@@ -60,12 +60,12 @@ class ALU extends Module{
         is(sIdle){
             when(io.en){
                 pre_aluop := io.alu_op
-                when(io.alu_op === alu_MUL || io.alu_op === alu_MULH || io.alu_op === alu_MULHU || io.alu_op === alu_MULHSU){
+                when(io.alu_op === alu_MUL){
                     multiplier.io.en := true.B
                     state := sWaitMul
-                }.elsewhen(io.alu_op === alu_DIV || io.alu_op === alu_DIVU || io.alu_op ===  alu_REM || io.alu_op ===  alu_REMU){
-                    divider.io.en       := true.B
-                    state := sWaitDiv
+                // }.elsewhen(io.alu_op === alu_DIV || io.alu_op === alu_DIVU || io.alu_op ===  alu_REM || io.alu_op ===  alu_REMU){
+                //     divider.io.en       := true.B
+                //     state := sWaitDiv
                 }.otherwise{
                     // val shamt  = Mux(io.alu64, io.val2(5, 0), Cat(0.U(1.W), io.val2(4, 0)))
                     val alu_val = MuxLookup(io.alu_op, 0.U(DATA_WIDTH.W), Seq(
@@ -96,13 +96,13 @@ class ALU extends Module{
                 state := sIdle
             }
         }
-        is(sWaitDiv){
-            when(divider.io.valid){
-                io.out := Mux(pre_aluop === alu_DIV || pre_aluop === alu_DIVU, divider.io.qua, divider.io.rem)
-                io.valid := true.B
-                state := sIdle
-            }
-        }
+        // is(sWaitDiv){
+        //     when(divider.io.valid){
+        //         io.out := Mux(pre_aluop === alu_DIV || pre_aluop === alu_DIVU, divider.io.qua, divider.io.rem)
+        //         io.valid := true.B
+        //         state := sIdle
+        //     }
+        // }
     }
 }
 

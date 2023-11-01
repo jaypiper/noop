@@ -9,7 +9,8 @@ import noop.datapath._
 class Forwarding extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(new ID2DF)
-        val df2rr = new RR2EX
+        val df2ex = new DF2EX
+        // val df2mem = new DF2MEM
         val d_ex0    = Input(new RegForward)
         val d_ex    = Input(new RegForward)
         val d_mem1  = Input(new RegForward)
@@ -24,8 +25,8 @@ class Forwarding extends Module{
     def stall_pipe() = {
         drop_r := true.B;   stall_r := true.B;  recov_r := true.B
     }
-    io.id2df.drop   := io.df2rr.drop || drop_r
-    io.id2df.stall  := (stall_r && !io.df2rr.drop) || io.df2rr.stall
+    io.id2df.drop   := io.df2ex.drop || drop_r
+    io.id2df.stall  := (stall_r && !io.df2ex.drop) || io.df2ex.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
@@ -52,7 +53,7 @@ class Forwarding extends Module{
     val sIdle :: sWait :: Nil = Enum(2)
     val state = RegInit(sIdle)
     val hs_in   = io.id2df.ready && io.id2df.valid
-    val hs_out  = io.df2rr.ready && io.df2rr.valid
+    val hs_out  = io.df2ex.ready && io.df2ex.valid
 
     val rs1_wait    = Wire(Bool())
     val rs1_data    = Wire(UInt(DATA_WIDTH.W))
@@ -150,9 +151,9 @@ class Forwarding extends Module{
         recov_r     := io.id2df.recov
         when(io.id2df.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
             excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
-            excep_r.tval    := io.df2rr.inst
+            excep_r.tval    := io.df2ex.inst
             excep_r.en      := true.B
-            excep_r.pc      := io.df2rr.pc
+            excep_r.pc      := io.df2ex.pc
             excep_r.etype   := 0.U
             stall_pipe()
             ctrl_r      := 0.U.asTypeOf(new Ctrl)
@@ -184,7 +185,7 @@ class Forwarding extends Module{
 
 
     io.id2df.ready := false.B
-    when(!io.df2rr.drop && !drop_r){
+    when(!io.df2ex.drop && !drop_r){
         when((valid_r || state =/= sIdle) && !hs_out){
         }.elsewhen(io.id2df.valid){
             io.id2df.ready := true.B
@@ -223,20 +224,20 @@ class Forwarding extends Module{
     io.rs2Read.id := io.id2df.rs2(4,0)
     io.csrRead.id := io.id2df.rs2//TODO
 
-    io.df2rr.inst       := inst_r
-    io.df2rr.pc         := pc_r
-    io.df2rr.nextPC     := nextPC_r
-    io.df2rr.excep      := excep_r
-    io.df2rr.ctrl       := ctrl_r
-    io.df2rr.rs1        := rs1_r
-    io.df2rr.rs1_d      := idx2reg(swap_r(5,4))
-    io.df2rr.rs2        := rs2_r
-    io.df2rr.rs2_d      := idx2reg(swap_r(3,2))
-    io.df2rr.dst        := dst_r
-    io.df2rr.dst_d      := idx2reg(swap_r(1,0))
-    io.df2rr.jmp_type   := jmp_type_r
-    io.df2rr.special    := special_r
-    io.df2rr.rcsr_id    := rcsr_id_r
-    io.df2rr.recov      := recov_r
-    io.df2rr.valid      := valid_r
+    io.df2ex.inst       := inst_r
+    io.df2ex.pc         := pc_r
+    io.df2ex.nextPC     := nextPC_r
+    io.df2ex.excep      := excep_r
+    io.df2ex.ctrl       := ctrl_r
+    io.df2ex.rs1        := rs1_r
+    io.df2ex.rs1_d      := idx2reg(swap_r(5,4))
+    io.df2ex.rs2        := rs2_r
+    io.df2ex.rs2_d      := idx2reg(swap_r(3,2))
+    io.df2ex.dst        := dst_r
+    io.df2ex.dst_d      := idx2reg(swap_r(1,0))
+    io.df2ex.jmp_type   := jmp_type_r
+    io.df2ex.special    := special_r
+    io.df2ex.rcsr_id    := rcsr_id_r
+    io.df2ex.recov      := recov_r
+    io.df2ex.valid      := valid_r
 }

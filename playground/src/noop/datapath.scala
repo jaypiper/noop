@@ -173,7 +173,7 @@ class DF2RR extends ID2DF{
     
 }
 
-class RR2EX extends Bundle{
+class DF2EX extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(PADDR_WIDTH.W))
     val nextPC  = Output(UInt(PADDR_WIDTH.W))
@@ -196,6 +196,26 @@ class RR2EX extends Bundle{
 }
 
 class EX2MEM extends Bundle{
+    val inst    = Output(UInt(INST_WIDTH.W))
+    val pc      = Output(UInt(DATA_WIDTH.W))
+    val excep   = Output(new Exception)
+    val ctrl    = Output(new Ctrl)
+    val mem_addr = Output(UInt(PADDR_WIDTH.W))
+    val mem_data = Output(UInt(DATA_WIDTH.W))
+    val csr_id  = Output(UInt(CSR_WIDTH.W))
+    val csr_d   = Output(UInt(DATA_WIDTH.W))
+    val dst     = Output(UInt(REG_WIDTH.W))
+    val dst_d   = Output(UInt(DATA_WIDTH.W))
+    val rcsr_id = Output(UInt(CSR_WIDTH.W))
+    val special = Output(UInt(2.W))
+    val drop    = Input(Bool())
+    val stall   = Input(Bool())
+    val recov   = Output(Bool())
+    val valid   = Output(Bool())
+    val ready   = Input(Bool())
+}
+
+class DF2MEM extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(DATA_WIDTH.W))
     val excep   = Output(new Exception)
