@@ -14,74 +14,58 @@ class ToAXI extends Module{
         val outAxi = new AxiMaster
     })
 
+    val valid_r = RegInit(false.B)
+    val in_addr_r   = RegInit(0.U(PADDR_WIDTH.W))
+    val in_rdata_r  = RegInit(0.U(PADDR_WIDTH.W))
+    val in_wdata_r  = RegInit(0.U(DATA_WIDTH.W))
+    val in_wen_r    = RegInit(false.B)
+    val in_wmask_r  = RegInit(0.U(DATA_WIDTH.W))
+    val in_size_r   = RegInit(0.U(3.W))
+
     val waddrEn = RegInit(false.B)
-    val waddr   = RegInit(0.U(PADDR_WIDTH.W))
-    val wsize   = RegInit(0.U(3.W))
     val offset  = RegInit(0.U(8.W))
     val wlast   = (offset >= 0.U) //指示burst结束
     val wdataEn = RegInit(false.B)
     val wdata   = RegInit(0.U(DATA_WIDTH.W))
     val wstrb   = RegInit(0.U(8.W))
 
-    val rsize   = RegInit(0.U(3.W))
     val raddrEn = RegInit(false.B)
-    val raddr   = RegInit(0.U(PADDR_WIDTH.W))
     val rdataEn = RegInit(false.B)
     val rdata   = RegInit(0.U(DATA_WIDTH.W))
 
-    val pre_addr = RegInit(0.U(PADDR_WIDTH.W))
-    // 和Mem交互
-    val addr    = Wire(UInt(PADDR_WIDTH.W))
-
-    // val mode = RegInit(mode_NOP)
-    val curAddr     = io.dataIO.addr
-    val curWdata    = io.dataIO.wdata
-    //
-    io.dataIO.ready := false.B
+    io.dataIO.ready := !valid_r
     val (sIdle:: sWaddr :: sWdata :: sWresp :: sRaddr :: sRdata :: sFinish :: Nil) = Enum(7)
     val state  = RegInit(sIdle)
-    addr := curAddr
+
+    when(io.dataIO.ready && io.dataIO.avalid) {
+        valid_r := true.B
+        in_addr_r := io.dataIO.addr
+        in_rdata_r := io.dataIO.rdata
+        in_wdata_r := io.dataIO.wdata
+        in_wen_r := io.dataIO.wen
+        in_wmask_r := io.dataIO.wmask
+        in_size_r := io.dataIO.size
+    }
     //store
     switch(state){
         is(sIdle){
-            when(io.dataIO.avalid){
-                io.dataIO.ready := true.B
-            }
-            when(io.dataIO.avalid && io.dataIO.wen){
+            when(valid_r && in_wen_r){
                 state   := sWaddr
-                waddr   := curAddr
-                // wdata   := curWdata
                 waddrEn := true.B
-                val lowMask = io.dataIO.wmask >> (Cat(curAddr(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)))
-                when(lowMask === "hff".U) {
-                    wsize := 0.U
-                    wstrb := 1.U << curAddr(2, 0)
-                }.elsewhen(lowMask === "hffff".U) {
-                    wsize := 1.U
-                    wstrb := 0x3.U << curAddr(2, 0)
-                }.elsewhen(lowMask === "hffffffff".U) {
-                    wsize := 2.U
-                    wstrb := 0xf.U << curAddr(2, 0)
-                }.elsewhen(lowMask === "hffffffffffffffff".U) {
-                    wsize := 3.U
-                    wstrb := 0xff.U << curAddr(2, 0)
+                val lowMask = io.dataIO.wmask >> (Cat(in_addr_r(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)))
+                when(in_size_r === 0.U) {
+                    wstrb := 1.U << in_addr_r(2, 0)
+                }.elsewhen(lowMask === 1.U) {
+                    wstrb := 0x3.U << in_addr_r(2, 0)
+                }.elsewhen(lowMask === 2.U) {
+                    wstrb := 0xf.U << in_addr_r(2, 0)
+                }.elsewhen(lowMask === 3.U) {
+                    wstrb := 0xff.U << in_addr_r(2, 0)
                 }
-                wdata   := (curWdata << (curAddr(2, 0)*8.U))(63, 0)
-                pre_addr := curAddr
-            }.elsewhen(io.dataIO.avalid){
+                wdata   := (in_wdata_r << (Cat(in_addr_r(2, 0), 0.U(3.W))))(63, 0)
+            }.elsewhen(valid_r){
                 state := sRaddr
-                rsize := io.dataIO.size
-                // rsize := MuxLookup(io.dataIO.wmask >> Cat(curAddr(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)), 0.U , Seq(
-                //     "hff".U(DATA_WIDTH) -> (0.U(3.W)),
-                //     "hffff".U(DATA_WIDTH) -> (1.U(3.W)),
-                //     "hffffffff".U(DATA_WIDTH) -> (2.U(3.W)),
-                //     "hffffffffffffffff".U(DATA_WIDTH) -> (3.U(3.W))
-                // ))
-
-                // raddr := Cat(curAddr(31, 8), 0.U(8.W))
-                raddr := curAddr
                 raddrEn := true.B
-                pre_addr := curAddr
             }
         }
         // write
@@ -104,6 +88,7 @@ class ToAXI extends Module{
         is(sWresp){
             wdataEn := false.B
             state   := sIdle
+            valid_r := false.B
         }
         //read
         is(sRaddr){
@@ -117,7 +102,6 @@ class ToAXI extends Module{
             rdataEn := true.B
 
             when(rdataEn && io.outAxi.rd.valid){
-                val strb_offset = pre_addr(2, 0)
                 rdata       := io.outAxi.rd.bits.data
                 offset := offset + 1.U
 
@@ -127,9 +111,9 @@ class ToAXI extends Module{
         }
         is(sFinish){
             state := sIdle
+            valid_r := false.B
         }
     }
-    io.dataIO.ready := (state === sIdle)
     // io.stall := state =/= sIdle
     val out_rdata = RegInit(0.U(DATA_WIDTH.W))
     val out_valid = RegInit(false.B)
@@ -141,9 +125,9 @@ class ToAXI extends Module{
     io.outAxi.init()
     //wa
     io.outAxi.wa.valid        := waddrEn
-    io.outAxi.wa.bits.addr    := waddr
+    io.outAxi.wa.bits.addr    := in_addr_r
     io.outAxi.wa.bits.len     := 0.U
-    io.outAxi.wa.bits.size    := wsize
+    io.outAxi.wa.bits.size    := in_size_r
     io.outAxi.wa.bits.burst   := BURST_INCR
     //wd
     io.outAxi.wd.valid        := wdataEn
@@ -154,9 +138,9 @@ class ToAXI extends Module{
     io.outAxi.wr.ready        := true.B
     //ra
     io.outAxi.ra.valid        := raddrEn
-    io.outAxi.ra.bits.addr    := raddr
+    io.outAxi.ra.bits.addr    := in_addr_r
     io.outAxi.ra.bits.len     := 0.U
-    io.outAxi.ra.bits.size    := rsize
+    io.outAxi.ra.bits.size    := in_size_r
     io.outAxi.ra.bits.burst   := BURST_INCR
     //rd
     io.outAxi.rd.ready        := rdataEn
