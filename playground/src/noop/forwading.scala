@@ -5,14 +5,16 @@ import chisel3.util._
 import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
+import noop.param.cache_config._
 
 class Forwarding extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(new ID2DF)
         val df2ex = new DF2EX
-        // val df2mem = new DF2MEM
+        val df2mem = new DF2MEM
         val d_ex0    = Input(new RegForward)
         val d_ex    = Input(new RegForward)
+        val d_mem0  = Input(new RegForward)
         val d_mem1  = Input(new RegForward)
         val rs1Read = Flipped(new RegRead)
         val rs2Read = Flipped(new RegRead)
@@ -53,7 +55,7 @@ class Forwarding extends Module{
     val sIdle :: sWait :: Nil = Enum(2)
     val state = RegInit(sIdle)
     val hs_in   = io.id2df.ready && io.id2df.valid
-    val hs_out  = io.df2ex.ready && io.df2ex.valid
+    val hs_out  = (io.df2ex.ready && io.df2ex.valid) || (io.df2mem.ready && io.df2mem.valid)
 
     val rs1_wait    = Wire(Bool())
     val rs1_data    = Wire(UInt(DATA_WIDTH.W))
@@ -75,6 +77,13 @@ class Forwarding extends Module{
         }.elsewhen((cur_rs1 === io.d_ex0.id) && (io.d_ex0.state =/= d_invalid)){
             when(io.d_ex0.state === d_valid){
                 rs1_data := io.d_ex0.data
+                rs1_valid := true.B
+            }.otherwise{
+                rs1_wait := true.B
+            }
+        }.elsewhen((cur_rs1 === io.d_mem0.id) && (io.d_mem0.state =/= d_invalid)){
+            when(io.d_mem0.state === d_valid){
+                rs1_data := io.d_mem0.data
                 rs1_valid := true.B
             }.otherwise{
                 rs1_wait := true.B
@@ -106,6 +115,13 @@ class Forwarding extends Module{
         }.elsewhen((cur_rs2 === io.d_ex0.id) && (io.d_ex0.state =/= d_invalid)){
             when(io.d_ex0.state === d_valid){
                 rs2_data := io.d_ex0.data
+                rs2_valid := true.B
+            }.otherwise{
+                rs2_wait := true.B
+            }
+        }.elsewhen((cur_rs2 === io.d_mem0.id) && (io.d_mem0.state =/= d_invalid)){
+            when(io.d_mem0.state === d_valid){
+                rs2_data := io.d_mem0.data
                 rs2_valid := true.B
             }.otherwise{
                 rs2_wait := true.B
@@ -224,6 +240,8 @@ class Forwarding extends Module{
     io.rs2Read.id := io.id2df.rs2(4,0)
     io.csrRead.id := io.id2df.rs2//TODO
 
+    val drop_in = io.df2ex.drop || io.df2mem.drop
+
     io.df2ex.inst       := inst_r
     io.df2ex.pc         := pc_r
     io.df2ex.nextPC     := nextPC_r
@@ -239,5 +257,20 @@ class Forwarding extends Module{
     io.df2ex.special    := special_r
     io.df2ex.rcsr_id    := rcsr_id_r
     io.df2ex.recov      := recov_r
-    io.df2ex.valid      := valid_r
+    io.df2ex.valid      := valid_r && !drop_in && !io.df2mem.membusy && ctrl_r.dcMode === mode_NOP
+
+    io.df2mem.inst      := inst_r
+    io.df2mem.pc        := pc_r
+    io.df2mem.excep     := 0.U.asTypeOf(new Exception) // TODO: remove 
+    io.df2mem.ctrl       := ctrl_r
+    io.df2mem.mem_addr         := idx2reg(swap_r(5,4)) + idx2reg(swap_r(3,2))
+    io.df2mem.mem_data         := idx2reg(swap_r(1,0))
+    io.df2mem.csr_id           := 0.U
+    io.df2mem.csr_d            := 0.U
+    io.df2mem.dst              := dst_r
+    io.df2mem.dst_d            := 0.U
+    io.df2mem.rcsr_id          := 0.U
+    io.df2mem.special          := 0.U
+    io.df2mem.recov            := recov_r
+    io.df2mem.valid            := valid_r && !drop_in && ctrl_r.dcMode =/= mode_NOP
 }

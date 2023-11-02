@@ -233,6 +233,7 @@ class DF2MEM extends Bundle{
     val recov   = Output(Bool())
     val valid   = Output(Bool())
     val ready   = Input(Bool())
+    val membusy = Input(Bool())
 }
 
 class MEM2RB extends Bundle{

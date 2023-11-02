@@ -62,10 +62,11 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
 
 class Memory extends Module{
     val io = IO(new Bundle{
-        val ex2mem  = Flipped(new EX2MEM)
+        val ex2mem  = Flipped(new DF2MEM)
         val mem2rb  = new MEM2RB
         val dataRW    = Flipped(new DcacheRW)
         val d_mem1  = Output(new RegForward)
+        val d_mem0  = Output(new RegForward)
     })
     io.ex2mem.drop  := false.B
     io.ex2mem.stall := false.B
@@ -134,6 +135,11 @@ class Memory extends Module{
     io.dataRW.avalid := hs_in && curMode =/= mode_NOP
     io.dataRW.wmask := bitmap << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W))
     io.ex2mem.ready := false.B
+    io.ex2mem.membusy := valid_r && !io.dataRW.rvalid
+
+    io.d_mem0.id := io.ex2mem.dst
+    io.d_mem0.data := 0.U
+    io.d_mem0.state := Mux(io.ex2mem.valid && io.ex2mem.ctrl.dcMode(DC_L_BIT), d_wait, d_invalid)
 
     io.d_mem1.id := dst_r
     io.d_mem1.data := Mux(ctrl_r.dcMode(DC_L_BIT), read_data, dst_d_r)
@@ -168,5 +174,4 @@ class Memory extends Module{
     io.mem2rb.is_mmio   := ctrl_r.dcMode =/= mode_NOP && mem_addr_r < "h80000000".U
     io.mem2rb.recov     := recov_r
     io.mem2rb.valid     := valid_r && (ctrl_r.dcMode === mode_NOP || io.dataRW.rvalid)
-
 }

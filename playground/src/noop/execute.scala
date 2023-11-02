@@ -13,7 +13,7 @@ import noop.alu._
 class Execute extends Module{
     val io = IO(new Bundle{
         val rr2ex       = Flipped(new DF2EX)
-        val ex2mem      = new EX2MEM
+        val ex2wb       = new MEM2RB
         val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
@@ -22,9 +22,9 @@ class Execute extends Module{
     val drop_r = RegInit(false.B)
     val stall_r = RegInit(false.B)
     drop_r := false.B;  stall_r := false.B
-    val drop_in = drop_r || io.ex2mem.drop
+    val drop_in = drop_r
     io.rr2ex.drop   := drop_in
-    io.rr2ex.stall  := io.ex2mem.stall || (stall_r && !io.ex2mem.drop)
+    io.rr2ex.stall  := io.ex2wb.stall || stall_r
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
@@ -44,7 +44,7 @@ class Execute extends Module{
     val valid_r     = RegInit(false.B)    
 
     val hs_in   = io.rr2ex.ready && io.rr2ex.valid
-    val hs_out  = io.ex2mem.ready && io.ex2mem.valid
+    val hs_out  = io.ex2wb.ready && io.ex2wb.valid
     val alu64 = io.rr2ex.ctrl.aluWidth === IS_ALU64
     val aluop  = io.rr2ex.ctrl.aluOp
     // alu
@@ -110,29 +110,23 @@ class Execute extends Module{
             alu.io.en       := true.B
         }
     }
-    when(!io.ex2mem.drop){
-        when(state === sIdle){
-            when(hs_in && !alu.io.valid){
-                valid_r := false.B
-                state := sWaitAlu
-            }.elsewhen(hs_in){
-                valid_r := true.B
-            }.elsewhen(hs_out){
-                valid_r := false.B
-            }
+
+    when(state === sIdle){
+        when(hs_in && !alu.io.valid){
+            valid_r := false.B
+            state := sWaitAlu
+        }.elsewhen(hs_in){
+            valid_r := true.B
+        }.elsewhen(hs_out){
+            valid_r := false.B
         }
-        when(state === sWaitAlu){
-            when(alu.io.valid){
-                state       := sIdle
-                dst_d_r     := alu_out
-                valid_r     := !drop_alu
-                drop_alu    := false.B
-            }
-        }
-    }.otherwise{
-        valid_r := false.B
-        when(state =/= sIdle){
-            drop_alu := true.B
+    }
+    when(state === sWaitAlu){
+        when(alu.io.valid){
+            state       := sIdle
+            dst_d_r     := alu_out
+            valid_r     := !drop_alu
+            drop_alu    := false.B
         }
     }
     // branch & jmp
@@ -173,7 +167,7 @@ class Execute extends Module{
         }
     }
     io.ex2if.seq_pc := forceJmp.seq_pc
-    io.ex2if.valid  := forceJmp.valid & !io.ex2mem.drop
+    io.ex2if.valid  := forceJmp.valid
 
     // data forwading
 
@@ -195,18 +189,18 @@ class Execute extends Module{
     }
 
     // out
-    io.ex2mem.inst      := inst_r
-    io.ex2mem.pc        := pc_r
-    io.ex2mem.excep     := excep_r
-    io.ex2mem.ctrl      := ctrl_r
-    io.ex2mem.mem_addr  := mem_addr_r
-    io.ex2mem.mem_data  := mem_data_r
-    io.ex2mem.csr_id    := csr_id_r
-    io.ex2mem.csr_d     := csr_d_r
-    io.ex2mem.dst       := dst_r
-    io.ex2mem.dst_d     := dst_d_r
-    io.ex2mem.rcsr_id   := rcsr_id_r
-    io.ex2mem.special   := special_r
-    io.ex2mem.valid     := valid_r
-    io.ex2mem.recov     := recov_r
+    io.ex2wb.inst      := inst_r
+    io.ex2wb.pc        := pc_r
+    io.ex2wb.excep     := excep_r
+    io.ex2wb.csr_id     := csr_id_r
+    io.ex2wb.csr_d      := csr_d_r
+    io.ex2wb.csr_en     := ctrl_r.writeCSREn
+    io.ex2wb.dst        := dst_r
+    io.ex2wb.dst_d      := dst_d_r
+    io.ex2wb.dst_en     := ctrl_r.writeRegEn
+    io.ex2wb.rcsr_id   := rcsr_id_r
+    io.ex2wb.special   := special_r
+    io.ex2wb.is_mmio   := false.B
+    io.ex2wb.valid     := valid_r
+    io.ex2wb.recov     := recov_r
 }

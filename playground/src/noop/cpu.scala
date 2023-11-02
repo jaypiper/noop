@@ -88,12 +88,14 @@ class CPU extends Module{
     forwading.io.df2ex  <> execute.io.rr2ex
     forwading.io.d_ex   <> execute.io.d_ex
     forwading.io.d_mem1 <> memory.io.d_mem1
+    forwading.io.d_mem0 <> memory.io.d_mem0
     forwading.io.rs1Read <> regs.io.rs1
     forwading.io.rs2Read <> regs.io.rs2
     forwading.io.csrRead <> csrs.io.rs
     forwading.io.d_ex0 <> execute.io.d_ex0
+    forwading.io.df2mem <> memory.io.ex2mem
 
-    execute.io.ex2mem   <> memory.io.ex2mem
+    execute.io.ex2wb   <> writeback.io.ex2wb
     execute.io.updateNextPc <> csrs.io.updateNextPc
     memory.io.mem2rb    <> writeback.io.mem2rb
     memory.io.dataRW    <> memCrossbar.io.dataRW
