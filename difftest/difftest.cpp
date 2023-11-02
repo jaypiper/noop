@@ -167,7 +167,7 @@ bool check_gregs(CPU_state* ref_r){
     if(!check) return 1;
     int jud = true;
     if(!state.intr && ref_pre_pc != state.pc){
-        printf("pc diff: %lx\n", ref_pre_pc);
+        printf("pc diff: %lx %lx\n", ref_pre_pc, state.pc);
         jud = false;
     }
     for(int i = 0; i < 32; i++){
