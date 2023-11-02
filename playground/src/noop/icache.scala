@@ -16,6 +16,8 @@ class ICache extends Module{
         val icMem       = new DcacheRW
     })
     // val data = Mem(ICACHE_DEPTH, UInt(ICACHE_WIDTH.W))
+    // val data_r = RegInit(0.U(INST_WIDTH.W))
+
     val data = SyncReadMem(ICACHE_DEPTH, UInt(ICACHE_WIDTH.W))
     // val mask = Fill(INST_WIDTH, 1.U(1.W)) << Cat(io.icPort.addr(ICACHE_OFFEST_WIDTH), 0.U(3.W))
     val valid_r = RegInit(false.B)
@@ -27,10 +29,10 @@ class ICache extends Module{
         data(waddr) := (data(waddr) & ~wmask) | (io.icMem.wdata & wmask)
     }
     valid_r := io.icPort.arvalid
-    offset_r := io.icPort.addr(ICACHE_OFFEST_WIDTH-1, 0)
+    offset_r := io.icPort.addr(ICACHE_OFFEST_WIDTH-1, 2)
     io.icPort.rvalid := valid_r
     io.icPort.ready := true.B
-    io.icPort.inst := data(io.icPort.addr(ICACHE_IDX_START, ICACHE_IDX_END)) >> (Cat(offset_r, 0.U(3.W)))
+    io.icPort.inst := data(io.icPort.addr(ICACHE_IDX_START, ICACHE_IDX_END)).asTypeOf(Vec(ICACHE_WIDTH/32, UInt(32.W)))(offset_r)
     io.icMem.rdata := 0.U
     io.icMem.rvalid := false.B
     io.icMem.ready := true.B

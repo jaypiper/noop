@@ -16,7 +16,105 @@ object common extends mem_access_mode{
 
     val PAGE_WIDTH  = 12
     val isSim = true
+}
 
+object cache_config{ // U S L WIDTH
+    val ICACHE_DEPTH    = 4096  // 8KB
+    val ICACHE_WIDTH    = 64
+    val DCACHE_DEPTH    = 4096  // 4KB
+    val DCACHE_WIDTH    = 64
+
+    val ICACHE_IDX_WIDTH = log2Ceil(ICACHE_DEPTH)
+    val ICACHE_OFFEST_WIDTH = log2Ceil(ICACHE_WIDTH / 8)
+    val ICACHE_IDX_START = ICACHE_IDX_WIDTH + ICACHE_OFFEST_WIDTH - 1
+    val ICACHE_IDX_END = ICACHE_OFFEST_WIDTH
+    val DCACHE_IDX_WIDTH = log2Ceil(DCACHE_DEPTH)
+    val DCACHE_OFFEST_WIDTH = log2Ceil(DCACHE_WIDTH / 8)
+    val DCACHE_IDX_START = DCACHE_IDX_WIDTH + DCACHE_OFFEST_WIDTH - 1
+    val DCACHE_IDX_END = DCACHE_OFFEST_WIDTH
+
+    // old params below
+
+    val RAM_DATA_WIDTH  = 128
+    val RAM_ADDR_WIDTH  = 6
+    val RAM_DEPTH       = 1 << RAM_ADDR_WIDTH     // 64
+    val RAM_WIDTH_BIT   = 4
+    val RAM_WIDTH       = 1 << RAM_WIDTH_BIT      // 16B
+    val RAM_MASK_WIDTH  = 128
+
+    val CACHE_WAY_NUM   = 4
+    val IC_BLOCK_WIDTH  = 6
+    val IC_INDEX_WIDTH  = 4
+    val IC_BLOCK_SIZE   = 1 << IC_BLOCK_WIDTH
+    val IC_BLOCK_NUM    = 1 << IC_INDEX_WIDTH
+    val IC_TAG_WIDTH    = PADDR_WIDTH - IC_BLOCK_WIDTH - IC_INDEX_WIDTH
+    val IC_BLOCK_MASK   = "hffffffc0".U(PADDR_WIDTH.W)
+    val DC_BLOCK_WIDTH  = 6
+    val DC_INDEX_WIDTH  = 4
+    val DC_BLOCK_SIZE   = 1 << DC_BLOCK_WIDTH
+    val DC_BLOCK_NUM    = 1 << DC_INDEX_WIDTH
+    val DC_TAG_WIDTH    = PADDR_WIDTH - DC_BLOCK_WIDTH - DC_INDEX_WIDTH
+    val DC_BLOCK_MASK   = "hffffffc0".U(PADDR_WIDTH.W)
+
+    val DC_MODE_WIDTH = 5
+    val mode_NOP = "b00000".U(DC_MODE_WIDTH.W)
+    val mode_LB  = "b00100".U(DC_MODE_WIDTH.W)
+    val mode_LH  = "b00101".U(DC_MODE_WIDTH.W)
+    val mode_LW  = "b00110".U(DC_MODE_WIDTH.W)
+    val mode_LD  = "b00111".U(DC_MODE_WIDTH.W)
+    val mode_LBU = "b10100".U(DC_MODE_WIDTH.W)
+    val mode_LHU = "b10101".U(DC_MODE_WIDTH.W)
+    val mode_LWU = "b10110".U(DC_MODE_WIDTH.W)
+    val mode_SB  = "b01000".U(DC_MODE_WIDTH.W)
+    val mode_SH  = "b01001".U(DC_MODE_WIDTH.W)
+    val mode_SW  = "b01010".U(DC_MODE_WIDTH.W)
+    val mode_SD  = "b01011".U(DC_MODE_WIDTH.W)
+    val mode_LSW = "b01110".U(DC_MODE_WIDTH.W)
+    val mode_LSD = "b01111".U(DC_MODE_WIDTH.W)
+    val DC_U_BIT = 4
+    val DC_S_BIT = 3
+    val DC_L_BIT = 2
+    def rdata_by_mode(mode: UInt, rdata64: UInt) = {
+        MuxLookup(mode, 0.U, Seq(  // take advantage of the encoding of dc_mode
+            mode_LB  -> Cat(Fill(DATA_WIDTH - 8, rdata64(7)), rdata64(7, 0)),
+            mode_LBU -> rdata64(7, 0).asUInt,
+            mode_LH  -> Cat(Fill(DATA_WIDTH - 16, rdata64(15)), rdata64(15, 0)),
+            mode_LHU -> rdata64(15, 0).asUInt,
+            mode_LW  -> Cat(Fill(DATA_WIDTH - 32, rdata64(31)), rdata64(31, 0)),
+            mode_LWU -> rdata64(31, 0).asUInt,
+            mode_LD  -> rdata64,
+            mode_LSW -> Cat(Fill(DATA_WIDTH - 32, rdata64(31)), rdata64(31, 0)),
+            mode_LSD -> rdata64
+        ))
+    }
+     def zeroTruncateData(width: UInt, data: UInt) = {
+        val ans = MuxLookup(width, 0.U(DATA_WIDTH.W), Seq(
+            3.U -> data(63,0),
+            2.U -> Cat(0.U(32.W), data(31,0)),
+            1.U -> Cat(0.U(48.W), data(15,0)),
+            0.U -> Cat(0.U(56.W), data(7,0))
+        ))
+        ans
+    }
+    def signTruncateData(width: UInt, data: UInt) = {
+        val ans = MuxLookup(width, 0.U(DATA_WIDTH.W), Seq(
+            3.U -> data(63,0),
+            2.U -> Cat(Fill(32, data(31)), data(31,0)),
+            1.U -> Cat(Fill(48, data(15)), data(15,0)),
+            0.U -> Cat(Fill(56, data(7)), data(7,0))
+        ))
+        ans
+    }
+
+    def alignCheck(addr: UInt, width: UInt) = {
+        val ans = MuxLookup(width, false.B, Seq(
+            0.U -> true.B,
+            1.U -> ((addr & 0x1.U) === 0.U),
+            2.U -> ((addr & 0x3.U) === 0.U),
+            3.U -> ((addr & 0x7.U) === 0.U)
+        ))
+        ans
+    }
 }
 
 trait mem_access_mode{
@@ -250,105 +348,6 @@ object tlb_config extends satp_mode with pte_encoding with csr_config{
             MEM_LOAD    -> CAUSE_LOAD_PAGE_FAULT.U,
             MEM_STORE   -> CAUSE_STORE_PAGE_FAULT.U
         ))
-    }
-}
-
-object cache_config{ // U S L WIDTH
-    val ICACHE_DEPTH    = 4096  // 8KB
-    val ICACHE_WIDTH    = 64
-    val DCACHE_DEPTH    = 4096  // 4KB
-    val DCACHE_WIDTH    = 64
-
-    val ICACHE_IDX_WIDTH = log2Ceil(ICACHE_DEPTH)
-    val ICACHE_OFFEST_WIDTH = log2Ceil(ICACHE_WIDTH / 8)
-    val ICACHE_IDX_START = ICACHE_IDX_WIDTH + ICACHE_OFFEST_WIDTH - 1
-    val ICACHE_IDX_END = ICACHE_OFFEST_WIDTH
-    val DCACHE_IDX_WIDTH = log2Ceil(DCACHE_DEPTH)
-    val DCACHE_OFFEST_WIDTH = log2Ceil(DCACHE_WIDTH / 8)
-    val DCACHE_IDX_START = DCACHE_IDX_WIDTH + DCACHE_OFFEST_WIDTH - 1
-    val DCACHE_IDX_END = DCACHE_OFFEST_WIDTH
-
-    // old params below
-
-    val RAM_DATA_WIDTH  = 128
-    val RAM_ADDR_WIDTH  = 6
-    val RAM_DEPTH       = 1 << RAM_ADDR_WIDTH     // 64
-    val RAM_WIDTH_BIT   = 4
-    val RAM_WIDTH       = 1 << RAM_WIDTH_BIT      // 16B
-    val RAM_MASK_WIDTH  = 128
-
-    val CACHE_WAY_NUM   = 4
-    val IC_BLOCK_WIDTH  = 6
-    val IC_INDEX_WIDTH  = 4
-    val IC_BLOCK_SIZE   = 1 << IC_BLOCK_WIDTH
-    val IC_BLOCK_NUM    = 1 << IC_INDEX_WIDTH
-    val IC_TAG_WIDTH    = PADDR_WIDTH - IC_BLOCK_WIDTH - IC_INDEX_WIDTH
-    val IC_BLOCK_MASK   = "hffffffc0".U(PADDR_WIDTH.W)
-    val DC_BLOCK_WIDTH  = 6
-    val DC_INDEX_WIDTH  = 4
-    val DC_BLOCK_SIZE   = 1 << DC_BLOCK_WIDTH
-    val DC_BLOCK_NUM    = 1 << DC_INDEX_WIDTH
-    val DC_TAG_WIDTH    = PADDR_WIDTH - DC_BLOCK_WIDTH - DC_INDEX_WIDTH
-    val DC_BLOCK_MASK   = "hffffffc0".U(PADDR_WIDTH.W)
-
-    val DC_MODE_WIDTH = 5
-    val mode_NOP = "b00000".U(DC_MODE_WIDTH.W)
-    val mode_LB  = "b00100".U(DC_MODE_WIDTH.W)
-    val mode_LH  = "b00101".U(DC_MODE_WIDTH.W)
-    val mode_LW  = "b00110".U(DC_MODE_WIDTH.W)
-    val mode_LD  = "b00111".U(DC_MODE_WIDTH.W)
-    val mode_LBU = "b10100".U(DC_MODE_WIDTH.W)
-    val mode_LHU = "b10101".U(DC_MODE_WIDTH.W)
-    val mode_LWU = "b10110".U(DC_MODE_WIDTH.W)
-    val mode_SB  = "b01000".U(DC_MODE_WIDTH.W)
-    val mode_SH  = "b01001".U(DC_MODE_WIDTH.W)
-    val mode_SW  = "b01010".U(DC_MODE_WIDTH.W)
-    val mode_SD  = "b01011".U(DC_MODE_WIDTH.W)
-    val mode_LSW = "b01110".U(DC_MODE_WIDTH.W)
-    val mode_LSD = "b01111".U(DC_MODE_WIDTH.W)
-    val DC_U_BIT = 4
-    val DC_S_BIT = 3
-    val DC_L_BIT = 2
-    def rdata_by_mode(mode: UInt, rdata64: UInt) = {
-        MuxLookup(mode, 0.U, Seq(  // take advantage of the encoding of dc_mode
-            mode_LB  -> Cat(Fill(DATA_WIDTH - 8, rdata64(7)), rdata64(7, 0)),
-            mode_LBU -> rdata64(7, 0).asUInt,
-            mode_LH  -> Cat(Fill(DATA_WIDTH - 16, rdata64(15)), rdata64(15, 0)),
-            mode_LHU -> rdata64(15, 0).asUInt,
-            mode_LW  -> Cat(Fill(DATA_WIDTH - 32, rdata64(31)), rdata64(31, 0)),
-            mode_LWU -> rdata64(31, 0).asUInt,
-            mode_LD  -> rdata64,
-            mode_LSW -> Cat(Fill(DATA_WIDTH - 32, rdata64(31)), rdata64(31, 0)),
-            mode_LSD -> rdata64
-        ))
-    }
-     def zeroTruncateData(width: UInt, data: UInt) = {
-        val ans = MuxLookup(width, 0.U(DATA_WIDTH.W), Seq(
-            3.U -> data(63,0),
-            2.U -> Cat(0.U(32.W), data(31,0)),
-            1.U -> Cat(0.U(48.W), data(15,0)),
-            0.U -> Cat(0.U(56.W), data(7,0))
-        ))
-        ans
-    }
-    def signTruncateData(width: UInt, data: UInt) = {
-        val ans = MuxLookup(width, 0.U(DATA_WIDTH.W), Seq(
-            3.U -> data(63,0),
-            2.U -> Cat(Fill(32, data(31)), data(31,0)),
-            1.U -> Cat(Fill(48, data(15)), data(15,0)),
-            0.U -> Cat(Fill(56, data(7)), data(7,0))
-        ))
-        ans
-    }
-
-    def alignCheck(addr: UInt, width: UInt) = {
-        val ans = MuxLookup(width, false.B, Seq(
-            0.U -> true.B,
-            1.U -> ((addr & 0x1.U) === 0.U),
-            2.U -> ((addr & 0x3.U) === 0.U),
-            3.U -> ((addr & 0x7.U) === 0.U)
-        ))
-        ans
     }
 }
 

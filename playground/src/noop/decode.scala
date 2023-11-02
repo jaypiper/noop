@@ -133,28 +133,7 @@ class Decode extends Module{
             dst_d_r     := 0.U
             jmp_type_r := JMP_UNCOND
         }
-        when(inst_in === Insts.ECALL){
-            excep_r.pc  := io.if2id.pc
-            excep_r.en  := true.B
-            excep_r.cause := PriorityMux(Seq(
-                (io.idState.priv === PRV_M,     CAUSE_MACHINE_ECALL.U),
-                (io.idState.priv === PRV_S,     CAUSE_SUPERVISOR_ECALL.U),
-                (true.B,                        CAUSE_USER_ECALL.U)))
-            excep_r.tval  := 0.U
-            jmp_type_r  := JMP_CSR
-            rs2_r       :=  Mux(io.idState.priv === PRV_M, CSR_MTVEC, CSR_STVEC)
-            stall_pipe()
-        }
-        when(inst_in === Insts.SRET){
-            excep_r.pc  := io.if2id.pc
-            excep_r.en  := true.B
-            excep_r.etype := ETYPE_SRET
-            excep_r.cause := 0.U
-            excep_r.tval  := 0.U
-            jmp_type_r  := JMP_CSR
-            rs2_r       := CSR_SEPC
-            stall_pipe()
-        }
+
         when(inst_in === Insts.MRET){
             excep_r.pc  := io.if2id.pc
             excep_r.en  := true.B
@@ -165,14 +144,7 @@ class Decode extends Module{
             rs2_r       := CSR_MEPC
             stall_pipe()
         }
-        when(inst_in === Insts.FENCE_I){
-            special_r := SPECIAL_FENCE_I
-            stall_pipe()
-        }
-        when(inst_in === Insts.SFENCE_VMA){
-            special_r := SPECIAL_SFENCE_VMA
-            stall_pipe()
-        }
+
     }
 
     when(hs_in && io.if2id.excep.en){

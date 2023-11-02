@@ -89,8 +89,6 @@ class SimpleBPU extends Module {
     val io = IO(new Bundle {
         val predict = new PredictIO
         val updateTrace = Input(new UpdateTrace)
-        // val priv = Input(UInt(2.W))
-        // val ra = Input(UInt(64.W))
     })
     val imm = Wire(SInt(DATA_WIDTH.W))
 
@@ -110,7 +108,7 @@ class SimpleBPU extends Module {
     }.elsewhen(inst(6,2) === "b11001".U) {
         when(inst(19,15) === 1.U && io.predict.valid) {
             io.predict.jmp := true.B
-            io.predict.target := callTrace(idx-1.U)
+            io.predict.target := callTrace(idx)
         }
     }.otherwise{ // branch instructions        
         io.predict.jmp := false.B
@@ -123,24 +121,19 @@ class SimpleBPU extends Module {
     when(io.updateTrace.valid) {
         when(io.updateTrace.inst(6,2) === "b11011".U && rdLink) {
             idx := idx + 1.U
-            callTrace(idx) := io.updateTrace.pc + 4.U
-            // printf("call pc=%x inst=%x idx=%d\n", io.updateTrace.pc, io.updateTrace.inst, idx+1.U)
+            callTrace(idx + 1.U) := io.updateTrace.pc + 4.U
         }.elsewhen(io.updateTrace.inst(6,2) === "b11001".U) {
             when(rs1Link && !rdLink) {
                 idx := idx - 1.U
             }.elsewhen(!rs1Link && rdLink) {
-                callTrace(idx) := io.updateTrace.pc + 4.U
+                callTrace(idx + 1.U) := io.updateTrace.pc + 4.U
                 idx := idx + 1.U
             }.elsewhen(rs1Link && rdLink && rs1 =/= rd) {
-                callTrace(idx-1.U) := io.updateTrace.pc + 4.U
-            }.elsewhen(rs1Link && rdLink && rs1 === rd) {
                 callTrace(idx) := io.updateTrace.pc + 4.U
+            }.elsewhen(rs1Link && rdLink && rs1 === rd) {
+                callTrace(idx + 1.U) := io.updateTrace.pc + 4.U
                 idx := idx + 1.U
             }
-            // printf("ret pc=%x inst=%x idx=%d\n", io.updateTrace.pc, inst, idx-1.U)
-            // when (callTrace(idx-1.U) =/= io.ra) {
-            //     printf("ret mismatch ra=%x trace=%x\n", io.ra, callTrace(idx-1.U))
-            // }
         }
     }
 }
