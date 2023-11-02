@@ -71,10 +71,19 @@ class CPU extends Module{
     val bpu         = Module(new SimpleBPU)
 
     val mem2Axi     = Module(new ToAXI)
+    val fetch2Axi   = Module(new ToAXI)
 
     val memCrossbar = Module(new MemCrossBar)
+    val fetchCrossbar = Module(new FetchCrossBar)
+    val crossBar = Module(new CrossBar)
 
-    fetch.io.instRead  <> icache.io.icPort
+    // fetch.io.instRead  <> icache.io.icPort
+    fetch.io.instRead <> fetchCrossbar.io.instIO
+    fetchCrossbar.io.icRead <> icache.io.icPort
+    fetchCrossbar.io.flashRead <> fetch2Axi.io.dataIO
+    crossBar.io.flashAxi <> fetch2Axi.io.outAxi
+    crossBar.io.mmioAxi <> mem2Axi.io.outAxi
+
     fetch.io.bp <> bpu.io.predict
 
     fetch.io.reg2if     <> csrs.io.reg2if
@@ -108,39 +117,40 @@ class CPU extends Module{
 
     memCrossbar.io.dcRW         <> dcache.io.dcPort
     memCrossbar.io.mmio         <> mem2Axi.io.dataIO
+    memCrossbar.io.icRW         <> icache.io.icMem
 
-    mem2Axi.io.outAxi.wa.ready    := io.master.awready
-    io.master.awvalid := mem2Axi.io.outAxi.wa.valid
-    io.master.awaddr  := mem2Axi.io.outAxi.wa.bits.addr
-    io.master.awid    := mem2Axi.io.outAxi.wa.bits.id
-    io.master.awlen   := mem2Axi.io.outAxi.wa.bits.len
-    io.master.awsize  := mem2Axi.io.outAxi.wa.bits.size
-    io.master.awburst := mem2Axi.io.outAxi.wa.bits.burst
+    crossBar.io.outAxi.wa.ready    := io.master.awready
+    io.master.awvalid := crossBar.io.outAxi.wa.valid
+    io.master.awaddr  := crossBar.io.outAxi.wa.bits.addr
+    io.master.awid    := crossBar.io.outAxi.wa.bits.id
+    io.master.awlen   := crossBar.io.outAxi.wa.bits.len
+    io.master.awsize  := crossBar.io.outAxi.wa.bits.size
+    io.master.awburst := crossBar.io.outAxi.wa.bits.burst
 
-    mem2Axi.io.outAxi.wd.ready   := io.master.wready
-    io.master.wvalid  :=  mem2Axi.io.outAxi.wd.valid
-    io.master.wdata   :=  mem2Axi.io.outAxi.wd.bits.data
-    io.master.wstrb   :=  mem2Axi.io.outAxi.wd.bits.strb
-    io.master.wlast   :=  mem2Axi.io.outAxi.wd.bits.last
+    crossBar.io.outAxi.wd.ready   := io.master.wready
+    io.master.wvalid  :=  crossBar.io.outAxi.wd.valid
+    io.master.wdata   :=  crossBar.io.outAxi.wd.bits.data
+    io.master.wstrb   :=  crossBar.io.outAxi.wd.bits.strb
+    io.master.wlast   :=  crossBar.io.outAxi.wd.bits.last
 
-    io.master.bready  := mem2Axi.io.outAxi.wr.ready
-    mem2Axi.io.outAxi.wr.valid        := io.master.bvalid
-    mem2Axi.io.outAxi.wr.bits.resp    := io.master.bresp
-    mem2Axi.io.outAxi.wr.bits.id      := io.master.bid
+    io.master.bready  := crossBar.io.outAxi.wr.ready
+    crossBar.io.outAxi.wr.valid        := io.master.bvalid
+    crossBar.io.outAxi.wr.bits.resp    := io.master.bresp
+    crossBar.io.outAxi.wr.bits.id      := io.master.bid
 
-    mem2Axi.io.outAxi.ra.ready  := io.master.arready
-    io.master.arvalid := mem2Axi.io.outAxi.ra.valid
-    io.master.araddr  := mem2Axi.io.outAxi.ra.bits.addr
-    io.master.arid    := mem2Axi.io.outAxi.ra.bits.id
-    io.master.arlen   := mem2Axi.io.outAxi.ra.bits.len
-    io.master.arsize  := mem2Axi.io.outAxi.ra.bits.size
-    io.master.arburst := mem2Axi.io.outAxi.ra.bits.burst
+    crossBar.io.outAxi.ra.ready  := io.master.arready
+    io.master.arvalid := crossBar.io.outAxi.ra.valid
+    io.master.araddr  := crossBar.io.outAxi.ra.bits.addr
+    io.master.arid    := crossBar.io.outAxi.ra.bits.id
+    io.master.arlen   := crossBar.io.outAxi.ra.bits.len
+    io.master.arsize  := crossBar.io.outAxi.ra.bits.size
+    io.master.arburst := crossBar.io.outAxi.ra.bits.burst
 
-    io.master.rready  := mem2Axi.io.outAxi.rd.ready
-    mem2Axi.io.outAxi.rd.valid   := io.master.rvalid
-    mem2Axi.io.outAxi.rd.bits.resp    := io.master.rresp
-    mem2Axi.io.outAxi.rd.bits.data    := io.master.rdata
-    mem2Axi.io.outAxi.rd.bits.last    := io.master.rlast
-    mem2Axi.io.outAxi.rd.bits.id      := io.master.rid
+    io.master.rready  := crossBar.io.outAxi.rd.ready
+    crossBar.io.outAxi.rd.valid   := io.master.rvalid
+    crossBar.io.outAxi.rd.bits.resp    := io.master.rresp
+    crossBar.io.outAxi.rd.bits.data    := io.master.rdata
+    crossBar.io.outAxi.rd.bits.last    := io.master.rlast
+    crossBar.io.outAxi.rd.bits.id      := io.master.rid
 
 }

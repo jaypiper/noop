@@ -14,13 +14,13 @@ class DCache extends Module{
     val io = IO(new Bundle{
         val dcPort        = new DcacheRW
     })
-    val data = Mem(ICACHE_DEPTH, UInt(ICACHE_WIDTH.W))
-    val data_r = RegInit(0.U(ICACHE_WIDTH.W))
+    val data = Mem(DCACHE_DEPTH, UInt(DCACHE_WIDTH.W))
+    val data_r = RegInit(0.U(DCACHE_WIDTH.W))
 
     // val data = SyncReadMem(ICACHE_DEPTH, UInt(ICACHE_WIDTH.W))
     // val data = SyncReadMem(ICACHE_DEPTH, Vec(ICACHE_WIDTH, Bool()))
     val valid_r = RegInit(false.B)
-    val offset_r = RegInit(0.U(ICACHE_OFFEST_WIDTH.W))
+    val offset_r = RegInit(0.U(DCACHE_OFFEST_WIDTH.W))
     val wmask = if (DCACHE_OFFEST_WIDTH <= DATA_BITS_WIDTH) io.dcPort.wmask
                 else io.dcPort.wmask << Cat(io.dcPort.addr(DCACHE_OFFEST_WIDTH-1,DATA_BITS_WIDTH), 0.U(3.W))
     val addr = io.dcPort.addr(DCACHE_IDX_START, DCACHE_IDX_END)

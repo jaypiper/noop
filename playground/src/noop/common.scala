@@ -266,7 +266,7 @@ object cache_config{ // U S L WIDTH
     val DCACHE_OFFEST_WIDTH = log2Ceil(DCACHE_WIDTH / 8)
     val DCACHE_IDX_START = DCACHE_IDX_WIDTH + DCACHE_OFFEST_WIDTH - 1
     val DCACHE_IDX_END = DCACHE_OFFEST_WIDTH
-    
+
     // old params below
 
     val RAM_DATA_WIDTH  = 128

@@ -8,6 +8,45 @@ import noop.param.cache_config._
 import noop.bpu._
 import noop.datapath._
 
+class FetchCrossBar extends Module{
+    val io = IO(new Bundle{
+        val instIO = new IcacheRead
+        val icRead = Flipped(new IcacheRead)
+        val flashRead = Flipped(new DcacheRW)
+    })
+    val pre_mem = RegInit(false.B)
+    val inp_mem = io.instIO.addr(PADDR_WIDTH-1)
+    io.flashRead.addr   := io.instIO.addr
+    io.flashRead.wdata  := 0.U;
+    io.flashRead.wen    := false.B
+    io.flashRead.wmask  := 0.U
+    io.flashRead.size      := 2.U
+    io.flashRead.avalid := false.B
+    io.icRead.addr      := io.instIO.addr
+    io.icRead.arvalid   := false.B
+    io.instIO.ready     := false.B
+    when(io.instIO.arvalid){
+        pre_mem := io.instIO.addr(PADDR_WIDTH-1)
+        when(inp_mem){
+            io.icRead.arvalid := true.B
+            io.instIO.ready := io.icRead.ready
+        }.otherwise{
+            io.flashRead.avalid := true.B
+            io.instIO.ready := io.flashRead.ready
+        }
+    }
+    io.instIO.inst      := 0.U
+    io.instIO.rvalid    := false.B
+    when(pre_mem){
+        io.instIO.inst  := io.icRead.inst
+        io.instIO.rvalid := io.icRead.rvalid
+    }.otherwise{
+        io.instIO.inst  := io.flashRead.rdata
+        io.instIO.rvalid := io.flashRead.rvalid
+    }
+
+}
+
 
 class FetchIO extends Bundle{
     val instRead    = Flipped(new IcacheRead)

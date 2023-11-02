@@ -16,23 +16,33 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         val dataRW  = new DcacheRW
         val mmio    = Flipped(new DcacheRW)
         val dcRW    = Flipped(new DcacheRW)
+        val icRW    = Flipped(new DcacheRW)
     })
     dontTouch(io.dataRW)
     dontTouch(io.mmio)
     dontTouch(io.dcRW)
     val pre_type    = RegInit(0.U(2.W))
     val data_r      = RegInit(0.U(DATA_WIDTH.W))
-    val inp_mem     = io.dataRW.addr(PADDR_WIDTH-1)
+    val inp_mem     = io.dataRW.addr(PADDR_WIDTH-1, PADDR_WIDTH-2) === 2.U
+    val inp_ic      = io.dataRW.addr(PADDR_WIDTH-1, PADDR_WIDTH-2) === 3.U
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
     io.mmio.wmask   := io.dataRW.wmask
     io.mmio.wen   := io.dataRW.wen
+    io.mmio.size := io.dataRW.size
     io.dcRW.addr    := io.dataRW.addr
     io.dcRW.wdata   := io.dataRW.wdata
     io.dcRW.wmask   := io.dataRW.wmask
     io.dcRW.wen   := io.dataRW.wen
+    io.dcRW.size := io.dataRW.size
+    io.icRW.addr    := io.dataRW.addr
+    io.icRW.wdata   := io.dataRW.wdata
+    io.icRW.wmask   := io.dataRW.wmask
+    io.icRW.wen   := io.dataRW.wen
+    io.icRW.size := io.dataRW.size
 
     io.dcRW.avalid := false.B
+    io.icRW.avalid := false.B
     io.mmio.avalid := false.B
 
     io.dataRW.ready := false.B
@@ -42,6 +52,10 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
             pre_type        := 1.U
             io.dcRW.avalid := true.B
             io.dataRW.ready := io.dcRW.ready
+        }.elsewhen(inp_ic){
+            pre_type        := 2.U
+            io.icRW.avalid := true.B
+            io.dataRW.ready := io.icRW.ready
         }.otherwise{
             pre_type        := 0.U
             io.mmio.avalid := true.B
@@ -54,6 +68,9 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     }.elsewhen(pre_type === 0.U){
         io.dataRW.rdata     := io.mmio.rdata
         io.dataRW.rvalid    := io.mmio.rvalid
+    }.elsewhen(pre_type === 2.U) {
+        io.dataRW.rdata     := io.icRW.rdata
+        io.dataRW.rvalid    := io.icRW.rvalid
     }.otherwise{
         io.dataRW.rdata     := 0.U
         io.dataRW.rvalid    := false.B
@@ -134,6 +151,7 @@ class Memory extends Module{
     io.dataRW.wen   := curMode(DC_S_BIT)
     io.dataRW.avalid := hs_in && curMode =/= mode_NOP
     io.dataRW.wmask := bitmap << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W))
+    io.dataRW.size := curMode(1,0)
     io.ex2mem.ready := false.B
     io.ex2mem.membusy := valid_r && !io.dataRW.rvalid
 

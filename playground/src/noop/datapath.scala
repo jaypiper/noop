@@ -85,6 +85,7 @@ class DcacheRW extends Bundle{
     val avalid  = Input(Bool())
     // val dc_mode = Input(UInt(DC_MODE_WIDTH.W))
     val wmask   = Input(UInt(DATA_WIDTH.W))
+    val size    = Input(UInt(3.W))
     // val amo     = Input(UInt(AMO_WIDTH.W))
     val ready   = Output(Bool())
 }

@@ -70,12 +70,13 @@ class ToAXI extends Module{
                 pre_addr := curAddr
             }.elsewhen(io.dataIO.avalid){
                 state := sRaddr
-                rsize := MuxLookup(io.dataIO.wmask >> Cat(curAddr(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)), 0.U , Seq(
-                    "hff".U(DATA_WIDTH) -> (0.U(3.W)),
-                    "hffff".U(DATA_WIDTH) -> (1.U(3.W)),
-                    "hffffffff".U(DATA_WIDTH) -> (2.U(3.W)),
-                    "hffffffffffffffff".U(DATA_WIDTH) -> (3.U(3.W))
-                ))
+                rsize := io.dataIO.size
+                // rsize := MuxLookup(io.dataIO.wmask >> Cat(curAddr(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)), 0.U , Seq(
+                //     "hff".U(DATA_WIDTH) -> (0.U(3.W)),
+                //     "hffff".U(DATA_WIDTH) -> (1.U(3.W)),
+                //     "hffffffff".U(DATA_WIDTH) -> (2.U(3.W)),
+                //     "hffffffffffffffff".U(DATA_WIDTH) -> (3.U(3.W))
+                // ))
 
                 // raddr := Cat(curAddr(31, 8), 0.U(8.W))
                 raddr := curAddr
