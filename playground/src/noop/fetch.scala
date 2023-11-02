@@ -27,13 +27,13 @@ class FetchCrossBar extends Module{
     io.instIO.ready     := false.B
     when(io.instIO.arvalid){
         pre_mem := io.instIO.addr(PADDR_WIDTH-1)
-        when(inp_mem){
-            io.icRead.arvalid := true.B
-            io.instIO.ready := io.icRead.ready
-        }.otherwise{
-            io.flashRead.avalid := true.B
-            io.instIO.ready := io.flashRead.ready
-        }
+    }
+    when(inp_mem){
+        io.icRead.arvalid := io.instIO.arvalid
+        io.instIO.ready := io.icRead.ready
+    }.otherwise{
+        io.flashRead.avalid := io.instIO.arvalid
+        io.instIO.ready := io.flashRead.ready
     }
     io.instIO.inst      := 0.U
     io.instIO.rvalid    := false.B
