@@ -2,6 +2,7 @@
 import sim.newtop
 import prefix._
 import noop.cpu._
+import noop.param.common._
 
 object NoopTop extends App{
     // (new chisel3.stage.ChiselStage).execute(args,
@@ -10,5 +11,8 @@ object NoopTop extends App{
     //         ModulePrefixAnnotation("ysyx_210539_")
     //     ))
 
-    (new chisel3.stage.ChiselStage).execute(args, Seq(chisel3.stage.ChiselGeneratorAnnotation(() => new newtop())))
+    if (isSim)
+        (new chisel3.stage.ChiselStage).execute(args, Seq(chisel3.stage.ChiselGeneratorAnnotation(() => new newtop())))
+    else
+        (new chisel3.stage.ChiselStage).execute(args, Seq(chisel3.stage.ChiselGeneratorAnnotation(() => new CPU())))
 }

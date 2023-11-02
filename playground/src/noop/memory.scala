@@ -81,7 +81,7 @@ class Memory extends Module{
     val io = IO(new Bundle{
         val df2mem  = Flipped(new DF2MEM)
         val mem2wb  = new MEM2RB
-        val dataRW    = Flipped(new DcacheRW)
+        val dataRW  = Flipped(new DcacheRW)
         val d_mem1  = Output(new RegForward)
         val d_mem0  = Output(new RegForward)
     })

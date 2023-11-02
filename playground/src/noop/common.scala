@@ -15,6 +15,7 @@ object common extends mem_access_mode{
     val PC_START    = "h80000000".U(PADDR_WIDTH.W)
 
     val PAGE_WIDTH  = 12
+    val isSim = true
 
 }
 
@@ -253,9 +254,9 @@ object tlb_config extends satp_mode with pte_encoding with csr_config{
 }
 
 object cache_config{ // U S L WIDTH
-    val ICACHE_DEPTH    = 8192
+    val ICACHE_DEPTH    = 4096  // 8KB
     val ICACHE_WIDTH    = 64
-    val DCACHE_DEPTH    = 8192
+    val DCACHE_DEPTH    = 4096  // 4KB
     val DCACHE_WIDTH    = 64
 
     val ICACHE_IDX_WIDTH = log2Ceil(ICACHE_DEPTH)
