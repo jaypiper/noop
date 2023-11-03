@@ -12,7 +12,7 @@ object common extends mem_access_mode{
     val INST_WIDTH  = 32
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
-    val PC_START    = "h80000000".U(PADDR_WIDTH.W)
+    val PC_START    = "h30000000".U(PADDR_WIDTH.W)
 
     val PAGE_WIDTH  = 12
     val isSim = true
@@ -553,14 +553,14 @@ object decode_config extends DeType with ALUOP with BrType
                                                                 //|write-reg|跳转信号|csr-read|csr-write|rs1-imm
         Insts.CSRRW  -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
         Insts.CSRRS  -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
-        Insts.CSRRC  -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
+        // Insts.CSRRC  -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
         Insts.CSRRWI -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
         Insts.CSRRSI -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
-        Insts.CSRRCI -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
+        // Insts.CSRRCI -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
 
-        Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
-        Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
-        Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        // Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        // Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
+        // Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         Insts.EBREAK    -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
     )

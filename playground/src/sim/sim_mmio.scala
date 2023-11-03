@@ -32,6 +32,7 @@ object port{
     val NEMU_VGA    = "ha0000000".U(PADDR_WIDTH.W)
     val PLIC        = "h0c000000".U(PADDR_WIDTH.W)
     val SDCARD_MMIO = "h43000000".U(PADDR_WIDTH.W)
+    val FLASH_ADDR  = "h30000000".U(PADDR_WIDTH.W)
 }
 
 class SimMMIOIO extends Bundle{
@@ -50,6 +51,7 @@ class SimMMIO extends Module{
     val mtimecmp = RegInit(0.U(64.W))
     val vga = Mem(480000, UInt(8.W))
     val vga_ctrl = RegInit(VecInit(Seq.fill(2)(0.U(32.W))))
+    val flash = Mem(0x1000000, UInt(8.W))
     // loadMemoryFromFile()
     val waready  = RegInit(false.B)
     val wdready  = RegInit(false.B)
@@ -75,6 +77,7 @@ class SimMMIO extends Module{
     val islast  = (offset === 0.U)
     val addr    = io.mmioAxi.wa.bits.addr
     val inputwd = Cat((0 until 8).reverse.map(i => Mux(io.mmioAxi.wd.bits.strb(i) === 1.U, io.mmioAxi.wd.bits.data(8*i+7, 8*i), 0.U(8.W))))
+    val flash_rdata   = Cat((0 until 8).reverse.map(i => flash((io.mmioAxi.ra.bits.addr & 0xffffff8.U) + i.U)))
     uart(5) := 0x20.U
     switch(state){
         is(sIdle){
@@ -110,6 +113,8 @@ class SimMMIO extends Module{
                     rdata := 0.U
                 }.elsewhen(io.mmioAxi.ra.bits.addr >= port.PLIC && io.mmioAxi.ra.bits.addr < (port.PLIC + 0x3000.U)){
 
+                }.elsewhen(io.mmioAxi.ra.bits.addr >= port.FLASH_ADDR && io.mmioAxi.ra.bits.addr < (port.FLASH_ADDR + "h10000000".U)){
+                    rdata := flash_rdata
                 }.elsewhen(io.mmioAxi.ra.bits.addr >= port.SDCARD_MMIO && io.mmioAxi.ra.bits.addr < (port.SDCARD_MMIO + 0x80.U)){
                     sdcard.io.addr  := io.mmioAxi.ra.bits.addr(6,0)
                     sdcard.io.cen   := true.B

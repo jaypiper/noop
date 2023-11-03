@@ -104,7 +104,7 @@ void init_difftest(char *ref_so_file){
 #endif
     //加载程序到dut中
 #ifdef FLASH
-    flash_memcpy(program, program_sz);
+    memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__mmio__DOT__flash[0])), program, program_sz);
 #else
     assert(program_sz <= sizeof(cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data));
     memcpy(((unsigned char *)(&cpu->rootp->newtop__DOT__cpu__DOT__icache__DOT__data[0])), program, program_sz);

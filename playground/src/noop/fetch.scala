@@ -29,8 +29,8 @@ class FetchCrossBar extends Module{
         pre_mem := io.instIO.addr(PADDR_WIDTH-1)
     }
     when(inp_mem){
-        io.icRead.arvalid := io.instIO.arvalid
         io.instIO.ready := io.icRead.ready
+        io.icRead.arvalid := io.instIO.arvalid
     }.otherwise{
         io.flashRead.avalid := io.instIO.arvalid
         io.instIO.ready := io.flashRead.ready
@@ -117,7 +117,7 @@ class Fetch extends Module{
         when(hs_out) {
             inst_valid_r := false.B
         } .elsewhen(io.instRead.rvalid) {
-            inst_valid_r := true.B
+            inst_valid_r := valid_r
             inst_r := io.instRead.inst
         }
         when(hs1) {

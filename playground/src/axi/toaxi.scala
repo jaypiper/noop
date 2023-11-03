@@ -102,7 +102,15 @@ class ToAXI extends Module{
             rdataEn := true.B
 
             when(rdataEn && io.outAxi.rd.valid){
-                rdata       := io.outAxi.rd.bits.data
+                when (in_size_r === 0.U) {
+                    rdata       := io.outAxi.rd.bits.data.asTypeOf(Vec(8, UInt(8.W)))(in_addr_r(2,0)).asUInt
+                }.elsewhen (in_size_r === 1.U) {
+                    rdata       := io.outAxi.rd.bits.data.asTypeOf(Vec(4, UInt(16.W)))(in_addr_r(2,1)).asUInt
+                }.elsewhen (in_size_r === 2.U) {
+                    rdata       := io.outAxi.rd.bits.data.asTypeOf(Vec(2, UInt(32.W)))(in_addr_r(2)).asUInt
+                }.elsewhen (in_size_r === 3.U) {
+                    rdata       := io.outAxi.rd.bits.data
+                }
                 offset := offset + 1.U
 
                 rdataEn := false.B

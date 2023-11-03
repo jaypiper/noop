@@ -48,17 +48,14 @@ class Execute extends Module{
     val alu64 = io.rr2ex.ctrl.aluWidth === IS_ALU64
     val aluop  = io.rr2ex.ctrl.aluOp
     // alu
-    val signed_dr   = !alu64 && ((aluop === alu_DIV) || (aluop === alu_REM))
-    val unsigned_dr = !alu64 && ((aluop === alu_DIVU) || (aluop === alu_REMU))
-    val val1 = PriorityMux(Seq(
-        (unsigned_dr,     zext32to64(io.rr2ex.rs1_d)),
-        (signed_dr,   sext32to64(io.rr2ex.rs1_d)),
-        (true.B,        io.rr2ex.rs1_d)
-    ))
+    // val signed_dr   = !alu64 && ((aluop === alu_DIV) || (aluop === alu_REM))
+    // val unsigned_dr = !alu64 && ((aluop === alu_DIVU) || (aluop === alu_REMU))
+    val val1 = io.rr2ex.rs1_d
+
     val is_shift = aluop === alu_SLL || aluop === alu_SRL || aluop === alu_SRA
     val val2 = PriorityMux(Seq(
-        (unsigned_dr,     zext32to64(io.rr2ex.rs2_d)),
-        (signed_dr,   sext32to64(io.rr2ex.rs2_d)),
+        // (unsigned_dr,     zext32to64(io.rr2ex.rs2_d)),
+        // (signed_dr,   sext32to64(io.rr2ex.rs2_d)),
         (is_shift,      Mux(alu64, io.rr2ex.rs2_d(5,0), Cat(0.U(1.W), io.rr2ex.rs2_d(4,0)))),
         (true.B,        io.rr2ex.rs2_d)
     ))
