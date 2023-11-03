@@ -46,13 +46,7 @@ class ALU extends Module{
     multiplier.io.a     := io.val1
     multiplier.io.b     := io.val2
     multiplier.io.en    := false.B
-    multiplier.io.aluop  := io.alu_op
-    // val div_type = ListLookup(io.alu_op, div_default, div_decode)
-    // divider.io.alu64    := io.alu64
-    // divider.io.a        := io.val1
-    // divider.io.b        := io.val2
-    // divider.io.sign     := div_type(1)
-    // divider.io.en       := false.B
+
     io.valid := false.B
     io.out   := 0.U
     io.ready := state === sIdle
@@ -63,9 +57,6 @@ class ALU extends Module{
                 when(io.alu_op === alu_MUL){
                     multiplier.io.en := true.B
                     state := sWaitMul
-                // }.elsewhen(io.alu_op === alu_DIV || io.alu_op === alu_DIVU || io.alu_op ===  alu_REM || io.alu_op ===  alu_REMU){
-                //     divider.io.en       := true.B
-                //     state := sWaitDiv
                 }.otherwise{
                     // val shamt  = Mux(io.alu64, io.val2(5, 0), Cat(0.U(1.W), io.val2(4, 0)))
                     val alu_val = MuxLookup(io.alu_op, 0.U(DATA_WIDTH.W), Seq(
