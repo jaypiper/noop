@@ -61,7 +61,7 @@ class Writeback extends Module{
         recov_r := io.mem2wb.recov
         excep_r := io.mem2wb.excep
         rcsr_id_r   := io.mem2wb.rcsr_id
-        when(io.mem2wb.special =/= 0.U || (io.mem2wb.recov && !io.mem2wb.excep.en)){
+        when(io.mem2wb.recov && !io.mem2wb.excep.en){
             forceJmp.valid  := true.B
             forceJmp.seq_pc := io.mem2wb.pc + 4.U
         }
@@ -76,7 +76,7 @@ class Writeback extends Module{
         recov_r := io.ex2wb.recov
         excep_r := io.ex2wb.excep
         rcsr_id_r   := io.ex2wb.rcsr_id
-        when(io.ex2wb.special =/= 0.U || (io.ex2wb.recov && !io.ex2wb.excep.en)){
+        when(io.ex2wb.recov && !io.ex2wb.excep.en){
             forceJmp.valid  := true.B
             forceJmp.seq_pc := io.ex2wb.pc + 4.U
         }

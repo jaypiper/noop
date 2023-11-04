@@ -34,7 +34,6 @@ class Decode extends Module{
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
-    val special_r   = RegInit(0.U(2.W))
     val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
@@ -76,7 +75,6 @@ class Decode extends Module{
         rrs2_r          := false.B
         dst_r           := inst_in(11,7)
         jmp_type_r      := NO_JMP
-        special_r       := 0.U
         nextPC_r        := io.if2id.nextPC
 
         swap_r          := NO_SWAP
@@ -155,7 +153,6 @@ class Decode extends Module{
         rrs1_r          := false.B
         rrs2_r          := false.B
         jmp_type_r      := NO_JMP
-        special_r       := 0.U
         swap_r          := NO_SWAP
         recov_r         := io.if2id.recov
     }
@@ -191,7 +188,6 @@ class Decode extends Module{
     io.id2df.dst        := dst_r
     io.id2df.dst_d      := dst_d_r
     io.id2df.jmp_type   := jmp_type_r
-    io.id2df.special    := special_r
     io.id2df.swap       := swap_r
     io.id2df.recov      := recov_r
     io.id2df.valid      := valid_r

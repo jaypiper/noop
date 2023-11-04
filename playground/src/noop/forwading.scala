@@ -43,7 +43,6 @@ class Forwarding extends Module{
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
-    val special_r   = RegInit(0.U(2.W))
     val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val recov_r     = RegInit(false.B)
@@ -161,7 +160,6 @@ class Forwarding extends Module{
         dst_r       := io.id2df.dst
         dst_d_r     := io.id2df.dst_d
         jmp_type_r  := io.id2df.jmp_type
-        special_r   := io.id2df.special
         swap_r      := io.id2df.swap
         rcsr_id_r   := Mux(io.id2df.ctrl.writeCSREn, io.id2df.rs2, 0.U)
         recov_r     := io.id2df.recov
@@ -174,7 +172,6 @@ class Forwarding extends Module{
             stall_pipe()
             ctrl_r      := 0.U.asTypeOf(new Ctrl)
             jmp_type_r  := 0.U
-            special_r   := 0.U
         }
     }
 
@@ -254,7 +251,6 @@ class Forwarding extends Module{
     io.df2ex.dst        := dst_r
     io.df2ex.dst_d      := idx2reg(swap_r(1,0))
     io.df2ex.jmp_type   := jmp_type_r
-    io.df2ex.special    := special_r
     io.df2ex.rcsr_id    := rcsr_id_r
     io.df2ex.recov      := recov_r
     io.df2ex.valid      := valid_r && !drop_in && !io.df2mem.membusy && ctrl_r.dcMode === mode_NOP
@@ -270,7 +266,6 @@ class Forwarding extends Module{
     io.df2mem.dst              := dst_r
     io.df2mem.dst_d            := 0.U
     io.df2mem.rcsr_id          := 0.U
-    io.df2mem.special          := 0.U
     io.df2mem.recov            := recov_r
     io.df2mem.valid            := valid_r && !drop_in && ctrl_r.dcMode =/= mode_NOP
 }

@@ -101,7 +101,6 @@ class Memory extends Module{
     val csr_d_r    = RegInit(0.U(DATA_WIDTH.W))
     val csr_en_r   = RegInit(false.B)
     val rcsr_id_r  = RegInit(0.U(CSR_WIDTH.W))
-    val special_r  = RegInit(0.U(2.W))
     val recov_r    = RegInit(false.B)
     val valid_r    = RegInit(false.B)
     val bitmap_r     = RegInit(0.U(DATA_WIDTH.W))
@@ -137,7 +136,6 @@ class Memory extends Module{
         csr_d_r    := io.df2mem.csr_d
         csr_en_r   := io.df2mem.ctrl.writeCSREn
         rcsr_id_r  := io.df2mem.rcsr_id
-        special_r  := io.df2mem.special
         recov_r    := io.df2mem.recov
         valid_r    := true.B
         bitmap_r     := bitmap
@@ -189,7 +187,6 @@ class Memory extends Module{
     io.mem2wb.dst_d     := Mux(ctrl_r.dcMode === mode_NOP, dst_d_r, read_data)
     io.mem2wb.dst_en    := dst_en_r
     io.mem2wb.rcsr_id   := rcsr_id_r
-    io.mem2wb.special   := special_r
     io.mem2wb.is_mmio   := ctrl_r.dcMode =/= mode_NOP && (mem_addr_r < "h30000000".U)
     io.mem2wb.recov     := recov_r
     io.mem2wb.valid     := valid_r && (ctrl_r.dcMode === mode_NOP || io.dataRW.rvalid)

@@ -37,7 +37,6 @@ class Execute extends Module{
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
-    val special_r   = RegInit(0.U(2.W))
     val alu64_r     = RegInit(false.B)
     val next_pc_r   = RegInit(0.U(PADDR_WIDTH.W))  // for intr; updated by branch
     val recov_r     = RegInit(false.B)
@@ -47,18 +46,10 @@ class Execute extends Module{
     val hs_out  = io.ex2wb.ready && io.ex2wb.valid
     val alu64 = io.rr2ex.ctrl.aluWidth === IS_ALU64
     val aluop  = io.rr2ex.ctrl.aluOp
-    // alu
-    // val signed_dr   = !alu64 && ((aluop === alu_DIV) || (aluop === alu_REM))
-    // val unsigned_dr = !alu64 && ((aluop === alu_DIVU) || (aluop === alu_REMU))
-    val val1 = io.rr2ex.rs1_d
 
-    val is_shift = aluop === alu_SLL || aluop === alu_SRL || aluop === alu_SRA
-    val val2 = PriorityMux(Seq(
-        // (unsigned_dr,     zext32to64(io.rr2ex.rs2_d)),
-        // (signed_dr,   sext32to64(io.rr2ex.rs2_d)),
-        (is_shift,      Mux(alu64, io.rr2ex.rs2_d(5,0), Cat(0.U(1.W), io.rr2ex.rs2_d(4,0)))),
-        (true.B,        io.rr2ex.rs2_d)
-    ))
+    val val1 = io.rr2ex.rs1_d
+    val val2 = io.rr2ex.rs2_d
+
     alu.io.alu_op   := aluop
     alu.io.val1     := val1
     alu.io.val2     := val2
@@ -88,7 +79,6 @@ class Execute extends Module{
         dst_r       := io.rr2ex.dst
         dst_d_r     := wdata
         rcsr_id_r   := io.rr2ex.rcsr_id
-        special_r   := io.rr2ex.special
         alu64_r     := alu64
         recov_r     := io.rr2ex.recov
         when(io.rr2ex.excep.cause(63)){
@@ -196,7 +186,6 @@ class Execute extends Module{
     io.ex2wb.dst_d      := dst_d_r
     io.ex2wb.dst_en     := ctrl_r.writeRegEn
     io.ex2wb.rcsr_id   := rcsr_id_r
-    io.ex2wb.special   := special_r
     io.ex2wb.is_mmio   := false.B
     io.ex2wb.valid     := valid_r
     io.ex2wb.recov     := recov_r
