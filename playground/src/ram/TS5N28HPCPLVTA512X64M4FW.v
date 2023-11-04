@@ -1,4 +1,4 @@
-module S011HD1P_X32Y2D128_BW(
+module TS5N28HPCPLVTA512X64M4FW(
     Q, CLK, CEB, WEB, BWEB, A, D
 );
 parameter Bits = 64;

@@ -23,6 +23,8 @@ object cache_config{ // U S L WIDTH
     val ICACHE_WIDTH    = 64
     val DCACHE_DEPTH    = 4096  // 4KB
     val DCACHE_WIDTH    = 64
+    val IRAM_NUM        = ICACHE_DEPTH / 512
+    val DRAM_NUM        = DCACHE_DEPTH / 512
 
     val ICACHE_IDX_WIDTH = log2Ceil(ICACHE_DEPTH)
     val ICACHE_OFFEST_WIDTH = log2Ceil(ICACHE_WIDTH / 8)
@@ -480,51 +482,51 @@ object decode_config extends DeType with ALUOP with BrType
         with csr_config with dataForw{
     val IS_ALU64 = 0.U
     val IS_ALU32 = 1.U
-                            // decode aluop    alu-w    ram-mode|write-reg|跳转信号|csr-read|csr-write|rs1-imm
-    val decodeDefault = List(INVALID, alu_NOP,   IS_ALU64,  mode_NOP, false.B, false.B, false.B, false.B, false.B)
+                            // decode aluop    alu-w    ram-mode|write-reg|跳转信号|csr-read/write|rs1-imm
+    val decodeDefault = List(INVALID, alu_NOP,   IS_ALU64,  mode_NOP, false.B, false.B, false.B, false.B)
     val decodeTable = Array(   
-        Insts.LUI    -> List(UType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AUIPC  -> List(UType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.JAL    -> List(JType, alu_MV2,   IS_ALU64,  mode_NOP, true.B,  true.B,  false.B, false.B, false.B),
-        Insts.JALR   -> List(IType, alu_MV2,   IS_ALU64,  mode_NOP, true.B,  true.B,  false.B, false.B, false.B),
-        Insts.BEQ    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B, false.B),
-        Insts.BNE    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B, false.B),
-        Insts.BLT    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B, false.B),
-        Insts.BGE    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B, false.B),
-        Insts.BLTU   -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B, false.B),
-        Insts.BGEU   -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B, false.B),
+        Insts.LUI    -> List(UType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.AUIPC  -> List(UType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.JAL    -> List(JType, alu_MV2,   IS_ALU64,  mode_NOP, true.B,  true.B,  false.B, false.B),
+        Insts.JALR   -> List(IType, alu_MV2,   IS_ALU64,  mode_NOP, true.B,  true.B,  false.B, false.B),
+        Insts.BEQ    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B),
+        Insts.BNE    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B),
+        Insts.BLT    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B),
+        Insts.BGE    -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B),
+        Insts.BLTU   -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B),
+        Insts.BGEU   -> List(BType, alu_NOP,   IS_ALU64,  mode_NOP, false.B, true.B,  false.B, false.B),
 
-        Insts.LB     -> List(IType, alu_ADD,   IS_ALU64,  mode_LB,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.LH     -> List(IType, alu_ADD,   IS_ALU64,  mode_LH,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.LW     -> List(IType, alu_ADD,   IS_ALU64,  mode_LW,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.LD     -> List(IType, alu_ADD,   IS_ALU64,  mode_LD,  true.B,  false.B, false.B, false.B, false.B),
-        Insts.LBU    -> List(IType, alu_ADD,   IS_ALU64,  mode_LBU, true.B,  false.B, false.B, false.B, false.B),
-        Insts.LHU    -> List(IType, alu_ADD,   IS_ALU64,  mode_LHU, true.B,  false.B, false.B, false.B, false.B),
-        Insts.LWU    -> List(IType, alu_ADD,   IS_ALU64,  mode_LWU, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SB     -> List(SType, alu_ADD,   IS_ALU64,  mode_SB,  false.B, false.B, false.B, false.B, false.B),        
-        Insts.SH     -> List(SType, alu_ADD,   IS_ALU64,  mode_SH,  false.B, false.B, false.B, false.B, false.B),
-        Insts.SW     -> List(SType, alu_ADD,   IS_ALU64,  mode_SW,  false.B, false.B, false.B, false.B, false.B),
-        Insts.SD     -> List(SType, alu_ADD,   IS_ALU64,  mode_SD,  false.B, false.B, false.B, false.B, false.B),
-        Insts.ADDI   -> List(IType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLTI   -> List(IType, alu_SLT,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLTIU  -> List(IType, alu_SLTU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.XORI   -> List(IType, alu_XOR,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.ORI    -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.ANDI   -> List(IType, alu_AND,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLLI   -> List(IType, alu_SLL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRLI   -> List(IType, alu_SRL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRAI   -> List(IType, alu_SRA,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        Insts.LB     -> List(IType, alu_ADD,   IS_ALU64,  mode_LB,  true.B,  false.B, false.B, false.B),
+        Insts.LH     -> List(IType, alu_ADD,   IS_ALU64,  mode_LH,  true.B,  false.B, false.B, false.B),
+        Insts.LW     -> List(IType, alu_ADD,   IS_ALU64,  mode_LW,  true.B,  false.B, false.B, false.B),
+        Insts.LD     -> List(IType, alu_ADD,   IS_ALU64,  mode_LD,  true.B,  false.B, false.B, false.B),
+        Insts.LBU    -> List(IType, alu_ADD,   IS_ALU64,  mode_LBU, true.B,  false.B, false.B, false.B),
+        Insts.LHU    -> List(IType, alu_ADD,   IS_ALU64,  mode_LHU, true.B,  false.B, false.B, false.B),
+        Insts.LWU    -> List(IType, alu_ADD,   IS_ALU64,  mode_LWU, true.B,  false.B, false.B, false.B),
+        Insts.SB     -> List(SType, alu_ADD,   IS_ALU64,  mode_SB,  false.B, false.B, false.B, false.B),        
+        Insts.SH     -> List(SType, alu_ADD,   IS_ALU64,  mode_SH,  false.B, false.B, false.B, false.B),
+        Insts.SW     -> List(SType, alu_ADD,   IS_ALU64,  mode_SW,  false.B, false.B, false.B, false.B),
+        Insts.SD     -> List(SType, alu_ADD,   IS_ALU64,  mode_SD,  false.B, false.B, false.B, false.B),
+        Insts.ADDI   -> List(IType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLTI   -> List(IType, alu_SLT,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLTIU  -> List(IType, alu_SLTU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.XORI   -> List(IType, alu_XOR,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.ORI    -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.ANDI   -> List(IType, alu_AND,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLLI   -> List(IType, alu_SLL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRLI   -> List(IType, alu_SRL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRAI   -> List(IType, alu_SRA,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
 
-        Insts.ADD    -> List(RType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SUB    -> List(RType, alu_SUB,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLL    -> List(RType, alu_SLL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLT    -> List(RType, alu_SLT,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLTU   -> List(RType, alu_SLTU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.XOR    -> List(RType, alu_XOR,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRL    -> List(RType, alu_SRL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRA    -> List(RType, alu_SRA,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.OR     -> List(RType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.AND    -> List(RType, alu_AND,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        Insts.ADD    -> List(RType, alu_ADD,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SUB    -> List(RType, alu_SUB,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLL    -> List(RType, alu_SLL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLT    -> List(RType, alu_SLT,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLTU   -> List(RType, alu_SLTU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.XOR    -> List(RType, alu_XOR,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRL    -> List(RType, alu_SRL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRA    -> List(RType, alu_SRA,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.OR     -> List(RType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.AND    -> List(RType, alu_AND,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B),
 
         // Insts.MUL    -> List(RType, alu_MUL,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         // Insts.MULH   -> List(RType, alu_MULH,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
@@ -535,34 +537,34 @@ object decode_config extends DeType with ALUOP with BrType
         // Insts.REM    -> List(RType, alu_REM,   IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         // Insts.REMU   -> List(RType, alu_REMU,  IS_ALU64,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
 
-        Insts.MULW   -> List(RType, alu_MUL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        Insts.MULW   -> List(RType, alu_MUL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
         // Insts.DIVW   -> List(RType, alu_DIV,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         // Insts.DIVUW  -> List(RType, alu_DIVU,  IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         // Insts.REMW   -> List(RType, alu_REM,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
         // Insts.REMUW  -> List(RType, alu_REMU,  IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
 
-        Insts.ADDIW  -> List(IType, alu_ADD,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLLIW  -> List(IType, alu_SLL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRLIW  -> List(IType, alu_SRL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRAIW  -> List(IType, alu_SRA,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.ADDW   -> List(RType, alu_ADD,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SUBW   -> List(RType, alu_SUB,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SLLW   -> List(RType, alu_SLL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRLW   -> List(RType, alu_SRL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
-        Insts.SRAW   -> List(RType, alu_SRA,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B, false.B),
+        Insts.ADDIW  -> List(IType, alu_ADD,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLLIW  -> List(IType, alu_SLL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRLIW  -> List(IType, alu_SRL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRAIW  -> List(IType, alu_SRA,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.ADDW   -> List(RType, alu_ADD,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SUBW   -> List(RType, alu_SUB,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SLLW   -> List(RType, alu_SLL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRLW   -> List(RType, alu_SRL,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
+        Insts.SRAW   -> List(RType, alu_SRA,   IS_ALU32,  mode_NOP, true.B,  false.B, false.B, false.B),
                                                                 //|write-reg|跳转信号|csr-read|csr-write|rs1-imm
-        Insts.CSRRW  -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
-        Insts.CSRRS  -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
+        Insts.CSRRW  -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  false.B),
+        Insts.CSRRS  -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  false.B),
         // Insts.CSRRC  -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  false.B),
-        Insts.CSRRWI -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
-        Insts.CSRRSI -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
+        // Insts.CSRRWI -> List(IType, alu_MV1,   IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
+        // Insts.CSRRSI -> List(IType, alu_OR,    IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
         // Insts.CSRRCI -> List(IType, alu_NAND,  IS_ALU64,  mode_NOP, true.B,  false.B, true.B,  true.B,  true.B),
 
         // Insts.FENCE     -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         // Insts.FENCE_I   -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
         // Insts.SFENCE_VMA-> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
-        Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B),
-        Insts.EBREAK    -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B, false.B)
+        Insts.TRAP      -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B),
+        Insts.EBREAK    -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B)
     )
 
     val NO_JMP     = "b00".U(2.W)

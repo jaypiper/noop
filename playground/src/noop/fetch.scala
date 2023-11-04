@@ -26,7 +26,7 @@ class FetchCrossBar extends Module{
     io.icRead.arvalid   := false.B
     io.instIO.ready     := false.B
     when(io.instIO.arvalid){
-        pre_mem := io.instIO.addr(PADDR_WIDTH-1)
+        pre_mem := inp_mem
     }
     when(inp_mem){
         io.instIO.ready := io.icRead.ready
@@ -137,7 +137,6 @@ class Fetch extends Module{
 
     io.if2id.inst       := Mux(inst_valid_r, inst_r, io.instRead.inst)
     io.if2id.pc         := pc_r
-    io.if2id.excep      := 0.U.asTypeOf(new Exception)
     io.if2id.valid      := !drop_in && valid_r && (io.instRead.rvalid || inst_valid_r)
     io.if2id.recov      := false.B
     io.if2id.nextPC     := Mux(io.bp.jmp, io.bp.target, pc_r + 4.U)

@@ -50,7 +50,6 @@ class Decode extends Module{
     val dType = instType(0)
     val jmp_indi = instType(5) === true.B
     val rs2_is_csr = instType(6) === true.B
-    val rs1_is_imm = instType(8) === true.B
     val imm = Wire(SInt(DATA_WIDTH.W))
     imm := 0.S
     switch(dType){
@@ -60,10 +59,10 @@ class Decode extends Module{
         is(UType){ imm := Cat(inst_in(31, 12), 0.U(12.W)).asSInt }
         is(JType){ imm := Cat(inst_in(31), inst_in(19, 12), inst_in(20), inst_in(30, 21), 0.U(1.W)).asSInt }
     }
-    when(hs_in && !io.if2id.excep.en){
+    when(hs_in){
         inst_r          := io.if2id.inst
         pc_r            := io.if2id.pc
-        excep_r         := io.if2id.excep
+        excep_r         := 0.U.asTypeOf(new Exception)
         ctrl_r.aluOp      := instType(1)
         ctrl_r.aluWidth   := instType(2)
         ctrl_r.dcMode     := instType(3)
@@ -79,7 +78,7 @@ class Decode extends Module{
 
         swap_r          := NO_SWAP
         recov_r         := io.if2id.recov
-        when(dType === INVALID && !io.if2id.excep.en){
+        when(dType === INVALID){
             excep_r.en      := true.B
             excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
             excep_r.tval    := inst_in
@@ -100,7 +99,7 @@ class Decode extends Module{
                 dst_d_r     := imm.asUInt
             }.elsewhen(rs2_is_csr){
                 rs1_d_r     := inst_in(19,15)
-                rrs1_r      := !rs1_is_imm
+                rrs1_r      := true.B
                 rrs2_r      := true.B
                 stall_pipe()
             }.otherwise{
@@ -143,18 +142,6 @@ class Decode extends Module{
             stall_pipe()
         }
 
-    }
-
-    when(hs_in && io.if2id.excep.en){
-        inst_r          := io.if2id.inst
-        pc_r            := io.if2id.pc
-        excep_r         := io.if2id.excep
-        ctrl_r          := 0.U.asTypeOf(new Ctrl)
-        rrs1_r          := false.B
-        rrs2_r          := false.B
-        jmp_type_r      := NO_JMP
-        swap_r          := NO_SWAP
-        recov_r         := io.if2id.recov
     }
     
     io.if2id.ready := false.B

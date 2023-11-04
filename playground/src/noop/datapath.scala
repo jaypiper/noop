@@ -122,7 +122,6 @@ class IF2ID extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
     val pc      = Output(UInt(PADDR_WIDTH.W))
     val nextPC  = Output(UInt(PADDR_WIDTH.W))
-    val excep   = Output(new Exception)
     val drop    = Input(Bool())
     val stall   = Input(Bool())
     val recov   = Output(Bool())
