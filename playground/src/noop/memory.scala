@@ -23,8 +23,8 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     dontTouch(io.dcRW)
     val pre_type    = RegInit(0.U(2.W))
     val data_r      = RegInit(0.U(DATA_WIDTH.W))
-    val inp_mem     = io.dataRW.addr >= "h80005000".U
-    val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80005000".U
+    val inp_mem     = (io.dataRW.addr >= "h80006000".U) && (io.dataRW.addr < "h80007000".U)
+    val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80002000".U
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
     io.mmio.wmask   := io.dataRW.wmask
@@ -115,7 +115,7 @@ class Memory extends Module{
         2.U -> "hffffffff".U(DATA_WIDTH.W),
         3.U -> "hffffffffffffffff".U(DATA_WIDTH.W)
     ))
-    val data_uint = Mux(mem_addr_r(PADDR_WIDTH-1), (io.dataRW.rdata >> Cat(mem_addr_r(DATA_BITS_WIDTH-1, 0), 0.U(3.W))), io.dataRW.rdata) & bitmap_r
+    val data_uint = io.dataRW.rdata & bitmap_r
     val read_data = MuxLookup(ctrl_r.dcMode, data_uint, Seq(
         mode_LB -> Cat(Fill(DATA_WIDTH - 8, data_uint(7)), data_uint(7, 0)),
         mode_LH -> Cat(Fill(DATA_WIDTH - 16, data_uint(15)), data_uint(15, 0)),
@@ -143,13 +143,12 @@ class Memory extends Module{
         valid_r := false.B
     }
 
-    // io.dataRW.avalid := curMode =/= mode_NOP
     io.dataRW.addr := Mux(hs_in, io.df2mem.mem_addr, mem_addr_r)
     val cur_mem_data = Mux(hs_in, io.df2mem.mem_data, mem_data_r)
-    io.dataRW.wdata := Mux(io.dataRW.addr(PADDR_WIDTH-1), cur_mem_data  << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W)), cur_mem_data)
+    io.dataRW.wdata := cur_mem_data// Mux(io.dataRW.addr(PADDR_WIDTH-1), cur_mem_data  << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W)), cur_mem_data)
     io.dataRW.wen   := curMode(DC_S_BIT)
     io.dataRW.avalid := hs_in && curMode =/= mode_NOP
-    io.dataRW.wmask := bitmap << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W))
+    io.dataRW.wmask := bitmap
     io.dataRW.size := curMode(1,0)
     io.df2mem.ready := false.B
     io.df2mem.membusy := valid_r && !io.dataRW.rvalid

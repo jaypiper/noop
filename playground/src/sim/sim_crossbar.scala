@@ -32,7 +32,7 @@ class SimCrossbar extends Module{
         }
         is(sWaitMem){
             io.inAxi <> io.memAxi
-            when((io.memAxi.rd.valid && io.memAxi.rd.bits.last) || (io.memAxi.wd.valid && io.memAxi.wd.bits.last)){
+            when((io.memAxi.rd.valid && io.memAxi.rd.ready && io.memAxi.rd.bits.last) || (io.memAxi.wd.valid && io.memAxi.wd.ready && io.memAxi.wd.bits.last)){
                 state := sIdle
             }
         }

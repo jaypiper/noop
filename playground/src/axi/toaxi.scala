@@ -52,14 +52,13 @@ class ToAXI extends Module{
             when(valid_r && in_wen_r){
                 state   := sWaddr
                 waddrEn := true.B
-                val lowMask = io.dataIO.wmask >> (Cat(in_addr_r(ICACHE_OFFEST_WIDTH-1,0), 0.U(3.W)))
                 when(in_size_r === 0.U) {
                     wstrb := 1.U << in_addr_r(2, 0)
-                }.elsewhen(lowMask === 1.U) {
+                }.elsewhen(in_size_r === 1.U) {
                     wstrb := 0x3.U << in_addr_r(2, 0)
-                }.elsewhen(lowMask === 2.U) {
+                }.elsewhen(in_size_r === 2.U) {
                     wstrb := 0xf.U << in_addr_r(2, 0)
-                }.elsewhen(lowMask === 3.U) {
+                }.elsewhen(in_size_r === 3.U) {
                     wstrb := 0xff.U << in_addr_r(2, 0)
                 }
                 wdata   := (in_wdata_r << (Cat(in_addr_r(2, 0), 0.U(3.W))))(63, 0)
@@ -96,11 +95,10 @@ class ToAXI extends Module{
                 raddrEn := false.B
                 offset  := 0.U
                 state   := sRdata
+                rdataEn := true.B
             }
         }
         is(sRdata){
-            rdataEn := true.B
-
             when(rdataEn && io.outAxi.rd.valid){
                 when (in_size_r === 0.U) {
                     rdata       := io.outAxi.rd.bits.data.asTypeOf(Vec(8, UInt(8.W)))(in_addr_r(2,0)).asUInt

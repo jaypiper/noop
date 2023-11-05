@@ -24,12 +24,12 @@ class SimMEM extends Module{
     val wdReady = RegInit(false.B)
     val waStart = RegInit(0.U(PADDR_WIDTH.W))
     // val wdata   = Cat((0 until 8).reverse.map(i => Mux(io.memAxi.wd.bits.strb(i) === 1.U, io.memAxi.wd.bits.data(8*i+7, 8*i), 0.U(8.W))))
-    val waddr   = (waStart + offset * 8.U) & 0xfffffff.U
+    val waddr   = ((waStart & 0xffffff8.U) + offset * 8.U) & 0xfffffff.U
 
     val raReady = RegInit(false.B)
     val raStart = RegInit(0.U(PADDR_WIDTH.W))
     val rdValid = RegInit(false.B)
-    val rdata   = Cat((0 until 8).reverse.map(i => ram((raStart + offset * 8.U + i.U)&0xfffffff.U)))
+    val rdata   = Cat((0 until 8).reverse.map(i => ram(((raStart & 0xffffff8.U) + offset * 8.U + i.U)&0xfffffff.U)))
 
     val state = RegInit(sIdle)
     // val addr    = (io.memAxi.wa.bits.addr + offset) & 0xfffffff.U

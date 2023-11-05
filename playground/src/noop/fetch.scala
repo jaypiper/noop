@@ -15,7 +15,7 @@ class FetchCrossBar extends Module{
         val flashRead = Flipped(new DcacheRW)
     })
     val pre_mem = RegInit(false.B)
-    val inp_mem = io.instIO.addr(PADDR_WIDTH-1)
+    val inp_mem = (io.instIO.addr >= "h80000000".U) && (io.instIO.addr < "h80002000".U)
     io.flashRead.addr   := io.instIO.addr
     io.flashRead.wdata  := 0.U;
     io.flashRead.wen    := false.B
@@ -46,7 +46,6 @@ class FetchCrossBar extends Module{
     }
 
 }
-
 
 class FetchIO extends Bundle{
     val instRead    = Flipped(new IcacheRead)

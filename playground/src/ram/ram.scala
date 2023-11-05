@@ -106,16 +106,16 @@ class IRAM extends Module {
         val wmask = Input(UInt(64.W))
     })
     val data = VecInit(Seq.fill(IRAM_NUM)(Module(new TS5N28HPCPLVTA512X64M4FW).io))
-    val select = io.addr(ICACHE_IDX_START, 12)
-    val select_r = RegInit(0.U(log2Ceil(IRAM_NUM).W))
+    val select = io.addr(ICACHE_IDX_WIDTH-1, ICACHE_IDX_WIDTH - log2Floor(IRAM_NUM))
+    val select_r = RegInit(0.U(log2Floor(IRAM_NUM).W))
     select_r := select
     for (i <- 0 until IRAM_NUM) {
         data(i).CLK := clock
-        data(i).CEB := (select === i.U) & io.cen
-        data(i).WEB := io.wen
-        data(i).A := io.addr(11, 3)
+        data(i).CEB := ~((select === i.U) & io.cen)
+        data(i).WEB := ~io.wen
+        data(i).A := io.addr(8, 0)
         data(i).D := io.wdata
-        data(i).BWEB := io.wmask
+        data(i).BWEB := ~io.wmask
     }
     io.rdata := data(select_r).Q
 }
@@ -135,7 +135,7 @@ class DRAM extends Module {
     select_r := select
     for (i <- 0 until DRAM_NUM) {
         data(i).CLK := clock
-        data(i).CEB := (select === i.U) & ~io.cen
+        data(i).CEB := ~((select === i.U) & io.cen)
         data(i).WEB := ~io.wen
         data(i).A := io.addr(8, 0)
         data(i).D := io.wdata
