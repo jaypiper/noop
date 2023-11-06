@@ -55,7 +55,7 @@ class FetchIO extends Bundle{
     // val intr_in     = Input(new RaiseIntr)
     val branchFail  = Input(new ForceJmp)
     val if2id       = new IF2ID
-    val bp          = Flipped(new PredictIO)
+    val bp          = Flipped(new PredictIO2)
 }
 
 class Fetch extends Module{
@@ -100,12 +100,15 @@ class Fetch extends Module{
             (io.reg2if.valid,               io.reg2if.seq_pc),
             (io.wb2if.valid,                io.wb2if.seq_pc),
             (io.branchFail.valid,           io.branchFail.seq_pc),
-            (io.bp.jmp,                     io.bp.target),
-            (hs_out,                        pc + 4.U),
+            (io.bp.jmp && hs1,                     io.bp.target),
+            (hs1,                        pc + 4.U),
             (true.B,                        pc)))
     pc := next_pc    
 
-    io.instRead.addr := next_pc
+    io.bp.pc := pc
+    io.bp.valid := hs1
+
+    io.instRead.addr := pc
     io.instRead.arvalid := state === sIdle && !valid_r || hs_out
 
     when (io.instRead.rvalid) {
@@ -120,7 +123,7 @@ class Fetch extends Module{
             inst_r := io.instRead.inst
         }
         when(hs1) {
-            pc_r := next_pc
+            pc_r := pc
             valid_r := true.B
         }.elsewhen(hs_out) {
             valid_r := false.B
@@ -130,13 +133,9 @@ class Fetch extends Module{
         valid_r := false.B
     }
 
-    io.bp.inst := Mux(inst_valid_r, inst_r, io.instRead.inst)
-    io.bp.pc := pc_r
-    io.bp.valid := valid_r && (inst_valid_r || io.instRead.rvalid) && !drop_in
-
     io.if2id.inst       := Mux(inst_valid_r, inst_r, io.instRead.inst)
     io.if2id.pc         := pc_r
     io.if2id.valid      := !drop_in && valid_r && (io.instRead.rvalid || inst_valid_r)
     io.if2id.recov      := false.B
-    io.if2id.nextPC     := Mux(io.bp.jmp, io.bp.target, pc_r + 4.U)
+    io.if2id.nextPC     := pc
 }

@@ -258,6 +258,19 @@ class PredictIO extends Bundle {
     val jmp = Output(Bool())
 }
 
+class PredictIO2 extends Bundle {
+    val pc = Input(UInt(PADDR_WIDTH.W))
+    val valid = Input(Bool())
+    val target = Output(UInt(PADDR_WIDTH.W))
+    val jmp = Output(Bool())
+}
+
+class UpdateIO2 extends Bundle {
+    val pc = UInt(PADDR_WIDTH.W)
+    val valid = Bool()
+    val target = UInt(PADDR_WIDTH.W)
+}
+
 class UpdateTrace extends Bundle {
     val valid = Bool()
     val inst = UInt(INST_WIDTH.W)

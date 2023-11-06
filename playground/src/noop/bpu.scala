@@ -22,7 +22,7 @@ class BPUUpdate extends Bundle{
 }
 
 object bpu_config{
-    val BTB_ENTRY_NUM = 32
+    val BTB_ENTRY_NUM = 16
     val INDEX_WIDTH = log2Ceil(BTB_ENTRY_NUM)
     val BTB_ADDR_WIDTH = 39
     val INST_ALIGN  = 2
@@ -134,6 +134,34 @@ class SimpleBPU extends Module {
                 callTrace(idx + 1.U) := io.updateTrace.pc + 4.U
                 idx := idx + 1.U
             }
+        }
+    }
+}
+
+class SimpleBPU2 extends Module {
+    val io = IO(new Bundle {
+        val predict = new PredictIO2
+        val update = Input(new UpdateIO2)
+    })
+    val btb = RegInit(VecInit(Seq.fill(BTB_ENTRY_NUM)(VecInit(Seq.fill(2)(0.U(PADDR_WIDTH.W)))))) // no valid
+    val btb_valid_idx = RegInit(0.U(log2Ceil(BTB_ENTRY_NUM).W))
+    val btb_hit_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === io.predict.pc))
+    val btb_hit = btb_hit_vec.asUInt().orR
+    val btb_hit_idx = OHToUInt(btb_hit_vec)
+    val btb_update_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === io.update.pc))
+    val btb_update_hit = btb_update_vec.asUInt().orR
+    val btb_update_idx = OHToUInt(btb_update_vec)
+    io.predict.jmp := io.predict.valid && btb_hit
+    io.predict.target := btb(btb_hit_idx)(1)
+    when (io.update.valid) {
+        when(btb_update_hit) {
+            btb(btb_update_idx)(0) := io.update.pc
+            btb(btb_update_idx)(1) := io.update.target
+        }.otherwise {
+            btb_valid_idx := btb_valid_idx + 1.U
+            btb(btb_valid_idx)(0) := io.update.pc
+            btb(btb_valid_idx)(1) := io.update.target
+
         }
     }
 }

@@ -18,6 +18,7 @@ class Execute extends Module{
         val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
         val updateNextPc = Input(new ForceJmp)
+        val updateBPU = Output(new UpdateIO2)
     })
     val drop_r = RegInit(false.B)
     val stall_r = RegInit(false.B)
@@ -141,6 +142,7 @@ class Execute extends Module{
     val branchCounter = RegInit(0.U(DATA_WIDTH.W))
     dontTouch(branchMissCounter)
     dontTouch(branchCounter)
+    io.updateBPU := 0.U.asTypeOf(new UpdateIO2)
     when(!drop_in){
         when(hs_in && !io.rr2ex.excep.en && io.rr2ex.jmp_type =/= NO_JMP && real_target =/= io.rr2ex.nextPC){
             forceJmp.seq_pc := real_target
@@ -151,6 +153,9 @@ class Execute extends Module{
         }
         when(hs_in && !io.rr2ex.excep.en && io.rr2ex.jmp_type =/= NO_JMP) {
             branchCounter := branchCounter + 1.U
+            io.updateBPU.valid := true.B
+            io.updateBPU.pc := io.rr2ex.pc
+            io.updateBPU.target := real_target
         }
     }
     io.ex2if.seq_pc := forceJmp.seq_pc
