@@ -96,6 +96,12 @@ class Fetch extends Module{
     val inst_r          = RegInit(0.U(INST_WIDTH.W))
     val inst_valid_r    = RegInit(false.B)
 
+    val pc2_r = RegInit(0.U(PADDR_WIDTH.W))
+    val nextPC2_r = RegInit(0.U(PADDR_WIDTH.W))
+    val inst2_r = RegInit(0.U(INST_WIDTH.W))
+    val valid2_r = RegInit(false.B)
+    val hs2 = Wire(Bool())
+
     val next_pc = PriorityMux(Seq(
             (io.reg2if.valid,               io.reg2if.seq_pc),
             (io.wb2if.valid,                io.wb2if.seq_pc),
@@ -109,14 +115,14 @@ class Fetch extends Module{
     io.bp.valid := hs1
 
     io.instRead.addr := pc
-    io.instRead.arvalid := state === sIdle && !valid_r || hs_out
+    io.instRead.arvalid := state === sIdle && (!valid_r || hs2)
 
     when (io.instRead.rvalid) {
         inst_r := io.instRead.inst
     }
 
     when(!drop_in) {
-        when(hs_out) {
+        when(hs2) {
             inst_valid_r := false.B
         } .elsewhen(io.instRead.rvalid) {
             inst_valid_r := valid_r
@@ -125,7 +131,7 @@ class Fetch extends Module{
         when(hs1) {
             pc_r := pc
             valid_r := true.B
-        }.elsewhen(hs_out) {
+        }.elsewhen(hs2) {
             valid_r := false.B
         }
     } .otherwise {
@@ -133,9 +139,28 @@ class Fetch extends Module{
         valid_r := false.B
     }
 
-    io.if2id.inst       := Mux(inst_valid_r, inst_r, io.instRead.inst)
-    io.if2id.pc         := pc_r
-    io.if2id.valid      := !drop_in && valid_r && (io.instRead.rvalid || inst_valid_r)
-    io.if2id.recov      := false.B
-    io.if2id.nextPC     := pc
+    hs2 := false.B
+    when(!drop_in){
+        when(hs2){
+            inst2_r := Mux(inst_valid_r, inst_r, io.instRead.inst)
+            pc2_r := pc_r
+            nextPC2_r := pc
+            valid2_r := valid_r
+        }.elsewhen(hs_out) {
+            valid2_r := false.B
+        }
+        when(hs_out || !valid2_r) {
+            hs2 := (io.instRead.rvalid || inst_valid_r) && valid_r
+        }.elsewhen(valid2_r) {
+            hs2 := false.B
+        }
+    }.otherwise {
+        valid2_r := false.B
+    }
+
+    io.if2id.inst := inst2_r
+    io.if2id.pc := pc2_r
+    io.if2id.valid := valid2_r
+    io.if2id.recov := false.B  // TODO: remove
+    io.if2id.nextPC := nextPC2_r
 }
