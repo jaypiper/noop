@@ -52,16 +52,18 @@ class ToAXI extends Module{
             when(valid_r && in_wen_r){
                 state   := sWaddr
                 waddrEn := true.B
-                when(in_size_r === 0.U) {
-                    wstrb := 1.U << in_addr_r(2, 0)
-                }.elsewhen(in_size_r === 1.U) {
-                    wstrb := 0x3.U << in_addr_r(2, 0)
-                }.elsewhen(in_size_r === 2.U) {
-                    wstrb := 0xf.U << in_addr_r(2, 0)
-                }.elsewhen(in_size_r === 3.U) {
-                    wstrb := 0xff.U << in_addr_r(2, 0)
-                }
-                wdata   := (in_wdata_r << (Cat(in_addr_r(2, 0), 0.U(3.W))))(63, 0)
+                wstrb := MuxLookup(in_size_r, 0.U, List(
+                    (0.U -> VecInit((0 to 7).map(i => (1 << i).U))(in_addr_r)), // sb
+                    (1.U -> VecInit((0 to 7).map(i => (3 << i).U))(in_addr_r)), //sh
+                    (2.U -> VecInit((0 to 7).map(i => (0xf << i).U))(in_addr_r)), // sw
+                    (3.U -> VecInit((0 to 7).map(i => (0xff << i).U))(in_addr_r))
+                ))
+                wdata := MuxLookup(in_size_r, 0.U, List(
+                    (0.U -> Fill(8, in_wdata_r(7,0))),
+                    (1.U -> Fill(4, in_wdata_r(15,0))),
+                    (2.U -> Fill(2, in_wdata_r(31,0))),
+                    (3.U -> in_wdata_r)		
+                ))
             }.elsewhen(valid_r){
                 state := sRaddr
                 raddrEn := true.B
