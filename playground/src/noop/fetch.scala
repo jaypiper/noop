@@ -15,6 +15,10 @@ class FetchCrossBar extends Module{
         val flashRead = Flipped(new DcacheRW)
     })
     val pre_mem = RegInit(false.B)
+    val sMem :: sFlash :: Nil = Enum(2)
+    val state = RegInit(sMem)
+    val memNum = RegInit(0.U(2.W))
+    val flashNum = RegInit(0.U(2.W))
     val inp_mem = (io.instIO.addr >= "h80000000".U) && (io.instIO.addr < "h80002000".U)
     io.flashRead.addr   := io.instIO.addr
     io.flashRead.wdata  := 0.U;
@@ -25,26 +29,47 @@ class FetchCrossBar extends Module{
     io.icRead.addr      := io.instIO.addr
     io.icRead.arvalid   := false.B
     io.instIO.ready     := false.B
-    when(io.instIO.arvalid){
-        pre_mem := inp_mem
-    }
-    when(inp_mem){
-        io.instIO.ready := io.icRead.ready
-        io.icRead.arvalid := io.instIO.arvalid
-    }.otherwise{
-        io.flashRead.avalid := io.instIO.arvalid
-        io.instIO.ready := io.flashRead.ready
-    }
+    io.icRead.rready := io.instIO.rready
     io.instIO.inst      := 0.U
     io.instIO.rvalid    := false.B
-    when(pre_mem){
-        io.instIO.inst  := io.icRead.inst
-        io.instIO.rvalid := io.icRead.rvalid
-    }.otherwise{
-        io.instIO.inst  := io.flashRead.rdata
-        io.instIO.rvalid := io.flashRead.rvalid
+    val hs_in = io.instIO.ready && io.instIO.arvalid
+    val hs_out = io.instIO.rready && io.instIO.rvalid
+    when (hs_in && !hs_out) {
+        memNum := memNum + inp_mem
+    }.elsewhen(!hs_in && hs_out) {
+        memNum := memNum - (state === sMem)
     }
-
+    when(hs_in && !io.instIO.rvalid) {
+        flashNum := flashNum + !inp_mem
+    }.elsewhen(!hs_in && io.instIO.rvalid) {
+        flashNum := 0.U
+    }
+    switch(state) {
+        is(sMem) {
+            when (!inp_mem && io.instIO.arvalid) {
+                when(memNum === 0.U) {
+                    state := sFlash
+                }
+            }.otherwise {
+                io.instIO.ready := io.icRead.ready
+                io.icRead.arvalid := io.instIO.arvalid
+            }
+            io.instIO.inst  := io.icRead.inst
+            io.instIO.rvalid := io.icRead.rvalid
+        }
+        is(sFlash) {
+            when (inp_mem && io.instIO.arvalid) {
+                when(flashNum === 0.U) {
+                    state := sMem
+                }
+            }.otherwise {
+                io.flashRead.avalid := io.instIO.arvalid
+                io.instIO.ready := io.flashRead.ready
+            }
+            io.instIO.inst  := io.flashRead.rdata
+            io.instIO.rvalid := io.flashRead.rvalid
+        }
+    }
 }
 
 class FetchIO extends Bundle{
@@ -93,12 +118,11 @@ class Fetch extends Module{
 
     val pc_r           = RegInit(0.U(PADDR_WIDTH.W))
     val valid_r        = RegInit(false.B)
-    val inst_r          = RegInit(0.U(INST_WIDTH.W))
-    val inst_valid_r    = RegInit(false.B)
 
     val pc2_r = RegInit(0.U(PADDR_WIDTH.W))
     val nextPC2_r = RegInit(0.U(PADDR_WIDTH.W))
     val inst2_r = RegInit(0.U(INST_WIDTH.W))
+    val inst_valid2_r = RegInit(false.B)
     val valid2_r = RegInit(false.B)
     val hs2 = Wire(Bool())
 
@@ -117,17 +141,7 @@ class Fetch extends Module{
     io.instRead.addr := pc
     io.instRead.arvalid := state === sIdle && (!valid_r || hs2)
 
-    when (io.instRead.rvalid) {
-        inst_r := io.instRead.inst
-    }
-
     when(!drop_in) {
-        when(hs2) {
-            inst_valid_r := false.B
-        } .elsewhen(io.instRead.rvalid) {
-            inst_valid_r := valid_r
-            inst_r := io.instRead.inst
-        }
         when(hs1) {
             pc_r := pc
             valid_r := true.B
@@ -135,14 +149,13 @@ class Fetch extends Module{
             valid_r := false.B
         }
     } .otherwise {
-        inst_valid_r := false.B
         valid_r := false.B
     }
 
     hs2 := false.B
+    val hs_iram = io.instRead.rvalid && io.instRead.rready
     when(!drop_in){
         when(hs2){
-            inst2_r := Mux(inst_valid_r, inst_r, io.instRead.inst)
             pc2_r := pc_r
             nextPC2_r := pc
             valid2_r := valid_r
@@ -150,17 +163,27 @@ class Fetch extends Module{
             valid2_r := false.B
         }
         when(hs_out || !valid2_r) {
-            hs2 := (io.instRead.rvalid || inst_valid_r) && valid_r
+            hs2 := valid_r
         }.elsewhen(valid2_r) {
             hs2 := false.B
         }
+        when(hs_out) {
+            inst_valid2_r := inst_valid2_r && hs_iram
+            when(hs_iram) {
+                inst2_r := io.instRead.inst
+            }
+        }.elsewhen(hs_iram) {
+            inst_valid2_r := valid2_r
+            inst2_r := io.instRead.inst
+        }
     }.otherwise {
+        inst_valid2_r := false.B
         valid2_r := false.B
     }
-
-    io.if2id.inst := inst2_r
+    io.instRead.rready := !inst_valid2_r || hs_out
+    io.if2id.inst := Mux(inst_valid2_r, inst2_r, io.instRead.inst)
     io.if2id.pc := pc2_r
-    io.if2id.valid := valid2_r
+    io.if2id.valid := valid2_r && (inst_valid2_r || io.instRead.rvalid)
     io.if2id.recov := false.B  // TODO: remove
     io.if2id.nextPC := nextPC2_r
 }

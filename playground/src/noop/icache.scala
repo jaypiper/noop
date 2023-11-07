@@ -20,10 +20,30 @@ class ICache extends Module{
     val ic_valid_r = RegInit(false.B)
     val size_r = RegInit(0.U(2.W))
     val offset_r = RegInit(0.U(ICACHE_OFFEST_WIDTH.W))
+
+    val ic_valid2_r = RegInit(false.B)
+    val offset2_r = RegInit(0.U(ICACHE_OFFEST_WIDTH.W))
+    val data2_r = RegInit(0.U(64.W))
+    val hs_out = io.icPort.rready && io.icPort.rvalid
+    val hs_in = io.icPort.ready && io.icPort.arvalid
     mem_valid_r := io.icMem.avalid
-    ic_valid_r := io.icPort.arvalid
-    offset_r := Mux(io.icMem.avalid, io.icMem.addr, io.icPort.addr)(ICACHE_OFFEST_WIDTH-1, 0)
+    // offset_r := Mux(io.icMem.avalid, io.icMem.addr, io.icPort.addr)(ICACHE_OFFEST_WIDTH-1, 0)
     size_r := io.icMem.size
+    when(hs_out || !ic_valid2_r) {
+        ic_valid2_r := ic_valid_r
+        offset2_r := offset_r
+        data2_r := iram.io.rdata
+    }
+    when(io.icMem.avalid) {
+        offset_r := io.icMem.addr
+    }
+    when(hs_in) {
+        ic_valid_r := io.icPort.arvalid
+        offset_r := io.icPort.addr(ICACHE_OFFEST_WIDTH-1, 0)
+    }.elsewhen(!ic_valid2_r || hs_out) {
+        ic_valid_r := false.B
+    }
+
     iram.io.cen := io.icPort.arvalid || io.icMem.avalid
     iram.io.wen := io.icMem.wen && io.icMem.avalid
     iram.io.addr := Mux(io.icMem.avalid, io.icMem.addr, io.icPort.addr)(ICACHE_IDX_START, ICACHE_IDX_END)
@@ -43,13 +63,9 @@ class ICache extends Module{
 
     io.icMem.rvalid := mem_valid_r
     io.icMem.ready := true.B
-    io.icMem.rdata := MuxLookup(size_r, 0.U, List(
-	(0.U -> iram.io.rdata.asTypeOf(Vec(ICACHE_WIDTH/8, UInt(8.W)))(offset_r)),
-	(1.U -> iram.io.rdata.asTypeOf(Vec(ICACHE_WIDTH/16, UInt(16.W)))(offset_r(2,1))),
-	(2.U -> iram.io.rdata.asTypeOf(Vec(ICACHE_WIDTH/32, UInt(32.W)))(offset_r(2))),
-	(3.U -> iram.io.rdata)
-    ))
-    io.icPort.rvalid := ic_valid_r
-    io.icPort.ready := true.B
-    io.icPort.inst := iram.io.rdata.asTypeOf(Vec(ICACHE_WIDTH/32, UInt(32.W)))(offset_r(2))
+    io.icMem.rdata := 0.U
+
+    io.icPort.rvalid := ic_valid2_r
+    io.icPort.ready := !ic_valid2_r || io.icPort.rready
+    io.icPort.inst := data2_r.asTypeOf(Vec(ICACHE_WIDTH/32, UInt(32.W)))(offset2_r(2))
 }

@@ -96,6 +96,7 @@ class IcacheRead extends Bundle{
     val arvalid = Input(Bool())
     val ready   = Output(Bool())
     val rvalid  = Output(Bool())
+    val rready  = Input(Bool())
 }
 
 class RaiseIntr extends Bundle{
