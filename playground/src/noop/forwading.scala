@@ -267,5 +267,5 @@ class Forwarding extends Module{
     io.df2mem.dst_d            := 0.U
     io.df2mem.rcsr_id          := 0.U
     io.df2mem.recov            := recov_r
-    io.df2mem.valid            := valid_r && !drop_in && ctrl_r.dcMode =/= mode_NOP
+    io.df2mem.valid            := valid_r && !drop_in && !io.df2ex.exBusy && ctrl_r.dcMode =/= mode_NOP
 }

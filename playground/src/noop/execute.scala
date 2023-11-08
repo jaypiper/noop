@@ -91,6 +91,7 @@ class Execute extends Module{
     val sIdle :: sWaitAlu :: Nil = Enum(2)
     val state = RegInit(sIdle)
     val drop_alu = RegInit(false.B)
+    io.rr2ex.exBusy := state =/= sIdle
     when(!drop_in){
         when((valid_r || state =/= sIdle) && !hs_out){
         }.elsewhen(io.rr2ex.valid){

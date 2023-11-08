@@ -187,6 +187,7 @@ class DF2EX extends Bundle{
     val dst_d   = Output(UInt(DATA_WIDTH.W))
     val rcsr_id = Output(UInt(CSR_WIDTH.W))
     val jmp_type = Output(UInt(2.W))
+    val exBusy  = Input(Bool())
     val drop    = Input(Bool())
     val stall   = Input(Bool())
     val recov   = Output(Bool())

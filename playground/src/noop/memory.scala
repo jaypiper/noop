@@ -23,8 +23,8 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     dontTouch(io.dcRW)
     val pre_type    = RegInit(0.U(2.W))
     val data_r      = RegInit(0.U(DATA_WIDTH.W))
-    val inp_mem     = (io.dataRW.addr >= "h80006000".U) && (io.dataRW.addr < "h80007000".U)
-    val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80002000".U
+    val inp_mem     = (io.dataRW.addr >= "h8000d000".U) && (io.dataRW.addr < "h8000e000".U)
+    val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80008000".U
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
     io.mmio.wmask   := io.dataRW.wmask
