@@ -105,7 +105,6 @@ class CPU extends Module{
     forwading.io.df2mem <> memory.io.df2mem
 
     execute.io.ex2wb   <> writeback.io.ex2wb
-    execute.io.updateNextPc <> csrs.io.updateNextPc
     execute.io.updateBPU <> bpu.io.update
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW

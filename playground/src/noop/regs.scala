@@ -34,7 +34,6 @@ class Csrs extends Module{
         val idState = Output(new IdState)
         val reg2if  = Output(new ForceJmp)
         // val intr_out = Output(new RaiseIntr)
-        val updateNextPc = Output(new ForceJmp)
         // val intr_msip = Input(new Intr)
     })
     val priv        = RegInit(PRV_M)
@@ -56,7 +55,6 @@ class Csrs extends Module{
     io.reg2if           := forceJmp
     forceJmp.valid      := false.B
     val cause = io.excep.cause
-    io.updateNextPc     := forceJmp
     when(io.excep.en){
         when(io.excep.etype === ETYPE_MRET){ //mret
             forceJmp.seq_pc := mepc

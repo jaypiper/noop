@@ -17,7 +17,6 @@ class Execute extends Module{
         val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
-        val updateNextPc = Input(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)
     })
     val drop_r = RegInit(false.B)
@@ -63,10 +62,6 @@ class Execute extends Module{
         (io.rr2ex.ctrl.writeCSREn,          io.rr2ex.rs2_d),
         (true.B,                            alu_out)
     ))
-
-    when(io.updateNextPc.valid){
-        next_pc_r := io.updateNextPc.seq_pc
-    }
 
     when(hs_in){
         inst_r      := io.rr2ex.inst
