@@ -12,7 +12,7 @@ import noop.alu._
 
 class Execute extends Module{
     val io = IO(new Bundle{
-        val rr2ex       = Flipped(new DF2EX)
+        val df2ex       = Flipped(new DF2EX)
         val ex2wb       = new MEM2RB
         val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)
@@ -23,8 +23,8 @@ class Execute extends Module{
     val stall_r = RegInit(false.B)
     drop_r := false.B;  stall_r := false.B
     val drop_in = drop_r
-    io.rr2ex.drop   := drop_in
-    io.rr2ex.stall  := io.ex2wb.stall || stall_r
+    io.df2ex.drop   := drop_in
+    io.df2ex.stall  := io.ex2wb.stall || stall_r
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
@@ -42,13 +42,13 @@ class Execute extends Module{
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)    
 
-    val hs_in   = io.rr2ex.ready && io.rr2ex.valid
+    val hs_in   = io.df2ex.ready && io.df2ex.valid
     val hs_out  = io.ex2wb.ready && io.ex2wb.valid
-    val alu64 = io.rr2ex.ctrl.aluWidth === IS_ALU64
-    val aluop  = io.rr2ex.ctrl.aluOp
+    val alu64 = io.df2ex.ctrl.aluWidth === IS_ALU64
+    val aluop  = io.df2ex.ctrl.aluOp
 
-    val val1 = io.rr2ex.rs1_d
-    val val2 = io.rr2ex.rs2_d
+    val val1 = io.df2ex.rs1_d
+    val val2 = io.df2ex.rs2_d
 
     alu.io.alu_op   := aluop
     alu.io.val1     := val1
@@ -58,39 +58,39 @@ class Execute extends Module{
     val cur_alu64   = Mux(hs_in, alu64, alu64_r)
     val alu_out = Mux(cur_alu64, alu.io.out(63, 0), sext32to64(alu.io.out))
     val wdata   = PriorityMux(Seq(
-        (io.rr2ex.ctrl.dcMode(DC_S_BIT),    io.rr2ex.dst_d),
-        (io.rr2ex.ctrl.writeCSREn,          io.rr2ex.rs2_d),
+        (io.df2ex.ctrl.dcMode(DC_S_BIT),    io.df2ex.dst_d),
+        (io.df2ex.ctrl.writeCSREn,          io.df2ex.rs2_d),
         (true.B,                            alu_out)
     ))
 
     when(hs_in){
-        inst_r      := io.rr2ex.inst
-        pc_r        := io.rr2ex.pc
-        excep_r     := io.rr2ex.excep
-        ctrl_r      := io.rr2ex.ctrl
+        inst_r      := io.df2ex.inst
+        pc_r        := io.df2ex.pc
+        excep_r     := io.df2ex.excep
+        ctrl_r      := io.df2ex.ctrl
         mem_addr_r  := alu_out
         mem_data_r  := wdata
-        csr_id_r    := io.rr2ex.rs2
+        csr_id_r    := io.df2ex.rs2
         csr_d_r     := alu_out
-        dst_r       := io.rr2ex.dst
+        dst_r       := io.df2ex.dst
         dst_d_r     := wdata
-        rcsr_id_r   := io.rr2ex.rcsr_id
+        rcsr_id_r   := io.df2ex.rcsr_id
         alu64_r     := alu64
-        recov_r     := io.rr2ex.recov
-        when(io.rr2ex.excep.cause(63)){
+        recov_r     := io.df2ex.recov
+        when(io.df2ex.excep.cause(63)){
             excep_r.pc := next_pc_r
         }
 
     }
-    io.rr2ex.ready  := false.B
+    io.df2ex.ready  := false.B
     val sIdle :: sWaitAlu :: Nil = Enum(2)
     val state = RegInit(sIdle)
     val drop_alu = RegInit(false.B)
-    io.rr2ex.exBusy := state =/= sIdle
+    io.df2ex.exBusy := state =/= sIdle
     when(!drop_in){
         when((valid_r || state =/= sIdle) && !hs_out){
-        }.elsewhen(io.rr2ex.valid){
-            io.rr2ex.ready  := true.B
+        }.elsewhen(io.df2ex.valid){
+            io.df2ex.ready  := true.B
             alu.io.en       := true.B
         }
     }
@@ -119,16 +119,16 @@ class Execute extends Module{
     forceJmp.valid := false.B
     branchAlu.io.val1   := val1
     branchAlu.io.val2   := val2
-    branchAlu.io.brType := io.rr2ex.ctrl.brType
-    val real_is_target = MuxLookup(io.rr2ex.jmp_type, false.B, Seq(
+    branchAlu.io.brType := io.df2ex.ctrl.brType
+    val real_is_target = MuxLookup(io.df2ex.jmp_type, false.B, Seq(
         JMP_UNCOND  -> true.B,
         JMP_COND    -> branchAlu.io.is_jmp
     ))
     val real_target = PriorityMux(Seq(
-        (io.rr2ex.jmp_type === JMP_CSR,     io.rr2ex.rs2_d),
-        (!real_is_target,                   io.rr2ex.pc + Mux(io.rr2ex.inst(1,0) === 3.U, 4.U, 2.U)),
-        (io.rr2ex.jmp_type === JMP_UNCOND,  io.rr2ex.rs1_d + io.rr2ex.dst_d),
-        (true.B,                            io.rr2ex.dst_d)
+        (io.df2ex.jmp_type === JMP_CSR,     io.df2ex.rs2_d),
+        (!real_is_target,                   io.df2ex.pc + Mux(io.df2ex.inst(1,0) === 3.U, 4.U, 2.U)),
+        (io.df2ex.jmp_type === JMP_UNCOND,  io.df2ex.rs1_d + io.df2ex.dst_d),
+        (true.B,                            io.df2ex.dst_d)
     ))
 
     when(hs_in){
@@ -140,17 +140,17 @@ class Execute extends Module{
     dontTouch(branchCounter)
     io.updateBPU := 0.U.asTypeOf(new UpdateIO2)
     when(!drop_in){
-        when(hs_in && !io.rr2ex.excep.en && io.rr2ex.jmp_type =/= NO_JMP && real_target =/= io.rr2ex.nextPC){
+        when(hs_in && !io.df2ex.excep.en && io.df2ex.jmp_type =/= NO_JMP && real_target =/= io.df2ex.nextPC){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
             drop_r  := true.B
             branchMissCounter := branchMissCounter + 1.U
-            // printf("failed pc=%x inst=%x next=%x real=%x\n", io.rr2ex.pc, io.rr2ex.inst, io.rr2ex.nextPC, real_target)
+            // printf("failed pc=%x inst=%x next=%x real=%x\n", io.df2ex.pc, io.df2ex.inst, io.df2ex.nextPC, real_target)
         }
-        when(hs_in && !io.rr2ex.excep.en && io.rr2ex.jmp_type =/= NO_JMP) {
+        when(hs_in && !io.df2ex.excep.en && io.df2ex.jmp_type =/= NO_JMP) {
             branchCounter := branchCounter + 1.U
             io.updateBPU.valid := true.B
-            io.updateBPU.pc := io.rr2ex.pc
+            io.updateBPU.pc := io.df2ex.pc
             io.updateBPU.target := real_target
         }
     }
@@ -162,11 +162,11 @@ class Execute extends Module{
     io.d_ex.id     := dst_r
     io.d_ex.data   := dst_d_r
     io.d_ex.state  := d_invalid
-    io.d_ex0.id := io.rr2ex.dst
+    io.d_ex0.id := io.df2ex.dst
     io.d_ex0.data :=  wdata
     io.d_ex0.state := d_invalid
     when(hs_in && alu.io.valid) {
-        io.d_ex0.state := Mux(io.rr2ex.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.rr2ex.ctrl.writeRegEn, d_valid, d_invalid))
+        io.d_ex0.state := Mux(io.df2ex.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.df2ex.ctrl.writeRegEn, d_valid, d_invalid))
     }.elsewhen(hs_in) {
         io.d_ex0.state := d_wait
     }

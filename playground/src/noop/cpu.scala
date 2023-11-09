@@ -94,7 +94,7 @@ class CPU extends Module{
 
     decode.io.id2df     <> forwading.io.id2df
     decode.io.idState   <> csrs.io.idState
-    forwading.io.df2ex  <> execute.io.rr2ex
+    forwading.io.df2ex  <> execute.io.df2ex
     forwading.io.d_ex   <> execute.io.d_ex
     forwading.io.d_mem1 <> memory.io.d_mem1
     forwading.io.d_mem0 <> memory.io.d_mem0
