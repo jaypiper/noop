@@ -139,7 +139,7 @@ class Execute extends Module{
     val branchCounter = RegInit(0.U(DATA_WIDTH.W))
     dontTouch(branchMissCounter)
     dontTouch(branchCounter)
-    io.updateBPU := 0.U.asTypeOf(new UpdateIO2)
+    io.updateBPU.valid := false.B
     when(!drop_in){
         when(hs_in && !io.df2ex.excep.en && io.df2ex.jmp_type =/= NO_JMP && real_target =/= io.df2ex.nextPC){
             forceJmp.seq_pc := real_target
@@ -151,10 +151,10 @@ class Execute extends Module{
         when(hs_in && !io.df2ex.excep.en && io.df2ex.jmp_type =/= NO_JMP) {
             branchCounter := branchCounter + 1.U
             io.updateBPU.valid := true.B
-            io.updateBPU.pc := io.df2ex.pc
-            io.updateBPU.target := real_target
         }
     }
+    io.updateBPU.pc := io.df2ex.pc
+    io.updateBPU.target := real_target
     io.ex2if.seq_pc := forceJmp.seq_pc
     io.ex2if.valid  := forceJmp.valid
 
