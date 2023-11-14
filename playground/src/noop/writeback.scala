@@ -46,12 +46,14 @@ class Writeback extends Module{
     io.excep        := io.ex2wb.excep
     io.excep.en     := false.B
     io.wb2if        := forceJmp
-    io.mem2wb.ready := false.B
+    // io.mem2wb.ready := false.B
     io.mem2wb.stall := stall_r
     io.ex2wb.stall := stall_r
-    io.ex2wb.ready := false.B
+    // io.ex2wb.ready := false.B
+    io.mem2wb.ready := true.B
+    io.ex2wb.ready := true.B
     when(io.mem2wb.valid){
-        io.mem2wb.ready := true.B
+        // io.mem2wb.ready := true.B
         io.wReg.en      := io.mem2wb.dst_en
         io.wCsr.en      := io.mem2wb.csr_en
         io.excep.en     := io.mem2wb.excep.en
@@ -66,7 +68,7 @@ class Writeback extends Module{
             forceJmp.seq_pc := io.mem2wb.pc + 4.U
         }
     }.elsewhen(io.ex2wb.valid) {
-        io.ex2wb.ready := true.B
+        // io.ex2wb.ready := true.B
         io.wReg.en      := io.ex2wb.dst_en
         io.wCsr.en      := io.ex2wb.csr_en
         io.excep.en     := io.ex2wb.excep.en
