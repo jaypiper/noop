@@ -42,7 +42,7 @@ class Forwarding extends Module{
     val rs2_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val jmp_type_r  = RegInit(0.U(2.W))
+    val jmp_type_r  = RegInit(0.U(JMP_WIDTH.W))
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)

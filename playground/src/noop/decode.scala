@@ -33,7 +33,7 @@ class Decode extends Module{
     val rs2_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val jmp_type_r  = RegInit(0.U(2.W))
+    val jmp_type_r  = RegInit(0.U(JMP_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
     val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
@@ -90,7 +90,7 @@ class Decode extends Module{
         }
         when(dType === IType){
             when(jmp_indi){
-                jmp_type_r  := JMP_UNCOND
+                jmp_type_r  := JMP_REG
                 rrs1_r      := true.B
                 rs2_d_r     := io.if2id.pc + 4.U
                 dst_d_r     := imm.asUInt
@@ -113,7 +113,7 @@ class Decode extends Module{
         when(dType === BType){
             rrs1_r      := true.B
             rrs2_r      := true.B
-            dst_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(PADDR_WIDTH-1,0).asUInt
+            dst_d_r     := imm.asUInt
             ctrl_r.brType := inst_in(14,12)
             jmp_type_r  := JMP_COND
         }
@@ -122,10 +122,10 @@ class Decode extends Module{
             rs2_d_r     := io.if2id.pc
         }
         when(dType === JType){
-            rs1_d_r     := (io.if2id.pc.asSInt + imm.asSInt)(PADDR_WIDTH-1,0).asUInt
+            rs1_d_r     := io.if2id.pc
             rs2_d_r     := io.if2id.pc + 4.U
-            dst_d_r     := 0.U
-            jmp_type_r := JMP_UNCOND
+            dst_d_r     := imm.asUInt
+            jmp_type_r := JMP_PC
         }
 
         when(inst_in === Insts.MRET){
