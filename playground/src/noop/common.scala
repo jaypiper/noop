@@ -16,6 +16,7 @@ object common extends mem_access_mode{
 
     val PAGE_WIDTH  = 12
     val isSim = true
+    val SRAM = true
 }
 
 object cache_config{ // U S L WIDTH

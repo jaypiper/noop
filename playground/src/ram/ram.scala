@@ -105,6 +105,7 @@ class IRAM extends Module {
         val rdata = Output(UInt(64.W))
         val wmask = Input(UInt(64.W))
     })
+if(SRAM) {
     val data = VecInit(Seq.fill(IRAM_NUM)(Module(new TS5N28HPCPLVTA512X64M4FW).io))
     val select = io.addr(ICACHE_IDX_WIDTH-1, ICACHE_IDX_WIDTH - log2Floor(IRAM_NUM))
     val select_r = RegInit(0.U(log2Floor(IRAM_NUM).W))
@@ -118,6 +119,16 @@ class IRAM extends Module {
         data(i).BWEB := ~io.wmask
     }
     io.rdata := data(select_r).Q
+} else {
+    val data = Mem(32, UInt(64.W))
+    val data_r = RegNext(data(io.addr(4,0)))
+    when(io.cen && io.wen) {
+        data(io.addr(4, 0)) := io.wdata
+    }
+
+    io.rdata := data_r
+}
+
 }
 
 class DRAM extends Module {
@@ -129,6 +140,7 @@ class DRAM extends Module {
         val rdata = Output(UInt(64.W))
         val wmask = Input(UInt(64.W))
     })
+if (SRAM) {
     val data = VecInit(Seq.fill(DRAM_NUM)(Module(new TS5N28HPCPLVTA512X64M4FW).io))
     val select = io.addr(DCACHE_IDX_WIDTH-1, DCACHE_IDX_WIDTH - log2Floor(DRAM_NUM))
     val select_r = RegInit(0.U(log2Floor(DRAM_NUM).W))
@@ -142,4 +154,14 @@ class DRAM extends Module {
         data(i).BWEB := ~io.wmask
     }
     io.rdata := data(select_r).Q
+} else {
+    val data = Mem(32, UInt(64.W))
+    val data_r = RegNext(data(io.addr(4,0)))
+    when(io.cen && io.wen) {
+        data(io.addr(4, 0)) := io.wdata
+    }
+
+    io.rdata := data_r
+}
+
 }

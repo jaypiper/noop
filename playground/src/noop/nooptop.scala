@@ -4,6 +4,7 @@ import prefix._
 import noop.cpu._
 import noop.param.common._
 import noop.alu._
+import circt.stage._
 
 object NoopTop extends App{
     // (new chisel3.stage.ChiselStage).execute(args,
@@ -14,6 +15,8 @@ object NoopTop extends App{
 
     if (isSim)
         (new chisel3.stage.ChiselStage).execute(args, Seq(chisel3.stage.ChiselGeneratorAnnotation(() => new newtop())))
-    else
+    else {
         (new chisel3.stage.ChiselStage).execute(args, Seq(chisel3.stage.ChiselGeneratorAnnotation(() => new CPU())))
+        // (new ChiselStage).execute(args, Seq(chisel3.stage.ChiselGeneratorAnnotation(() => new CPU)) :+ CIRCTTargetAnnotation(CIRCTTarget.Verilog))
+    }
 }
