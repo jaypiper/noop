@@ -47,21 +47,20 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
 
     io.dataRW.ready := false.B
 
-    when(io.dataRW.avalid){
-        when(inp_mem){
-            pre_type        := 1.U
-            io.dcRW.avalid := true.B
-            io.dataRW.ready := io.dcRW.ready
-        }.elsewhen(inp_ic){
-            pre_type        := 2.U
-            io.icRW.avalid := true.B
-            io.dataRW.ready := io.icRW.ready
-        }.otherwise{
-            pre_type        := 0.U
-            io.mmio.avalid := true.B
-            io.dataRW.ready := io.mmio.ready
-        }
+    when(inp_mem){
+        pre_type        := 1.U
+        io.dcRW.avalid := io.dataRW.avalid
+        io.dataRW.ready := io.dcRW.ready
+    }.elsewhen(inp_ic){
+        pre_type        := 2.U
+        io.icRW.avalid := io.dataRW.avalid
+        io.dataRW.ready := io.icRW.ready
+    }.otherwise{
+        pre_type        := 0.U
+        io.mmio.avalid := io.dataRW.avalid
+        io.dataRW.ready := io.mmio.ready
     }
+
     when(pre_type === 1.U){
         io.dataRW.rdata     := io.dcRW.rdata
         io.dataRW.rvalid    := io.dcRW.rvalid
@@ -109,7 +108,7 @@ class Memory extends Module{
     val hs1     = Wire(Bool())
     val hs_out  = io.mem2wb.ready && io.mem2wb.valid
     val curMode = Mux(hs_in, io.df2mem.ctrl.dcMode, ctrl_r.dcMode)
-    val bitmap = MuxLookup(curMode(1,0), 0.U(DATA_WIDTH), Seq(
+    val bitmap = MuxLookup(curMode(1,0), 0.U(DATA_WIDTH.W), Seq(
         0.U -> "hff".U(DATA_WIDTH.W),
         1.U -> "hffff".U(DATA_WIDTH.W),
         2.U -> "hffffffff".U(DATA_WIDTH.W),
