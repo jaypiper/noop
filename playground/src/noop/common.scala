@@ -581,10 +581,6 @@ object decode_config extends DeType with ALUOP with BrType
     val INDI_LR_BIT = 0
     val INDI_SC_BIT = 1
 
-    val SWAP_WIDTH  = 6
-    val NO_SWAP     = "b011011".U(6.W)
-    val SWAP_2_d    = "b011110".U(6.W)
-    val COPY_2_d    = "b011010".U(6.W)
 }
 
 object noop_tools{

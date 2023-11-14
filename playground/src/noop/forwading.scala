@@ -43,7 +43,6 @@ class Forwarding extends Module{
     val dst_r       = RegInit(0.U(REG_WIDTH.W))
     val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
     val jmp_type_r  = RegInit(0.U(2.W))
-    val swap_r      = RegInit(0.U(SWAP_WIDTH.W))
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
@@ -160,7 +159,6 @@ class Forwarding extends Module{
         dst_r       := io.id2df.dst
         dst_d_r     := io.id2df.dst_d
         jmp_type_r  := io.id2df.jmp_type
-        swap_r      := io.id2df.swap
         rcsr_id_r   := Mux(io.id2df.ctrl.writeCSREn, io.id2df.rs2, 0.U)
         recov_r     := io.id2df.recov
         when(io.id2df.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
@@ -226,13 +224,6 @@ class Forwarding extends Module{
         valid_r     := false.B
     }
 
-    def idx2reg(idx: UInt)={
-        MuxLookup(idx, 0.U, Seq(
-            "b01".U     -> rs1_d_r,
-            "b10".U     -> rs2_d_r,
-            "b11".U     -> dst_d_r
-        ))
-    }
     io.rs1Read.id := io.id2df.rs1
     io.rs2Read.id := io.id2df.rs2(4,0)
     io.csrRead.id := io.id2df.rs2//TODO
@@ -245,11 +236,11 @@ class Forwarding extends Module{
     io.df2ex.excep      := excep_r
     io.df2ex.ctrl       := ctrl_r
     io.df2ex.rs1        := rs1_r
-    io.df2ex.rs1_d      := idx2reg(swap_r(5,4))
+    io.df2ex.rs1_d      := rs1_d_r
     io.df2ex.rs2        := rs2_r
-    io.df2ex.rs2_d      := idx2reg(swap_r(3,2))
+    io.df2ex.rs2_d      := rs2_d_r
     io.df2ex.dst        := dst_r
-    io.df2ex.dst_d      := idx2reg(swap_r(1,0))
+    io.df2ex.dst_d      := dst_d_r
     io.df2ex.jmp_type   := jmp_type_r
     io.df2ex.rcsr_id    := rcsr_id_r
     io.df2ex.recov      := recov_r
@@ -259,8 +250,8 @@ class Forwarding extends Module{
     io.df2mem.pc        := pc_r
     io.df2mem.excep     := 0.U.asTypeOf(new Exception) // TODO: remove 
     io.df2mem.ctrl       := ctrl_r
-    io.df2mem.mem_addr         := idx2reg(swap_r(5,4)) + idx2reg(swap_r(3,2))
-    io.df2mem.mem_data         := idx2reg(swap_r(1,0))
+    io.df2mem.mem_addr         := rs1_d_r + dst_d_r
+    io.df2mem.mem_data         := rs2_d_r
     io.df2mem.csr_id           := 0.U
     io.df2mem.csr_d            := 0.U
     io.df2mem.dst              := dst_r

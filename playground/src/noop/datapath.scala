@@ -155,7 +155,6 @@ class ID2DF extends Bundle{
     val dst     = Output(UInt(REG_WIDTH.W)) // if write-csr, the index is in rs2
     val dst_d   = Output(UInt(DATA_WIDTH.W))
     val jmp_type = Output(UInt(2.W))
-    val swap    = Output(UInt(SWAP_WIDTH.W))
     val drop    = Input(Bool())
     val stall   = Input(Bool())
     val recov   = Output(Bool())
