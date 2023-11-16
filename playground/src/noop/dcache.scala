@@ -31,10 +31,10 @@ class DCache extends Module{
         (3.U -> io.dcPort.wdata)
     ))
     dram.io.wmask := MuxLookup(io.dcPort.size, 0.U, List(
-       (0.U -> VecInit((0 to 7).map(_ * 8).map(i => (BigInt(0xff) << i).U))(io.dcPort.addr(2,0))), // sb
-       (1.U -> VecInit((0 to 3).map(_ * 16).map(i => (BigInt(0xffff) << i).U))(io.dcPort.addr(2,1))), //sh
-       (2.U -> VecInit((0 to 1).map(_ * 32).map(i => (BigInt(0xffffffffL) << i).U))(io.dcPort.addr(2))), // sw
-       (3.U -> Fill(64, 1.U(1.W)))
+       (0.U -> VecInit((0 to 7).map(i => (0x1 << i).U))(io.dcPort.addr(2,0))), // sb
+       (1.U -> VecInit((0 to 3).map(_ * 2).map(i => (0x3 << i).U))(io.dcPort.addr(2,1))), //sh
+       (2.U -> VecInit((0 to 1).map(_ * 4).map(i => (0xf << i).U))(io.dcPort.addr(2))), // sw
+       (3.U -> Fill(8, 1.U(1.W)))
     ) )
 
     io.dcPort.rvalid := valid_r

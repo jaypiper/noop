@@ -24,8 +24,8 @@ object cache_config{ // U S L WIDTH
     val ICACHE_WIDTH    = 64
     val DCACHE_DEPTH    = 4096  // 4KB
     val DCACHE_WIDTH    = 64
-    val IRAM_NUM        = ICACHE_DEPTH / 512
-    val DRAM_NUM        = DCACHE_DEPTH / 512
+    val IRAM_NUM        = ICACHE_DEPTH / 1024
+    val DRAM_NUM        = DCACHE_DEPTH / 1024
 
     val ICACHE_IDX_WIDTH = log2Ceil(ICACHE_DEPTH)
     val ICACHE_OFFEST_WIDTH = log2Ceil(ICACHE_WIDTH / 8)

@@ -55,10 +55,10 @@ class ICache extends Module{
 	(3.U -> io.icMem.wdata)		
     ))
     iram.io.wmask := MuxLookup(io.icMem.size, 0.U, List(
-       (0.U -> VecInit((0 to 7).map(_ * 8).map(i => (BigInt(0xff) << i).U))(io.icMem.addr(2,0))), // sb
-       (1.U -> VecInit((0 to 3).map(_ * 16).map(i => (BigInt(0xffff) << i).U))(io.icMem.addr(2,1))), //sh
-       (2.U -> VecInit((0 to 1).map(_ * 32).map(i => (BigInt(0xffffffffL) << i).U))(io.icMem.addr(2))), // sw
-       (3.U -> Fill(64, 1.U(1.W)))
+       (0.U -> VecInit((0 to 7).map(i => (0x1 << i).U))(io.icMem.addr(2,0))), // sb
+       (1.U -> VecInit((0 to 3).map(_ * 2).map(i => (0x3 << i).U))(io.icMem.addr(2,1))), //sh
+       (2.U -> VecInit((0 to 1).map(_ * 4).map(i => (0xf << i).U))(io.icMem.addr(2))), // sw
+       (3.U -> Fill(8, 1.U(1.W)))
     ) )
 
     io.icMem.rvalid := mem_valid_r
