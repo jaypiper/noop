@@ -180,10 +180,10 @@ class Memory extends Module{
     io.mem2wb.csr_d     := csr_d_r
     io.mem2wb.csr_en    := csr_en_r
     io.mem2wb.dst       := dst_r
-    io.mem2wb.dst_d     := Mux(ctrl_r.dcMode === mode_NOP, dst_d_r, read_data)
+    io.mem2wb.dst_d     := read_data
     io.mem2wb.dst_en    := dst_en_r
     io.mem2wb.rcsr_id   := rcsr_id_r
-    io.mem2wb.is_mmio   := ctrl_r.dcMode =/= mode_NOP && (mem_addr_r < "h30000000".U)
+    io.mem2wb.is_mmio   := mem_addr_r < "h30000000".U
     io.mem2wb.recov     := recov_r
-    io.mem2wb.valid     := valid_r && (ctrl_r.dcMode === mode_NOP || io.dataRW.rvalid)
+    io.mem2wb.valid     := valid_r && io.dataRW.rvalid
 }
