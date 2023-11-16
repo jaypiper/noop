@@ -102,7 +102,6 @@ class Memory extends Module{
     val rcsr_id_r  = RegInit(0.U(CSR_WIDTH.W))
     val recov_r    = RegInit(false.B)
     val valid_r    = RegInit(false.B)
-    val bitmap_r     = RegInit(0.U(DATA_WIDTH.W))
 
     val hs_in   = io.df2mem.ready && io.df2mem.valid
     val hs1     = Wire(Bool())
@@ -114,7 +113,7 @@ class Memory extends Module{
         2.U -> "hffffffff".U(DATA_WIDTH.W),
         3.U -> "hffffffffffffffff".U(DATA_WIDTH.W)
     ))
-    val data_uint = io.dataRW.rdata & bitmap_r
+    val data_uint = io.dataRW.rdata
     val read_data = MuxLookup(ctrl_r.dcMode, data_uint, Seq(
         mode_LB -> Cat(Fill(DATA_WIDTH - 8, data_uint(7)), data_uint(7, 0)),
         mode_LH -> Cat(Fill(DATA_WIDTH - 16, data_uint(15)), data_uint(15, 0)),
@@ -137,7 +136,6 @@ class Memory extends Module{
         rcsr_id_r  := io.df2mem.rcsr_id
         recov_r    := io.df2mem.recov
         valid_r    := true.B
-        bitmap_r     := bitmap
     } .elsewhen(hs_out) {
         valid_r := false.B
     }
