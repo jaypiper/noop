@@ -144,6 +144,54 @@ class RF1FCIC_1024X32M8WM8_SIM extends Module {
     ram.io.D := io.D
 }
 
+class RF1FCIC_512X4M8WM1 extends BlackBox with HasBlackBoxPath {
+    val io = IO(new Bundle {
+        val Q = Output(UInt(4.W))
+        val CLK = Input(Clock())
+        val CEN = Input(Bool())
+        val GWEN = Input(Bool())
+        val WEN = Input(UInt(4.W))
+        val A = Input(UInt(9.W))
+        val D = Input(UInt(4.W))
+        val EMA = Input(UInt(3.W))
+        val EMAW = Input(UInt(2.W))
+        val EMAS = Input(Bool())
+        val RET1N = Input(Bool())
+        val SO = Output(UInt(2.W))
+        val SI = Input(UInt(2.W))
+        val SE = Input(Bool())
+        val DFTRAMBYP = Input(Bool())
+    })
+    addPath("playground/src/ram/RF1FCIC_512X4M8WM1.v")
+}
+
+class RF1FCIC_512X4M8WM1_SIM extends Module {
+    val io = IO(new Bundle {
+        val Q = Output(UInt(4.W))
+        val CLK = Input(Clock())
+        val CEN = Input(Bool())
+        val GWEN = Input(Bool())
+        val WEN = Input(UInt(4.W))
+        val A = Input(UInt(9.W))
+        val D = Input(UInt(4.W))
+    })
+    val ram = Module(new RF1FCIC_512X4M8WM1)
+    ram.io.EMA := 0.U
+    ram.io.EMAW := 0.U
+    ram.io.EMAS := false.B
+    ram.io.RET1N := true.B
+    ram.io.DFTRAMBYP := false.B
+    ram.io.SI := 0.U
+    ram.io.SE := false.B
+    io.Q := ram.io.Q
+    ram.io.CLK := io.CLK
+    ram.io.CEN := io.CEN
+    ram.io.GWEN := io.GWEN
+    ram.io.WEN := io.WEN
+    ram.io.A := io.A
+    ram.io.D := io.D
+}
+
 class IRAM extends Module {
     val io = IO(new Bundle {
         val cen = Input(Bool())
@@ -191,30 +239,15 @@ class DRAM extends Module {
         val rdata = Output(UInt(64.W))
         val wmask = Input(UInt(8.W))
     })
-if (SRAM) {
-    val data = VecInit(Seq.fill(DRAM_NUM)(VecInit(Seq.fill(2)(Module(new RF1FCIC_1024X32M8WM8_SIM).io))))
-    val select = io.addr(DCACHE_IDX_WIDTH-1, DCACHE_IDX_WIDTH - log2Floor(DRAM_NUM))
-    val select_r = RegInit(0.U(log2Floor(DRAM_NUM).W))
-    select_r := select
-    for (i <- 0 until DRAM_NUM) {
-        for (j <- 0 until 2) {
-            data(i)(j).CLK := clock
-            data(i)(j).CEN := ~((select === i.U) & io.cen)
-            data(i)(j).GWEN := ~io.wen
-            data(i)(j).A := io.addr(9, 0)
-            data(i)(j).D := io.wdata(31 + j*32, j*32)
-            data(i)(j).WEN := ~io.wmask(3 + j*4, j*4)
-        }
+    val data = VecInit(Seq.fill(16)(Module(new RF1FCIC_512X4M8WM1_SIM).io))
+    for (j <- 0 until 16) {
+        data(j).CLK := clock
+        data(j).CEN := ~io.cen
+        data(j).GWEN := ~io.wen
+        data(j).A := io.addr(8, 0)
+        data(j).D := io.wdata(3 + j*4, j*4)
+        data(j).WEN := Fill(4, ~io.wmask(j/2))
     }
-    io.rdata := Cat(data(select_r)(1).Q, data(select_r)(0).Q)
-} else {
-    val data = Mem(32, UInt(64.W))
-    val data_r = RegNext(data(io.addr(4,0)))
-    when(io.cen && io.wen) {
-        data(io.addr(4, 0)) := io.wdata
-    }
-
-    io.rdata := data_r
-}
+    io.rdata := Cat((0 until 16).reverse.map(i => data(i).Q))
 
 }

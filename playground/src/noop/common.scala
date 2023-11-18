@@ -22,7 +22,7 @@ object common extends mem_access_mode{
 object cache_config{ // U S L WIDTH
     val ICACHE_DEPTH    = 4096  // 8KB
     val ICACHE_WIDTH    = 64
-    val DCACHE_DEPTH    = 4096  // 4KB
+    val DCACHE_DEPTH    = 1024  // 4KB
     val DCACHE_WIDTH    = 64
     val IRAM_NUM        = ICACHE_DEPTH / 1024
     val DRAM_NUM        = DCACHE_DEPTH / 1024

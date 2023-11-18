@@ -65,7 +65,7 @@ class Decode extends Module{
         ctrl_r.aluOp      := instType(1)
         ctrl_r.aluWidth   := instType(2)
         ctrl_r.dcMode     := instType(3)
-        ctrl_r.writeRegEn := instType(4)
+        ctrl_r.writeRegEn := instType(4) & (inst_in(11,7) =/= 0.U)
         ctrl_r.writeCSREn := instType(6)
         rs1_r           := inst_in(19,15)
         rrs1_r          := false.B

@@ -15,7 +15,7 @@ class Regs extends Module{
     val regs = RegInit(VecInit(Seq.fill(32)(0.U(DATA_WIDTH.W))))
     io.rs1.data := regs(io.rs1.id)
     io.rs2.data := regs(io.rs2.id)
-    when(io.dst.en && io.dst.id =/= 0.U){
+    when(io.dst.en){
         regs(io.dst.id) := io.dst.data
     }
     if (isSim) {
