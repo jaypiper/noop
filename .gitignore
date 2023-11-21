@@ -14,6 +14,5 @@ nanos-lite/
 .vscode/
 diagram.drawio
 *.fst
-bin/
 issue
 test_output/

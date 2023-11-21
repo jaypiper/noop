@@ -73,7 +73,7 @@ endif
 
 
 PROGRAM_DIR = ./bin
-BIN?=coremark-riscv64-kjw
+BIN?=coremark
 
 compile-verilator:
 	# verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSED ./build/CPU.v ./build/ram.v

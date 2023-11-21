@@ -332,7 +332,7 @@ int main(int argc, char **argv){
         state.csr[USCRATCH] = atoi(argv[2]);
     }
     init_csr();
-    char ref_so_path[] = "../../ics2020/nemu/build/riscv64-nemu-interpreter-so";
+    char ref_so_path[] = "./bin/riscv64-nemu-interpreter-so";
     init_difftest(ref_so_path);
     printf("after initialization\n");
     reset();
