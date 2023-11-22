@@ -24,7 +24,7 @@ class FetchCrossBar extends Module{
     io.flashRead.wdata  := 0.U;
     io.flashRead.wen    := false.B
     io.flashRead.wmask  := 0.U
-    io.flashRead.size      := 2.U
+    io.flashRead.size   := 3.U
     io.flashRead.avalid := false.B
     io.icRead.addr      := io.instIO.addr
     io.icRead.arvalid   := false.B
@@ -121,7 +121,7 @@ class Fetch extends Module{
 
     val pc2_r = RegInit(0.U(PADDR_WIDTH.W))
     val nextPC2_r = RegInit(0.U(PADDR_WIDTH.W))
-    val inst2_r = RegInit(0.U(INST_WIDTH.W))
+    val inst2_r = RegInit(0.U(DATA_WIDTH.W))
     val inst_valid2_r = RegInit(false.B)
     val valid2_r = RegInit(false.B)
     val hs2 = Wire(Bool())
@@ -181,7 +181,8 @@ class Fetch extends Module{
         valid2_r := false.B
     }
     io.instRead.rready := !inst_valid2_r || hs_out
-    io.if2id.inst := Mux(inst_valid2_r, inst2_r, io.instRead.inst)
+    val inst_sel = (inst: UInt, pc: UInt) => inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))(pc(2))
+    io.if2id.inst := inst_sel(Mux(inst_valid2_r, inst2_r, io.instRead.inst), io.if2id.pc)
     io.if2id.pc := pc2_r
     io.if2id.valid := valid2_r && (inst_valid2_r || io.instRead.rvalid)
     io.if2id.recov := false.B  // TODO: remove

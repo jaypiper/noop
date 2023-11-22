@@ -67,5 +67,5 @@ class ICache extends Module{
 
     io.icPort.rvalid := ic_valid2_r
     io.icPort.ready := !ic_valid2_r || io.icPort.rready
-    io.icPort.inst := data2_r.asTypeOf(Vec(ICACHE_WIDTH/32, UInt(32.W)))(offset2_r(2))
+    io.icPort.inst := data2_r
 }

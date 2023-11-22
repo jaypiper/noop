@@ -10,6 +10,10 @@ object common extends mem_access_mode{
     val DATA_WIDTH  = 64
     val DATA_BITS_WIDTH = log2Ceil(DATA_WIDTH / 8)
     val INST_WIDTH  = 32
+    val ISSUE_WIDTH = {
+        require(DATA_WIDTH % INST_WIDTH == 0, s"DATA_WIDTH($DATA_WIDTH) % INST_WIDTH($INST_WIDTH) != 0")
+        DATA_WIDTH / INST_WIDTH
+    }
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
     val PC_START    = "h30000000".U(PADDR_WIDTH.W)

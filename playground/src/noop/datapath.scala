@@ -92,7 +92,7 @@ class DcacheRW extends Bundle{
 
 class IcacheRead extends Bundle{
     val addr    = Input(UInt(PADDR_WIDTH.W))
-    val inst    = Output(UInt(INST_WIDTH.W))
+    val inst    = Output(UInt(DATA_WIDTH.W))
     val arvalid = Input(Bool())
     val ready   = Output(Bool())
     val rvalid  = Output(Bool())
