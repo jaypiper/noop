@@ -35,8 +35,16 @@ trait HasChiselTests extends SbtModule {
 
 trait CommonNOOP extends SbtModule with CommonModule with HasChisel
 
+object difftest extends CommonNOOP {
+  override def millSourcePath = os.pwd / "difftest"
+}
+
 object playground extends CommonNOOP with HasChiselTests {
   def sources = T.sources {
     super.sources() ++ Seq(PathRef(build.millSourcePath / "playground"))
   }
+
+  override def moduleDeps = super.moduleDeps ++ Seq(
+    difftest
+  )
 }

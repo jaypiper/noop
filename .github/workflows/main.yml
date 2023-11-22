@@ -21,7 +21,7 @@ jobs:
           sudo apt-get install zlibc zlib1g zlib1g-dev
           git clone https://github.com/verilator/verilator
           cd verilator
-          git checkout v5.012
+          git checkout v5.018
           autoconf
           ./configure CC=clang CXX=clang++ LINK=clang++
           make -j2
@@ -30,10 +30,11 @@ jobs:
           chmod +x /usr/local/bin/mill
           sudo apt install libsdl2-dev
 
-      - name: Verilog
+      - name: Build EMU
         run: |
-          make verilog
+          make init
+          make emu -j2
 
       - name: CoreMark
         run: |
-          make difftest FLASH=1
+          ./build/emu -F ./bin/coremark.bin --diff ./bin/riscv64-nemu-interpreter-so

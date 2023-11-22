@@ -5,6 +5,7 @@ import noop.param.common._
 import axi._
 import axi.axi_config._
 import chisel3.util.experimental.loadMemoryFromFile
+import difftest.common.DifftestFlash
 import noop.datapath._
 
 object UartPara{
@@ -51,7 +52,7 @@ class SimMMIO extends Module{
     val mtimecmp = RegInit(0.U(64.W))
     val vga = Mem(480000, UInt(8.W))
     val vga_ctrl = RegInit(VecInit(Seq.fill(2)(0.U(32.W))))
-    val flash = Mem(0x1000000, UInt(8.W))
+    val flash = DifftestFlash()
     // loadMemoryFromFile()
     val waready  = RegInit(false.B)
     val wdready  = RegInit(false.B)
@@ -77,7 +78,20 @@ class SimMMIO extends Module{
     val islast  = (offset === 0.U)
     val addr    = io.mmioAxi.wa.bits.addr
     val inputwd = Cat((0 until 8).reverse.map(i => Mux(io.mmioAxi.wd.bits.strb(i) === 1.U, io.mmioAxi.wd.bits.data(8*i+7, 8*i), 0.U(8.W))))
-    val flash_rdata   = Cat((0 until 8).reverse.map(i => flash((io.mmioAxi.ra.bits.addr & 0xffffff8.U) + i.U)))
+
+    val is_flash_read = state === sIdle &&
+      io.mmioAxi.ra.valid && raready &&
+      io.mmioAxi.ra.bits.addr >= port.FLASH_ADDR &&
+      io.mmioAxi.ra.bits.addr < (port.FLASH_ADDR + "h10000000".U)
+    flash.en := is_flash_read
+    flash.addr := io.mmioAxi.ra.bits.addr - port.FLASH_ADDR
+    val has_flash_read = RegInit(false.B)
+    when (is_flash_read) {
+        has_flash_read := true.B
+    }.elsewhen (io.mmioAxi.rd.fire) {
+        has_flash_read := false.B
+    }
+
     uart(5) := 0x20.U
     switch(state){
         is(sIdle){
@@ -114,14 +128,14 @@ class SimMMIO extends Module{
                 }.elsewhen(io.mmioAxi.ra.bits.addr >= port.PLIC && io.mmioAxi.ra.bits.addr < (port.PLIC + 0x3000.U)){
 
                 }.elsewhen(io.mmioAxi.ra.bits.addr >= port.FLASH_ADDR && io.mmioAxi.ra.bits.addr < (port.FLASH_ADDR + "h10000000".U)){
-                    rdata := flash_rdata
+                    // rdata := flash_rdata
                 }.elsewhen(io.mmioAxi.ra.bits.addr >= port.SDCARD_MMIO && io.mmioAxi.ra.bits.addr < (port.SDCARD_MMIO + 0x80.U)){
                     sdcard.io.addr  := io.mmioAxi.ra.bits.addr(6,0)
                     sdcard.io.cen   := true.B
                     state           := sSDread
                 }.otherwise{
                     rdata   := 0.U
-                    printf("mmio invalid raddr: %x\n", io.mmioAxi.ra.bits.addr)
+                    assert(false.B, "mmio invalid raddr: %x\n", io.mmioAxi.ra.bits.addr)
                 }
             }
         }
@@ -199,12 +213,24 @@ class SimMMIO extends Module{
     io.mmioAxi.wd.ready := wdready
     io.mmioAxi.ra.ready := raready
     io.mmioAxi.rd.valid := rdvalid
-    io.mmioAxi.rd.bits.data := rdata
+    io.mmioAxi.rd.bits.data := Mux(has_flash_read, flash.data, rdata)
     io.mmioAxi.rd.bits.last := islast
 
 }
 
-class SdCard extends BlackBox with HasBlackBoxPath{
+// class SdCard extends BlackBox with HasBlackBoxPath{
+//     val io = IO(new Bundle{
+//         val addr    = Input(UInt(7.W))
+//         val wen     = Input(Bool())
+//         val wdata   = Input(UInt(64.W))
+//         val clock   = Input(Clock())
+//         val cen     = Input(Bool())
+//         val rdata   = Output(UInt(64.W))
+//     })
+//     addPath("playground/src/device/SdCard.v")
+// }
+
+class SdCard extends Module {
     val io = IO(new Bundle{
         val addr    = Input(UInt(7.W))
         val wen     = Input(Bool())
@@ -213,5 +239,6 @@ class SdCard extends BlackBox with HasBlackBoxPath{
         val cen     = Input(Bool())
         val rdata   = Output(UInt(64.W))
     })
-    addPath("playground/src/device/SdCard.v")
+
+    io := DontCare
 }

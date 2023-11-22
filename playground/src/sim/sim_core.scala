@@ -3,16 +3,21 @@ package sim
 import sim._
 import chisel3._
 import chisel3.util._
+import difftest.{DifftestModule, LogCtrlIO, PerfInfoIO, UARTIO}
 import noop.datapath._
 import noop.cpu._
 
-class SimCoreIO extends Bundle{
-
+class SimCoreIO extends Bundle {
+    val perfInfo = new PerfInfoIO
+    val logCtrl = new LogCtrlIO
+    val uart = new UARTIO
 }
 
-class newtop extends Module{
+class SimTop extends Module{
     
     val io = IO(new SimCoreIO)
+
+    io := DontCare
 
     val cpu = Module(new CPU)
     val mem = Module(new SimMEM)
@@ -33,4 +38,5 @@ class newtop extends Module{
     // dontTouch(cpu.io.interrupt)
     // dontTouch(cpu.io.slave)
 
+    DifftestModule.finish("Piper")
 }

@@ -2,6 +2,7 @@ package noop.writeback
 
 import chisel3._
 import chisel3.util._
+import difftest.{ArchEvent, DiffArchEvent, DiffInstrCommit, DiffTrapEvent, DifftestModule}
 import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
@@ -25,9 +26,12 @@ class Writeback extends Module{
     val tlb_r       = RegInit(false.B)
     val cache_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
+    val rfwen_r     = RegInit(false.B)
+    val wdest_r     = RegEnable(io.wReg.id, io.wReg.en)
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     valid_r         := false.B
+    rfwen_r         := false.B
     tlb_r           := false.B
     cache_r         := false.B
     forceJmp.valid  := false.B
@@ -58,6 +62,7 @@ class Writeback extends Module{
         io.wCsr.en      := io.mem2wb.csr_en
         io.excep.en     := io.mem2wb.excep.en
         valid_r := true.B
+        rfwen_r := io.mem2wb.dst_en
         inst_r  := io.mem2wb.inst
         pc_r    := io.mem2wb.pc
         recov_r := io.mem2wb.recov
@@ -73,6 +78,7 @@ class Writeback extends Module{
         io.wCsr.en      := io.ex2wb.csr_en
         io.excep.en     := io.ex2wb.excep.en
         valid_r         := true.B
+        rfwen_r         := io.ex2wb.dst_en
         inst_r          := io.ex2wb.inst
         pc_r            := io.ex2wb.pc
         recov_r := io.ex2wb.recov
@@ -86,7 +92,7 @@ class Writeback extends Module{
     io.updateTrace.valid := io.ex2wb.valid
     io.updateTrace.inst := io.ex2wb.inst
     io.updateTrace.pc := io.ex2wb.pc
-    if (isSim) {
+    if (false) {
         val is_mmio_r   = RegNext(io.mem2wb.is_mmio && io.mem2wb.valid)
         val instFinish = Module(new InstFinish)
         instFinish.io.clock     := clock
@@ -103,6 +109,33 @@ class Writeback extends Module{
         transExcep.io.pc        := excep_r.pc
     }
 
+    if (isSim) {
+        val is_mmio_r = RegNext(io.mem2wb.is_mmio && io.mem2wb.valid)
+        val is_timer_r = rcsr_id_r === CSR_MCYCLE
+        val difftest = DifftestModule(new DiffInstrCommit, dontCare = true)
+        difftest.valid := valid_r
+        difftest.skip := is_mmio_r || is_timer_r
+        difftest.rfwen := rfwen_r
+        difftest.wdest := wdest_r
+        difftest.pc := pc_r
+        difftest.instr := inst_r
+    }
+
+    if (isSim) {
+        val difftest = DifftestModule(new DiffArchEvent, dontCare = true)
+        difftest.valid := false.B
+        difftest.interrupt := excep_r.etype === 0.U
+        difftest.exception := excep_r.cause
+        difftest.exceptionPC := excep_r.pc
+    }
+
+    if (isSim) {
+        val timer = RegInit(0.U(64.W))
+        timer := timer + 1.U
+        val difftest = DifftestModule(new DiffTrapEvent, dontCare = true)
+        difftest.hasTrap := false.B
+        difftest.cycleCnt := timer
+    }
 }
 
 class InstFinish extends BlackBox with HasBlackBoxPath{

@@ -16,3 +16,4 @@ diagram.drawio
 *.fst
 issue
 test_output/
+*.log

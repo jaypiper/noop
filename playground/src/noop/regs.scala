@@ -2,6 +2,7 @@ package noop.regs
 
 import chisel3._
 import chisel3.util._
+import difftest.{DiffArchIntRegState, DiffCSRState, DifftestModule}
 import noop.param.common._
 import noop.param.regs_config._
 import noop.datapath._
@@ -18,10 +19,15 @@ class Regs extends Module{
     when(io.dst.en){
         regs(io.dst.id) := io.dst.data
     }
-    if (isSim) {
+    if (false) {
         val updateRegs = Module(new UpdateRegs)
         updateRegs.io.regs_data := regs.asUInt
         updateRegs.io.clock := clock
+    }
+
+    if (isSim) {
+        val difftest = DifftestModule(new DiffArchIntRegState, dontCare = true)
+        difftest.value := regs
     }
 }
 
@@ -125,7 +131,7 @@ class Csrs extends Module{
     }.otherwise{
 
     }
-    if (isSim) {
+    if (false) {
         val updateCsrs = Module(new UpdateCsrs)
         updateCsrs.io.priv      := priv
         updateCsrs.io.mstatus   := Cat(CSR_MSTATUS,mstatus)
@@ -138,6 +144,24 @@ class Csrs extends Module{
         updateCsrs.io.mip       := Cat(CSR_MIP,mip)
 
         updateCsrs.io.clock     := clock
+    }
+
+    if (isSim) {
+        val difftest = DifftestModule(new DiffCSRState, dontCare = true)
+        difftest.priviledgeMode := priv
+        difftest.mstatus := mstatus
+        difftest.mepc := mepc
+        difftest.mtval := mtval
+        difftest.mscratch := mscratch
+        difftest.mcause := mcause
+        difftest.mtvec := mtvec
+        difftest.mie := mie
+        difftest.mip := mip
+
+        // masks from NutShell
+        val sstatusWmask = "hc6122".U(64.W)
+        val sstatusRmask = sstatusWmask | "h8000000300018000".U
+        difftest.sstatus := mstatus & sstatusRmask
     }
 }
 
