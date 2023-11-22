@@ -87,14 +87,6 @@ class Fetch extends Module{
     val io = IO(new FetchIO)
     val pc = RegInit(PC_START)
 
-    val drop1_r = RegInit(false.B)
-    val stall1_r = RegInit(false.B)
-    val recov1_r = RegInit(false.B)
-    drop1_r := false.B;
-    stall1_r := false.B;
-    def stall_pipe1(){
-        drop1_r := true.B;  stall1_r := true.B; recov1_r := true.B
-    }
     val drop_in = io.if2id.drop
     val stall_in = io.if2id.stall
 
