@@ -17,6 +17,9 @@ compile:
 bsp:
 	mill -i mill.bsp.BSP/install
 
+idea:
+	mill -i mill.idea.GenIdea/idea
+
 reformat:
 	mill -i __.reformat
 
@@ -91,4 +94,4 @@ nemu:
 test-all:
 	bash test.sh V$(NAME) $(PROGRAM_DIR)
 
-.PHONY: test verilog help compile bsp reformat checkformat clean difftest nemu test-all
+.PHONY: test verilog help compile bsp idea reformat checkformat clean difftest nemu test-all
