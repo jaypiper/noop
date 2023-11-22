@@ -7,6 +7,7 @@ import noop.param.decode_config._
 import noop.param.cache_config._
 import noop.bpu._
 import noop.datapath._
+import noop.utils.PipelineNext
 
 class FetchCrossBar extends Module{
     val io = IO(new Bundle{
@@ -83,100 +84,109 @@ class FetchIO extends Bundle{
     val bp          = Flipped(new PredictIO2)
 }
 
-class Fetch extends Module{
-    val io = IO(new FetchIO)
-    val pc = RegInit(PC_START)
+class FetchS1 extends Module {
+    val io = IO(new Bundle {
+        val reg2if = Input(new ForceJmp)
+        val wb2if = Input(new ForceJmp)
+        val recov = Input(Bool())
+        val branchFail = Input(new ForceJmp)
+        val stall = Input(Bool())
+        val drop = Input(Bool())
+        val bp_is_jmp = Input(Bool())
+        val bp_target = Input(UInt(PADDR_WIDTH.W))
+    })
+    val instRead = IO(DecoupledIO())
+    val out = IO(DecoupledIO(new Bundle {
+        val pc = UInt(PADDR_WIDTH.W)
+    }))
 
-    val drop_in = io.if2id.drop
-    val stall_in = io.if2id.stall
+    val pc = RegInit(PC_START)
+    val next_pc = PriorityMux(Seq(
+        (io.reg2if.valid, io.reg2if.seq_pc),
+        (io.wb2if.valid, io.wb2if.seq_pc),
+        (io.branchFail.valid, io.branchFail.seq_pc),
+        (io.bp_is_jmp && out.fire, io.bp_target),
+        (out.fire, pc + 4.U),
+        (true.B, pc)))
+    pc := next_pc
 
     val sIdle :: sStall :: Nil = Enum(2)
     val state = RegInit(sIdle)
-    switch(state){
-        is(sIdle){
-            when(stall_in){
+    switch(state) {
+        is(sIdle) {
+            when(io.stall) {
                 state := sStall
             }
         }
-        is(sStall){
-            when((drop_in && !stall_in) || io.recov){
+        is(sStall) {
+            when((io.drop && !io.stall) || io.recov) {
                 state := sIdle
             }
         }
     }
 
-    val hs1         = io.instRead.arvalid && io.instRead.ready
-    val hs_out      = io.if2id.ready && io.if2id.valid
+    out.valid := state === sIdle && instRead.ready
+    out.bits.pc := pc
 
-    val pc_r           = RegInit(0.U(PADDR_WIDTH.W))
-    val valid_r        = RegInit(false.B)
+    instRead.valid := state === sIdle && out.ready
+}
 
-    val pc2_r = RegInit(0.U(PADDR_WIDTH.W))
-    val nextPC2_r = RegInit(0.U(PADDR_WIDTH.W))
-    val inst2_r = RegInit(0.U(DATA_WIDTH.W))
-    val inst_valid2_r = RegInit(false.B)
-    val valid2_r = RegInit(false.B)
-    val hs2 = Wire(Bool())
+class Fetch extends Module{
+    val io = IO(new FetchIO)
 
-    val next_pc = PriorityMux(Seq(
-            (io.reg2if.valid,               io.reg2if.seq_pc),
-            (io.wb2if.valid,                io.wb2if.seq_pc),
-            (io.branchFail.valid,           io.branchFail.seq_pc),
-            (io.bp.jmp && hs1,                     io.bp.target),
-            (hs1,                        pc + 4.U),
-            (true.B,                        pc)))
-    pc := next_pc    
+    val drop_in = io.if2id.drop
+    val stall_in = io.if2id.stall
 
-    io.bp.pc := pc
-    io.bp.valid := hs1
+    // Stage 1
+    val s1 = Module(new FetchS1)
+    s1.io.reg2if := io.reg2if
+    s1.io.wb2if := io.wb2if
+    s1.io.recov := io.recov
+    s1.io.branchFail := io.branchFail
+    s1.io.stall := stall_in
+    s1.io.drop := drop_in
+    s1.io.bp_is_jmp := io.bp.jmp
+    s1.io.bp_target := io.bp.target
 
-    io.instRead.addr := pc
-    io.instRead.arvalid := state === sIdle && (!valid_r || hs2)
+    io.bp.pc := s1.out.bits.pc
+    io.bp.valid := s1.out.fire
 
-    when(!drop_in) {
-        when(hs1) {
-            pc_r := pc
-            valid_r := true.B
-        }.elsewhen(hs2) {
-            valid_r := false.B
-        }
-    } .otherwise {
-        valid_r := false.B
+    s1.instRead.ready := io.instRead.ready
+    io.instRead.addr := s1.out.bits.pc
+    io.instRead.arvalid := s1.instRead.valid
+
+    // Stage 2
+    val s2_out_ready = Wire(Bool())
+    val s2_in = PipelineNext(s1.out, s2_out_ready, drop_in)
+    val s2_out = WireInit(s2_in)
+    s2_out_ready := s2_out.ready
+    s2_in.ready := !s2_in.valid || s2_out.ready
+    val s2_nextpc = s1.out.bits.pc
+
+    // Stage 3
+    val s3_in = PipelineNext(s2_out, io.if2id.ready, drop_in)
+    s3_in.ready := !s3_in.valid || io.if2id.ready
+    val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
+
+    val s3_inst_valid = RegInit(false.B)
+    val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && io.instRead.rready)
+    io.instRead.rready := !s3_inst_valid || io.if2id.ready
+    when(drop_in) {
+        s3_inst_valid := false.B
+    }.elsewhen(io.instRead.rvalid && !s3_inst_valid && !io.if2id.ready) {
+        s3_inst_valid := s3_in.valid
+    }.elsewhen(!io.instRead.rvalid && s3_inst_valid && io.if2id.ready) {
+        s3_inst_valid := false.B
     }
 
-    hs2 := false.B
-    val hs_iram = io.instRead.rvalid && io.instRead.rready
-    when(!drop_in){
-        when(hs2){
-            pc2_r := pc_r
-            nextPC2_r := pc
-            valid2_r := valid_r
-        }.elsewhen(hs_out) {
-            valid2_r := false.B
-        }
-        when(hs_out || !valid2_r) {
-            hs2 := valid_r
-        }.elsewhen(valid2_r) {
-            hs2 := false.B
-        }
-        when(hs_out) {
-            inst_valid2_r := inst_valid2_r && hs_iram
-            when(hs_iram) {
-                inst2_r := io.instRead.inst
-            }
-        }.elsewhen(hs_iram) {
-            inst_valid2_r := valid2_r
-            inst2_r := io.instRead.inst
-        }
-    }.otherwise {
-        inst_valid2_r := false.B
-        valid2_r := false.B
-    }
-    io.instRead.rready := !inst_valid2_r || hs_out
-    val inst_sel = (inst: UInt, pc: UInt) => inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))(pc(2))
-    io.if2id.inst := inst_sel(Mux(inst_valid2_r, inst2_r, io.instRead.inst), io.if2id.pc)
-    io.if2id.pc := pc2_r
-    io.if2id.valid := valid2_r && (inst_valid2_r || io.instRead.rvalid)
+    // When instRead returns, try bypass it to if2id.
+    val s3_out_valid = s3_in.valid && (s3_inst_valid || io.instRead.rvalid)
+    val s3_out_inst = Mux(s3_inst_valid, s3_inst, io.instRead.inst)
+
+    io.if2id.valid := s3_out_valid
+    io.if2id.pc := s3_in.bits.pc
+    private def inst_sel(inst: UInt, pc: UInt): UInt = inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))(pc(2))
+    io.if2id.inst := inst_sel(s3_out_inst, io.if2id.pc)
+    io.if2id.nextPC := s3_nextpc
     io.if2id.recov := false.B  // TODO: remove
-    io.if2id.nextPC := nextPC2_r
 }
