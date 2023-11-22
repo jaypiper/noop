@@ -59,7 +59,7 @@ class CPU extends Module{
     dontTouch(io)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
-    val forwading   = Module(new Forwarding)
+    val forwarding  = Module(new Forwarding)
     val execute     = Module(new Execute)
     val memory      = Module(new Memory)
     val writeback   = Module(new Writeback)
@@ -92,17 +92,17 @@ class CPU extends Module{
     fetch.io.if2id      <> decode.io.if2id
     fetch.io.recov      <> writeback.io.recov
 
-    decode.io.id2df     <> forwading.io.id2df
+    decode.io.id2df     <> forwarding.io.id2df
     decode.io.idState   <> csrs.io.idState
-    forwading.io.df2ex  <> execute.io.df2ex
-    forwading.io.d_ex   <> execute.io.d_ex
-    forwading.io.d_mem1 <> memory.io.d_mem1
-    forwading.io.d_mem0 <> memory.io.d_mem0
-    forwading.io.rs1Read <> regs.io.rs1
-    forwading.io.rs2Read <> regs.io.rs2
-    forwading.io.csrRead <> csrs.io.rs
-    forwading.io.d_ex0 <> execute.io.d_ex0
-    forwading.io.df2mem <> memory.io.df2mem
+    forwarding.io.df2ex  <> execute.io.df2ex
+    forwarding.io.d_ex   <> execute.io.d_ex
+    forwarding.io.d_mem1 <> memory.io.d_mem1
+    forwarding.io.d_mem0 <> memory.io.d_mem0
+    forwarding.io.rs1Read <> regs.io.rs1
+    forwarding.io.rs2Read <> regs.io.rs2
+    forwarding.io.csrRead <> csrs.io.rs
+    forwarding.io.d_ex0 <> execute.io.d_ex0
+    forwarding.io.df2mem <> memory.io.df2mem
 
     execute.io.ex2wb   <> writeback.io.ex2wb
     execute.io.updateBPU <> bpu.io.update
