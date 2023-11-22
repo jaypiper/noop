@@ -56,7 +56,7 @@ class SimpleBPU extends Module {
             io.predict.jmp := true.B
             io.predict.target := callTrace(idx)
         }
-    }.otherwise{ // branch instructions        
+    }.otherwise{ // branch instructions
         io.predict.jmp := false.B
         imm := 0.S
     }
@@ -92,10 +92,10 @@ class SimpleBPU2 extends Module {
     val btb = RegInit(VecInit(Seq.fill(BTB_ENTRY_NUM)(VecInit(Seq.fill(2)(0.U(PADDR_WIDTH.W)))))) // no valid
     val btb_valid_idx = RegInit(0.U(log2Ceil(BTB_ENTRY_NUM).W))
     val btb_hit_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === io.predict.pc))
-    val btb_hit = btb_hit_vec.asUInt().orR
+    val btb_hit = btb_hit_vec.asUInt.orR
     val btb_hit_idx = OHToUInt(btb_hit_vec)
     val btb_update_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === io.update.pc))
-    val btb_update_hit = btb_update_vec.asUInt().orR
+    val btb_update_hit = btb_update_vec.asUInt.orR
     val btb_update_idx = OHToUInt(btb_update_vec)
     io.predict.jmp := io.predict.valid && btb_hit
     io.predict.target := btb(btb_hit_idx)(1)

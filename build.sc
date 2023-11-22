@@ -1,31 +1,42 @@
-// import Mill dependency
-import mill._
-import mill.scalalib._
-import mill.scalalib.scalafmt.ScalafmtModule
-import mill.scalalib.TestModule.Utest
-// support BSP
-import mill.bsp._
+import mill._, scalalib._
+import coursier.maven.MavenRepository
 
-object playground extends ScalaModule with ScalafmtModule { m =>
-  override def scalaVersion = "2.13.8"
+object ivys {
+  val scala = "2.13.10"
+  val chisel = (ivy"edu.berkeley.cs::chisel3:3.6.0", ivy"edu.berkeley.cs:::chisel3-plugin:3.6.0")
+}
+
+trait CommonModule extends ScalaModule {
+  override def scalaVersion = ivys.scala
+
   override def scalacOptions = Seq(
+    "-Ymacro-annotations",
     "-language:reflectiveCalls",
-    "-deprecation",
     "-feature",
     "-Xcheckinit",
-    "-P:chiselplugin:genBundleElements"
   )
-  override def ivyDeps = Agg(
-    ivy"edu.berkeley.cs::chisel3:3.5.4",
-    ivy"com.sifive::chisel-circt:0.6.0",
-  )
-  override def scalacPluginIvyDeps = Agg(
-    ivy"edu.berkeley.cs:::chisel3-plugin:3.5.4",
-  )
-  object test extends ScalaTests with Utest {
-    override def ivyDeps = m.ivyDeps() ++ Agg(
-      ivy"com.lihaoyi::utest:0.7.10",
-      ivy"edu.berkeley.cs::chiseltest:0.5.4",
+}
+
+trait HasChisel extends ScalaModule {
+  override def repositoriesTask = T.task {
+    super.repositoriesTask() ++ Seq(
+      MavenRepository("https://oss.sonatype.org/content/repositories/snapshots")
     )
+  }
+  override def ivyDeps = Agg(ivys.chisel._1)
+  override def scalacPluginIvyDeps = Agg(ivys.chisel._2)
+}
+
+trait HasChiselTests extends SbtModule {
+  object test extends SbtModuleTests with TestModule.ScalaTest {
+    override def ivyDeps = Agg(ivy"edu.berkeley.cs::chiseltest:0.5.4")
+  }
+}
+
+trait CommonNOOP extends SbtModule with CommonModule with HasChisel
+
+object playground extends CommonNOOP with HasChiselTests {
+  def sources = T.sources {
+    super.sources() ++ Seq(PathRef(build.millSourcePath / "playground"))
   }
 }
