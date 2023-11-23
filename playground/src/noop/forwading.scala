@@ -197,24 +197,16 @@ class Forwarding extends Module{
         state := sWait
     }
 
-    when(!io.ex2df.drop && !drop_r){
-        when(state === sIdle){
-            when(hs_in && (rs1_wait || rs2_wait)){
-                valid_r := false.B
-            }.elsewhen(hs_in){
-                valid_r := true.B
-            }.elsewhen(hs_out){
-                valid_r := false.B
-            }
-        }
-        when(state === sWait){
-            when(!(rs1_wait) && !rs2_wait){
-                valid_r := true.B
-            }
-        }
-        
-    }.otherwise{
-        valid_r     := false.B
+    val out_is_ready = !io.mem2df.membusy && ctrl_r.dcMode === mode_NOP && io.df2ex.ready ||
+      !io.ex2df.exBusy && ctrl_r.dcMode =/= mode_NOP && io.df2mem.ready
+    val in_is_ready = !(valid_r || state =/= sIdle) || out_is_ready
+    // valid_r: we have a ready instruction for the next stage
+    when(io.ex2df.drop || drop_r) {
+        valid_r := false.B
+    }.elsewhen((io.id2df.valid && in_is_ready || state === sWait) && !rs1_wait && !rs2_wait) {
+        valid_r := true.B
+    }.elsewhen(out_is_ready) {
+        valid_r := false.B
     }
 
     io.rs1Read.id := io.id2df.bits.rs1
