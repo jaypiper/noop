@@ -18,6 +18,7 @@ $(SIM_TOP_V): $(SCALA_FILE)
 verilog: $(SIM_TOP_V)
 
 sim-verilog: verilog
+	@sed -i 's/$$fatal/xs_assert(`__LINE__)/g' $(SIM_TOP_V)
 
 help:
 	mill -i __.test.runMain NoopTop --help
