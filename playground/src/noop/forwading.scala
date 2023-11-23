@@ -33,67 +33,26 @@ class Forwarding extends Module{
     val hs_in   = io.id2df.ready && io.id2df.valid
     val hs_out  = io.df2dp.ready && io.df2dp.valid
 
-    val rs1_data    = Wire(UInt(DATA_WIDTH.W))
-    val rs1_valid   = Wire(Bool())
-    val rs2_data    = Wire(UInt(DATA_WIDTH.W))
-    val rs2_valid   = Wire(Bool())
-    rs1_valid := false.B;   rs1_data := 0.U
-    rs2_valid := false.B;   rs2_data := 0.U
+    def do_forward(source: Seq[RegForward], rs: UInt, rfData: UInt): (Bool, UInt) = {
+        val valid = WireInit(true.B)
+        val data = WireInit(rfData)
+        val timer = RegInit(0.U(64.W))
+        timer := timer + 1.U
+        for ((s, i) <- source.reverse.zipWithIndex) {
+            when (rs === s.id && s.state =/= d_invalid) {
+                valid := s.state === d_valid
+            }
+            when (rs === s.id && s.state === d_valid) {
+                data := s.data
+            }
+        }
+        (WireInit(rs === 0.U || valid), data)
+    }
 
-    // rs1 state
-    when(io.id2df.bits.rs1 === 0.U){
-        rs1_valid := true.B
-    }.elsewhen((io.id2df.bits.rs1 === io.d_ex0.id) && (io.d_ex0.state =/= d_invalid)){
-        when(io.d_ex0.state === d_valid){
-            rs1_data := io.d_ex0.data
-            rs1_valid := true.B
-        }
-    }.elsewhen((io.id2df.bits.rs1 === io.d_mem0.id) && (io.d_mem0.state =/= d_invalid)){
-        when(io.d_mem0.state === d_valid){
-            rs1_data := io.d_mem0.data
-            rs1_valid := true.B
-        }
-    }.elsewhen((io.id2df.bits.rs1 === io.d_ex.id) && (io.d_ex.state =/= d_invalid)){
-        when(io.d_ex.state === d_valid){
-            rs1_data := io.d_ex.data
-            rs1_valid := true.B
-        }
-    }.elsewhen((io.id2df.bits.rs1 === io.d_mem1.id) && (io.d_mem1.state =/= d_invalid)){
-        when(io.d_mem1.state === d_valid){
-            rs1_data := io.d_mem1.data
-            rs1_valid := true.B
-        }
-    }.otherwise {
-        rs1_data := io.rs1Read.data
-        rs1_valid := true.B
-    }
-    // rs2 state
-    when(io.id2df.bits.rs2 === 0.U){
-        rs2_valid := true.B
-    }.elsewhen((io.id2df.bits.rs2 === io.d_ex0.id) && (io.d_ex0.state =/= d_invalid)){
-        when(io.d_ex0.state === d_valid){
-            rs2_data := io.d_ex0.data
-            rs2_valid := true.B
-        }
-    }.elsewhen((io.id2df.bits.rs2 === io.d_mem0.id) && (io.d_mem0.state =/= d_invalid)){
-        when(io.d_mem0.state === d_valid){
-            rs2_data := io.d_mem0.data
-            rs2_valid := true.B
-        }
-    }.elsewhen((io.id2df.bits.rs2 === io.d_ex.id) && (io.d_ex.state =/= d_invalid)){
-        when(io.d_ex.state === d_valid){
-            rs2_data := io.d_ex.data
-            rs2_valid := true.B
-        }
-    }.elsewhen((io.id2df.bits.rs2 === io.d_mem1.id) && (io.d_mem1.state =/= d_invalid)){
-        when(io.d_mem1.state === d_valid){
-            rs2_data := io.d_mem1.data
-            rs2_valid := true.B
-        }
-    }.otherwise {
-        rs2_data := io.rs2Read.data
-        rs2_valid := true.B
-    }
+    // forward source: listed in priority order
+    val fwd_source = Seq(io.d_ex0, io.d_mem0, io.d_ex, io.d_mem1)
+    val (rs1_valid, rs1_data) = do_forward(fwd_source, io.id2df.bits.rs1, io.rs1Read.data)
+    val (rs2_valid, rs2_data) = do_forward(fwd_source, io.id2df.bits.rs2, io.rs2Read.data)
 
     when (io.df2dp.fire) {
         when (io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err) { // illegal instruction
