@@ -19,114 +19,90 @@ class Writeback extends Module{
         val recov   = Output(Bool())
         val updateTrace = Output(new UpdateTrace)
     })
-    dontTouch(io)
     val recov_r     = RegInit(false.B)
     val stall_r     = RegInit(false.B)
     recov_r := false.B;  stall_r := false.B
-    val forceJmp    = RegInit(0.U.asTypeOf(new ForceJmp))
-    val tlb_r       = RegInit(false.B)
-    val cache_r     = RegInit(false.B)
-    val valid_r     = RegInit(false.B)
-    val rfwen_r     = RegInit(false.B)
-    val wdest_r     = RegEnable(io.wReg.id, io.wReg.en)
-    val excep_r     = RegInit(0.U.asTypeOf(new Exception))
-    val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
-    valid_r         := false.B
-    rfwen_r         := false.B
-    tlb_r           := false.B
-    cache_r         := false.B
-    forceJmp.valid  := false.B
-    excep_r.en      := false.B
-    rcsr_id_r       := 0.U
 
-    io.recov        := recov_r
-    val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
-    io.wReg.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.dst, io.ex2wb.bits.dst)
-    io.wReg.data    := Mux(io.mem2wb.valid, io.mem2wb.bits.dst_d, io.ex2wb.bits.dst_d)
-    io.wReg.en      := false.B
-    io.wCsr.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.csr_id, io.ex2wb.bits.csr_id)
-    io.wCsr.data    := Mux(io.mem2wb.valid, io.mem2wb.bits.csr_d, io.ex2wb.bits.csr_d)
-    io.wCsr.en      := false.B
-    io.excep        := io.ex2wb.bits.excep
-    io.excep.en     := false.B
-    io.wb2if        := forceJmp
-    // io.mem2wb.ready := false.B
     io.stall := stall_r
-    // io.ex2wb.ready := false.B
     io.mem2wb.ready := true.B
     io.ex2wb.ready := true.B
-    when(io.mem2wb.valid){
-        // io.mem2wb.ready := true.B
-        io.wReg.en      := io.mem2wb.bits.dst_en
-        io.wCsr.en      := io.mem2wb.bits.csr_en
-        io.excep.en     := io.mem2wb.bits.excep.en
-        valid_r := true.B
-        rfwen_r := io.mem2wb.bits.dst_en
-        inst_r  := io.mem2wb.bits.inst
-        pc_r    := io.mem2wb.bits.pc
+
+    io.recov        := recov_r
+    when(io.mem2wb.valid) {
         recov_r := io.mem2wb.bits.recov
-        excep_r := io.mem2wb.bits.excep
-        rcsr_id_r   := io.mem2wb.bits.rcsr_id
+    }.elsewhen(io.ex2wb.valid) {
+        recov_r := io.ex2wb.bits.recov
+    }
+
+    io.wReg.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.dst, io.ex2wb.bits.dst)
+    io.wReg.data    := Mux(io.mem2wb.valid, io.mem2wb.bits.dst_d, io.ex2wb.bits.dst_d)
+    io.wReg.en      := io.mem2wb.valid && io.mem2wb.bits.dst_en || io.ex2wb.valid &&io.ex2wb.bits.dst_en
+
+    io.wCsr.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.csr_id, io.ex2wb.bits.csr_id)
+    io.wCsr.data    := Mux(io.mem2wb.valid, io.mem2wb.bits.csr_d, io.ex2wb.bits.csr_d)
+    io.wCsr.en      := io.mem2wb.valid && io.mem2wb.bits.csr_en || io.ex2wb.valid &&io.ex2wb.bits.csr_en
+
+    io.excep        := io.ex2wb.bits.excep
+    io.excep.en     := io.mem2wb.valid && io.mem2wb.bits.excep.en || io.ex2wb.valid &&io.ex2wb.bits.excep.en
+
+    val forceJmp = RegInit(0.U.asTypeOf(new ForceJmp))
+    forceJmp.valid := false.B
+    io.wb2if        := forceJmp
+    when(io.mem2wb.valid){
+        recov_r := io.mem2wb.bits.recov
         when(io.mem2wb.bits.recov && !io.mem2wb.bits.excep.en){
             forceJmp.valid  := true.B
             forceJmp.seq_pc := io.mem2wb.bits.pc + 4.U
         }
     }.elsewhen(io.ex2wb.valid) {
-        // io.ex2wb.ready := true.B
-        io.wReg.en      := io.ex2wb.bits.dst_en
-        io.wCsr.en      := io.ex2wb.bits.csr_en
-        io.excep.en     := io.ex2wb.bits.excep.en
-        valid_r         := true.B
-        rfwen_r         := io.ex2wb.bits.dst_en
-        inst_r          := io.ex2wb.bits.inst
-        pc_r            := io.ex2wb.bits.pc
         recov_r := io.ex2wb.bits.recov
-        excep_r := io.ex2wb.bits.excep
-        rcsr_id_r   := io.ex2wb.bits.rcsr_id
         when(io.ex2wb.bits.recov && !io.ex2wb.bits.excep.en){
             forceJmp.valid  := true.B
             forceJmp.seq_pc := io.ex2wb.bits.pc + 4.U
         }
     }
+
     io.updateTrace.valid := io.ex2wb.valid
     io.updateTrace.inst := io.ex2wb.bits.inst
     io.updateTrace.pc := io.ex2wb.bits.pc
+
+    val wb_valid = io.mem2wb.valid || io.ex2wb.valid
+    val wb = Mux(io.mem2wb.valid, io.mem2wb.bits, io.ex2wb.bits)
     if (false) {
-        val is_mmio_r   = RegNext(io.mem2wb.bits.is_mmio && io.mem2wb.valid)
+        val is_mmio = io.mem2wb.bits.is_mmio && io.mem2wb.valid
         val instFinish = Module(new InstFinish)
         instFinish.io.clock     := clock
-        instFinish.io.is_mmio   := is_mmio_r
-        instFinish.io.valid     := valid_r
-        instFinish.io.pc        := pc_r
-        instFinish.io.inst      := inst_r
-        instFinish.io.rcsr_id   := rcsr_id_r
+        instFinish.io.is_mmio   := RegEnable(is_mmio, wb_valid)
+        instFinish.io.valid     := RegNext(wb_valid)
+        instFinish.io.pc        := RegEnable(wb.pc, wb_valid)
+        instFinish.io.inst      := RegEnable(wb.inst, wb_valid)
+        instFinish.io.rcsr_id   := RegEnable(wb.rcsr_id, wb_valid)
 
         val transExcep = Module(new TransExcep)
         transExcep.io.clock     := clock
-        transExcep.io.intr      := excep_r.en && excep_r.etype === 0.U
-        transExcep.io.cause     := excep_r.cause
-        transExcep.io.pc        := excep_r.pc
+        transExcep.io.intr      := RegNext(wb.excep.en && wb.excep.etype === 0.U, false.B)
+        transExcep.io.cause     := RegNext(wb.excep.cause, 0.U)
+        transExcep.io.pc        := RegNext(wb.excep.pc)
     }
 
     if (isSim) {
-        val is_mmio_r = RegNext(io.mem2wb.bits.is_mmio && io.mem2wb.valid)
-        val is_timer_r = rcsr_id_r === CSR_MCYCLE
-        val difftest = DifftestModule(new DiffInstrCommit, dontCare = true)
-        difftest.valid := valid_r
-        difftest.skip := is_mmio_r || is_timer_r
-        difftest.rfwen := rfwen_r
-        difftest.wdest := wdest_r
-        difftest.pc := pc_r
-        difftest.instr := inst_r
+        val is_mmio = io.mem2wb.bits.is_mmio && io.mem2wb.valid
+        val is_timer = wb.rcsr_id === CSR_MCYCLE
+        val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
+        difftest.valid := wb_valid
+        difftest.skip := is_mmio || is_timer
+        difftest.rfwen := wb.dst_en
+        difftest.wdest := io.wReg.id
+        difftest.pc := wb.pc
+        difftest.instr := wb.inst
     }
 
     if (isSim) {
-        val difftest = DifftestModule(new DiffArchEvent, dontCare = true)
+        val difftest = DifftestModule(new DiffArchEvent, delay = 1, dontCare = true)
         difftest.valid := false.B
-        difftest.interrupt := excep_r.etype === 0.U
-        difftest.exception := excep_r.cause
-        difftest.exceptionPC := excep_r.pc
+        difftest.interrupt := wb.excep.etype === 0.U
+        difftest.exception := wb.excep.cause
+        difftest.exceptionPC := wb.excep.pc
     }
 
     if (isSim) {
