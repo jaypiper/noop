@@ -186,7 +186,8 @@ class DF2EX extends Bundle{
     val recov   = Bool()
 }
 
-class EX2DF extends PipelineBackCtrl {
+class EX2DF extends Bundle {
+    val drop = Bool()
     val exBusy = Bool()
 }
 

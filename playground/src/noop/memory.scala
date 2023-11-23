@@ -82,7 +82,6 @@ class Memory extends Module{
         val df2mem  = Flipped(DecoupledIO(new DF2MEM))
         val mem2df  = Output(new MEM2DF)
         val mem2wb  = DecoupledIO(new MEM2RB)
-        val stall   = Input(Bool())
         val dataRW  = Flipped(new DcacheRW)
         val d_mem1  = Output(new RegForward)
         val d_mem0  = Output(new RegForward)

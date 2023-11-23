@@ -21,7 +21,7 @@ class Dispatch extends Module {
 
   val drop_in = io.ex2df.drop || io.mem2df.drop
   io.dp2df.drop := drop_in
-  io.dp2df.stall := io.ex2df.stall
+  io.dp2df.stall := false.B
 
   io.df2ex.bits.inst := io.df2dp.bits.inst
   io.df2ex.bits.pc := io.df2dp.bits.pc

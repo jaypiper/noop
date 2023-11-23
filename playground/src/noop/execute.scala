@@ -15,18 +15,15 @@ class Execute extends Module{
         val df2ex       = Flipped(DecoupledIO(new DF2EX))
         val ex2df       = Output(new EX2DF)
         val ex2wb       = DecoupledIO(new MEM2RB)
-        val stall       = Input(Bool())
         val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)
     })
     val drop_r = RegInit(false.B)
-    val stall_r = RegInit(false.B)
-    drop_r := false.B;  stall_r := false.B
+    drop_r := false.B
     val drop_in = drop_r
     io.ex2df.drop   := drop_in
-    io.ex2df.stall  := io.stall || stall_r
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))

@@ -11,7 +11,6 @@ class Writeback extends Module{
     val io = IO(new Bundle{
         val mem2wb  = Flipped(DecoupledIO(new MEM2RB))
         val ex2wb   = Flipped(DecoupledIO(new MEM2RB))
-        val stall   = Output(Bool())
         val wReg    = Flipped(new RegWrite)
         val wCsr    = Flipped(new CSRWrite)
         val excep   = Output(new Exception)
@@ -20,10 +19,8 @@ class Writeback extends Module{
         val updateTrace = Output(new UpdateTrace)
     })
     val recov_r     = RegInit(false.B)
-    val stall_r     = RegInit(false.B)
-    recov_r := false.B;  stall_r := false.B
+    recov_r := false.B
 
-    io.stall := stall_r
     io.mem2wb.ready := true.B
     io.ex2wb.ready := true.B
 
