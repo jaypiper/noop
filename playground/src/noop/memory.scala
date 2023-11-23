@@ -81,7 +81,8 @@ class Memory extends Module{
     val io = IO(new Bundle{
         val df2mem  = Flipped(DecoupledIO(new DF2MEM))
         val mem2df  = Output(new MEM2DF)
-        val mem2wb  = new MEM2RB
+        val mem2wb  = DecoupledIO(new MEM2RB)
+        val stall   = Input(Bool())
         val dataRW  = Flipped(new DcacheRW)
         val d_mem1  = Output(new RegForward)
         val d_mem0  = Output(new RegForward)
@@ -175,18 +176,18 @@ class Memory extends Module{
     hs1 := io.dataRW.avalid && io.dataRW.ready
     
 
-    io.mem2wb.inst      := inst_r
-    io.mem2wb.pc        := pc_r
-    io.mem2wb.excep     := excep_r
-    io.mem2wb.csr_id    := csr_id_r
-    io.mem2wb.csr_d     := csr_d_r
-    io.mem2wb.csr_en    := csr_en_r
-    io.mem2wb.dst       := dst_r
-    io.mem2wb.dst_d     := read_data
-    io.mem2wb.dst_en    := dst_en_r
-    io.mem2wb.rcsr_id   := rcsr_id_r
-    io.mem2wb.is_mmio   := mem_addr_r < "h30000000".U
-    io.mem2wb.recov     := recov_r
+    io.mem2wb.bits.inst      := inst_r
+    io.mem2wb.bits.pc        := pc_r
+    io.mem2wb.bits.excep     := excep_r
+    io.mem2wb.bits.csr_id    := csr_id_r
+    io.mem2wb.bits.csr_d     := csr_d_r
+    io.mem2wb.bits.csr_en    := csr_en_r
+    io.mem2wb.bits.dst       := dst_r
+    io.mem2wb.bits.dst_d     := read_data
+    io.mem2wb.bits.dst_en    := dst_en_r
+    io.mem2wb.bits.rcsr_id   := rcsr_id_r
+    io.mem2wb.bits.is_mmio   := mem_addr_r < "h30000000".U
+    io.mem2wb.bits.recov     := recov_r
     io.mem2wb.valid     := valid_r && io.dataRW.rvalid
 
     if (isSim) {

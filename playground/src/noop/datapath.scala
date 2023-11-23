@@ -229,21 +229,18 @@ class MEM2DF extends PipelineBackCtrl {
 }
 
 class MEM2RB extends Bundle{
-    val inst    = Output(UInt(INST_WIDTH.W))
-    val pc      = Output(UInt(PADDR_WIDTH.W))
-    val excep   = Output(new Exception)
-    val csr_id  = Output(UInt(CSR_WIDTH.W))
-    val csr_d   = Output(UInt(DATA_WIDTH.W))
-    val csr_en  = Output(Bool())
-    val dst     = Output(UInt(REG_WIDTH.W))
-    val dst_d   = Output(UInt(DATA_WIDTH.W))
-    val dst_en  = Output(Bool())
-    val rcsr_id = Output(UInt(CSR_WIDTH.W))
-    val is_mmio = Output(Bool())
-    val stall   = Input(Bool())
-    val recov   = Output(Bool())
-    val valid   = Output(Bool())
-    val ready   = Input(Bool())
+    val inst    = UInt(INST_WIDTH.W)
+    val pc      = UInt(PADDR_WIDTH.W)
+    val excep   = new Exception
+    val csr_id  = UInt(CSR_WIDTH.W)
+    val csr_d   = UInt(DATA_WIDTH.W)
+    val csr_en  = Bool()
+    val dst     = UInt(REG_WIDTH.W)
+    val dst_d   = UInt(DATA_WIDTH.W)
+    val dst_en  = Bool()
+    val rcsr_id = UInt(CSR_WIDTH.W)
+    val is_mmio = Bool()
+    val recov   = Bool()
 }
 
 class PredictIO extends Bundle {

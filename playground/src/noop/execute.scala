@@ -14,7 +14,8 @@ class Execute extends Module{
     val io = IO(new Bundle{
         val df2ex       = Flipped(DecoupledIO(new DF2EX))
         val ex2df       = Output(new EX2DF)
-        val ex2wb       = new MEM2RB
+        val ex2wb       = DecoupledIO(new MEM2RB)
+        val stall       = Input(Bool())
         val d_ex0       = Output(new RegForward)
         val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
@@ -25,7 +26,7 @@ class Execute extends Module{
     drop_r := false.B;  stall_r := false.B
     val drop_in = drop_r
     io.ex2df.drop   := drop_in
-    io.ex2df.stall  := io.ex2wb.stall || stall_r
+    io.ex2df.stall  := io.stall || stall_r
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
@@ -181,17 +182,17 @@ class Execute extends Module{
     }
 
     // out
-    io.ex2wb.inst      := inst_r
-    io.ex2wb.pc        := pc_r
-    io.ex2wb.excep     := excep_r
-    io.ex2wb.csr_id     := csr_id_r
-    io.ex2wb.csr_d      := csr_d_r
-    io.ex2wb.csr_en     := ctrl_r.writeCSREn
-    io.ex2wb.dst        := dst_r
-    io.ex2wb.dst_d      := dst_d_r
-    io.ex2wb.dst_en     := ctrl_r.writeRegEn
-    io.ex2wb.rcsr_id   := rcsr_id_r
-    io.ex2wb.is_mmio   := false.B
+    io.ex2wb.bits.inst      := inst_r
+    io.ex2wb.bits.pc        := pc_r
+    io.ex2wb.bits.excep     := excep_r
+    io.ex2wb.bits.csr_id     := csr_id_r
+    io.ex2wb.bits.csr_d      := csr_d_r
+    io.ex2wb.bits.csr_en     := ctrl_r.writeCSREn
+    io.ex2wb.bits.dst        := dst_r
+    io.ex2wb.bits.dst_d      := dst_d_r
+    io.ex2wb.bits.dst_en     := ctrl_r.writeRegEn
+    io.ex2wb.bits.rcsr_id   := rcsr_id_r
+    io.ex2wb.bits.is_mmio   := false.B
     io.ex2wb.valid     := valid_r
-    io.ex2wb.recov     := recov_r
+    io.ex2wb.bits.recov     := recov_r
 }
