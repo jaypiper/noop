@@ -86,7 +86,6 @@ class Execute extends Module{
     io.df2ex.ready  := false.B
     val sIdle :: sWaitAlu :: Nil = Enum(2)
     val state = RegInit(sIdle)
-    val drop_alu = RegInit(false.B)
     io.ex2df.exBusy := state =/= sIdle
     when(!drop_in){
         when((valid_r || state =/= sIdle) && !hs_out){
@@ -110,8 +109,7 @@ class Execute extends Module{
         when(alu.io.valid){
             state       := sIdle
             dst_d_r     := alu_out
-            valid_r     := !drop_alu
-            drop_alu    := false.B
+            valid_r     := true.B
         }
     }
     // branch & jmp
