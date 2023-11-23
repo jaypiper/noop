@@ -99,6 +99,7 @@ class CPU extends Module{
     decode.io.df2id     := forwarding.io.df2id
     decode.io.idState   <> csrs.io.idState
     forwarding.io.df2ex  <> execute.io.df2ex
+    forwarding.io.ex2df  := execute.io.ex2df
     forwarding.io.d_ex   <> execute.io.d_ex
     forwarding.io.d_mem1 <> memory.io.d_mem1
     forwarding.io.d_mem0 <> memory.io.d_mem0

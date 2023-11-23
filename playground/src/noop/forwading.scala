@@ -11,7 +11,8 @@ class Forwarding extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(DecoupledIO(new ID2DF))
         val df2id = Output(new PipelineBackCtrl)
-        val df2ex = new DF2EX
+        val df2ex = DecoupledIO(new DF2EX)
+        val ex2df = Input(new EX2DF)
         val df2mem = new DF2MEM
         val d_ex0    = Input(new RegForward)
         val d_ex    = Input(new RegForward)
@@ -28,8 +29,8 @@ class Forwarding extends Module{
     def stall_pipe() = {
         drop_r := true.B;   stall_r := true.B;  recov_r := true.B
     }
-    io.df2id.drop   := io.df2ex.drop || drop_r
-    io.df2id.stall  := (stall_r && !io.df2ex.drop) || io.df2ex.stall
+    io.df2id.drop   := io.ex2df.drop || drop_r
+    io.df2id.stall  := (stall_r && !io.ex2df.drop) || io.ex2df.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
@@ -164,9 +165,9 @@ class Forwarding extends Module{
         recov_r     := io.id2df.bits.recov
         when(io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
             excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
-            excep_r.tval    := io.df2ex.inst
+            excep_r.tval    := io.df2ex.bits.inst
             excep_r.en      := true.B
-            excep_r.pc      := io.df2ex.pc
+            excep_r.pc      := io.df2ex.bits.pc
             excep_r.etype   := 0.U
             stall_pipe()
             ctrl_r      := 0.U.asTypeOf(new Ctrl)
@@ -197,7 +198,7 @@ class Forwarding extends Module{
 
 
     io.id2df.ready := false.B
-    when(!io.df2ex.drop && !drop_r){
+    when(!io.ex2df.drop && !drop_r){
         when((valid_r || state =/= sIdle) && !hs_out){
         }.elsewhen(io.id2df.valid){
             io.id2df.ready := true.B
@@ -229,22 +230,22 @@ class Forwarding extends Module{
     io.rs2Read.id := io.id2df.bits.rs2(4,0)
     io.csrRead.id := io.id2df.bits.rs2//TODO
 
-    val drop_in = io.df2ex.drop || io.df2mem.drop
+    val drop_in = io.ex2df.drop || io.df2mem.drop
 
-    io.df2ex.inst       := inst_r
-    io.df2ex.pc         := pc_r
-    io.df2ex.nextPC     := nextPC_r
-    io.df2ex.excep      := excep_r
-    io.df2ex.ctrl       := ctrl_r
-    io.df2ex.rs1        := rs1_r
-    io.df2ex.rs1_d      := rs1_d_r
-    io.df2ex.rs2        := rs2_r
-    io.df2ex.rs2_d      := rs2_d_r
-    io.df2ex.dst        := dst_r
-    io.df2ex.dst_d      := dst_d_r
-    io.df2ex.jmp_type   := jmp_type_r
-    io.df2ex.rcsr_id    := rcsr_id_r
-    io.df2ex.recov      := recov_r
+    io.df2ex.bits.inst       := inst_r
+    io.df2ex.bits.pc         := pc_r
+    io.df2ex.bits.nextPC     := nextPC_r
+    io.df2ex.bits.excep      := excep_r
+    io.df2ex.bits.ctrl       := ctrl_r
+    io.df2ex.bits.rs1        := rs1_r
+    io.df2ex.bits.rs1_d      := rs1_d_r
+    io.df2ex.bits.rs2        := rs2_r
+    io.df2ex.bits.rs2_d      := rs2_d_r
+    io.df2ex.bits.dst        := dst_r
+    io.df2ex.bits.dst_d      := dst_d_r
+    io.df2ex.bits.jmp_type   := jmp_type_r
+    io.df2ex.bits.rcsr_id    := rcsr_id_r
+    io.df2ex.bits.recov      := recov_r
     io.df2ex.valid      := valid_r && !drop_in && !io.df2mem.membusy && ctrl_r.dcMode === mode_NOP
 
     io.df2mem.inst      := inst_r
@@ -259,5 +260,5 @@ class Forwarding extends Module{
     io.df2mem.dst_d            := 0.U
     io.df2mem.rcsr_id          := 0.U
     io.df2mem.recov            := recov_r
-    io.df2mem.valid            := valid_r && !drop_in && !io.df2ex.exBusy && ctrl_r.dcMode =/= mode_NOP
+    io.df2mem.valid            := valid_r && !drop_in && !io.ex2df.exBusy && ctrl_r.dcMode =/= mode_NOP
 }

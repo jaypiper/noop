@@ -170,25 +170,24 @@ class DF2RR extends ID2DF{
 }
 
 class DF2EX extends Bundle{
-    val inst    = Output(UInt(INST_WIDTH.W))
-    val pc      = Output(UInt(PADDR_WIDTH.W))
-    val nextPC  = Output(UInt(PADDR_WIDTH.W))
-    val excep   = Output(new Exception)
-    val ctrl    = Output(new Ctrl)
-    val rs1     = Output(UInt(REG_WIDTH.W))
-    val rs1_d   = Output(UInt(DATA_WIDTH.W))
-    val rs2     = Output(UInt(CSR_WIDTH.W))
-    val rs2_d   = Output(UInt(DATA_WIDTH.W))
-    val dst     = Output(UInt(REG_WIDTH.W))
-    val dst_d   = Output(UInt(DATA_WIDTH.W))
-    val rcsr_id = Output(UInt(CSR_WIDTH.W))
-    val jmp_type = Output(UInt(JMP_WIDTH.W))
-    val exBusy  = Input(Bool())
-    val drop    = Input(Bool())
-    val stall   = Input(Bool())
-    val recov   = Output(Bool())
-    val valid   = Output(Bool())
-    val ready   = Input(Bool())
+    val inst    = UInt(INST_WIDTH.W)
+    val pc      = UInt(PADDR_WIDTH.W)
+    val nextPC  = UInt(PADDR_WIDTH.W)
+    val excep   = new Exception
+    val ctrl    = new Ctrl
+    val rs1     = UInt(REG_WIDTH.W)
+    val rs1_d   = UInt(DATA_WIDTH.W)
+    val rs2     = UInt(CSR_WIDTH.W)
+    val rs2_d   = UInt(DATA_WIDTH.W)
+    val dst     = UInt(REG_WIDTH.W)
+    val dst_d   = UInt(DATA_WIDTH.W)
+    val rcsr_id = UInt(CSR_WIDTH.W)
+    val jmp_type = UInt(JMP_WIDTH.W)
+    val recov   = Bool()
+}
+
+class EX2DF extends PipelineBackCtrl {
+    val exBusy = Bool()
 }
 
 class EX2MEM extends Bundle{
