@@ -188,6 +188,15 @@ class Forwarding extends Module{
     }
 
     io.id2df.ready := false.B
+
+    // 1) flush; 2) rs1 and rs2 are ready
+    when (io.ex2df.drop || drop_r || state === sWait && !rs1_wait && !rs2_wait) {
+        state := sIdle
+    // either rs1 or rs2 is not ready
+    }.elsewhen(state === sIdle && hs_in && (rs1_wait || rs2_wait)) {
+        state := sWait
+    }
+
     when(!io.ex2df.drop && !drop_r){
         when((valid_r || state =/= sIdle) && !hs_out){
         }.elsewhen(io.id2df.valid){
@@ -196,7 +205,6 @@ class Forwarding extends Module{
 
         when(state === sIdle){
             when(hs_in && (rs1_wait || rs2_wait)){
-                state := sWait
                 valid_r := false.B
             }.elsewhen(hs_in){
                 valid_r := true.B
@@ -206,13 +214,11 @@ class Forwarding extends Module{
         }
         when(state === sWait){
             when(!(rs1_wait) && !rs2_wait){
-                state := sIdle
                 valid_r := true.B
             }
         }
         
     }.otherwise{
-        state       := sIdle
         valid_r     := false.B
     }
 
