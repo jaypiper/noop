@@ -13,7 +13,8 @@ class Forwarding extends Module{
         val df2id = Output(new PipelineBackCtrl)
         val df2ex = DecoupledIO(new DF2EX)
         val ex2df = Input(new EX2DF)
-        val df2mem = new DF2MEM
+        val df2mem = DecoupledIO(new DF2MEM)
+        val mem2df = Input(new MEM2DF)
         val d_ex0    = Input(new RegForward)
         val d_ex    = Input(new RegForward)
         val d_mem0  = Input(new RegForward)
@@ -219,7 +220,7 @@ class Forwarding extends Module{
     io.rs2Read.id := io.id2df.bits.rs2(4,0)
     io.csrRead.id := io.id2df.bits.rs2//TODO
 
-    val drop_in = io.ex2df.drop || io.df2mem.drop
+    val drop_in = io.ex2df.drop || io.mem2df.drop
 
     io.df2ex.bits.inst       := inst_r
     io.df2ex.bits.pc         := pc_r
@@ -235,19 +236,19 @@ class Forwarding extends Module{
     io.df2ex.bits.jmp_type   := jmp_type_r
     io.df2ex.bits.rcsr_id    := rcsr_id_r
     io.df2ex.bits.recov      := recov_r
-    io.df2ex.valid      := valid_r && !drop_in && !io.df2mem.membusy && ctrl_r.dcMode === mode_NOP
+    io.df2ex.valid           := valid_r && !drop_in && !io.mem2df.membusy && ctrl_r.dcMode === mode_NOP
 
-    io.df2mem.inst      := inst_r
-    io.df2mem.pc        := pc_r
-    io.df2mem.excep     := 0.U.asTypeOf(new Exception) // TODO: remove 
-    io.df2mem.ctrl       := ctrl_r
-    io.df2mem.mem_addr         := rs1_d_r + dst_d_r
-    io.df2mem.mem_data         := rs2_d_r
-    io.df2mem.csr_id           := 0.U
-    io.df2mem.csr_d            := 0.U
-    io.df2mem.dst              := dst_r
-    io.df2mem.dst_d            := 0.U
-    io.df2mem.rcsr_id          := 0.U
-    io.df2mem.recov            := recov_r
-    io.df2mem.valid            := valid_r && !drop_in && !io.ex2df.exBusy && ctrl_r.dcMode =/= mode_NOP
+    io.df2mem.bits.inst      := inst_r
+    io.df2mem.bits.pc        := pc_r
+    io.df2mem.bits.excep     := 0.U.asTypeOf(new Exception) // TODO: remove
+    io.df2mem.bits.ctrl      := ctrl_r
+    io.df2mem.bits.mem_addr  := rs1_d_r + dst_d_r
+    io.df2mem.bits.mem_data  := rs2_d_r
+    io.df2mem.bits.csr_id    := 0.U
+    io.df2mem.bits.csr_d     := 0.U
+    io.df2mem.bits.dst       := dst_r
+    io.df2mem.bits.dst_d     := 0.U
+    io.df2mem.bits.rcsr_id   := 0.U
+    io.df2mem.bits.recov     := recov_r
+    io.df2mem.valid          := valid_r && !drop_in && !io.ex2df.exBusy && ctrl_r.dcMode =/= mode_NOP
 }

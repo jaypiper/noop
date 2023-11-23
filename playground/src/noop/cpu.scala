@@ -108,6 +108,7 @@ class CPU extends Module{
     forwarding.io.csrRead <> csrs.io.rs
     forwarding.io.d_ex0 <> execute.io.d_ex0
     forwarding.io.df2mem <> memory.io.df2mem
+    forwarding.io.mem2df := memory.io.mem2df
 
     execute.io.ex2wb   <> writeback.io.ex2wb
     execute.io.updateBPU <> bpu.io.update

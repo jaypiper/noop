@@ -78,14 +78,15 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
 
 class Memory extends Module{
     val io = IO(new Bundle{
-        val df2mem  = Flipped(new DF2MEM)
+        val df2mem  = Flipped(DecoupledIO(new DF2MEM))
+        val mem2df  = Output(new MEM2DF)
         val mem2wb  = new MEM2RB
         val dataRW  = Flipped(new DcacheRW)
         val d_mem1  = Output(new RegForward)
         val d_mem0  = Output(new RegForward)
     })
-    io.df2mem.drop  := false.B
-    io.df2mem.stall := false.B
+    io.mem2df.drop  := false.B
+    io.mem2df.stall := false.B
 // stage 1
     val inst_r     = RegInit(0.U(INST_WIDTH.W))
     val pc_r       = RegInit(0.U(PADDR_WIDTH.W))
@@ -106,7 +107,7 @@ class Memory extends Module{
     val hs_in   = io.df2mem.ready && io.df2mem.valid
     val hs1     = Wire(Bool())
     val hs_out  = io.mem2wb.ready && io.mem2wb.valid
-    val curMode = Mux(hs_in, io.df2mem.ctrl.dcMode, ctrl_r.dcMode)
+    val curMode = Mux(hs_in, io.df2mem.bits.ctrl.dcMode, ctrl_r.dcMode)
     val bitmap = MuxLookup(curMode(1,0), 0.U(DATA_WIDTH.W), Seq(
         0.U -> "hff".U(DATA_WIDTH.W),
         1.U -> "hffff".U(DATA_WIDTH.W),
@@ -121,38 +122,38 @@ class Memory extends Module{
         ))
     hs1 := false.B
     when(hs_in){
-        inst_r     := io.df2mem.inst
-        pc_r       := io.df2mem.pc
-        excep_r    := io.df2mem.excep
-        ctrl_r     := io.df2mem.ctrl
-        mem_addr_r := io.df2mem.mem_addr
-        mem_data_r := io.df2mem.mem_data
-        dst_r      := io.df2mem.dst
-        dst_d_r    := io.df2mem.dst_d
-        dst_en_r   := io.df2mem.ctrl.writeRegEn
-        csr_id_r   := io.df2mem.csr_id
-        csr_d_r    := io.df2mem.csr_d
-        csr_en_r   := io.df2mem.ctrl.writeCSREn
-        rcsr_id_r  := io.df2mem.rcsr_id
-        recov_r    := io.df2mem.recov
+        inst_r     := io.df2mem.bits.inst
+        pc_r       := io.df2mem.bits.pc
+        excep_r    := io.df2mem.bits.excep
+        ctrl_r     := io.df2mem.bits.ctrl
+        mem_addr_r := io.df2mem.bits.mem_addr
+        mem_data_r := io.df2mem.bits.mem_data
+        dst_r      := io.df2mem.bits.dst
+        dst_d_r    := io.df2mem.bits.dst_d
+        dst_en_r   := io.df2mem.bits.ctrl.writeRegEn
+        csr_id_r   := io.df2mem.bits.csr_id
+        csr_d_r    := io.df2mem.bits.csr_d
+        csr_en_r   := io.df2mem.bits.ctrl.writeCSREn
+        rcsr_id_r  := io.df2mem.bits.rcsr_id
+        recov_r    := io.df2mem.bits.recov
         valid_r    := true.B
     } .elsewhen(hs_out) {
         valid_r := false.B
     }
 
-    io.dataRW.addr := Mux(hs_in, io.df2mem.mem_addr, mem_addr_r)
-    val cur_mem_data = Mux(hs_in, io.df2mem.mem_data, mem_data_r)
+    io.dataRW.addr := Mux(hs_in, io.df2mem.bits.mem_addr, mem_addr_r)
+    val cur_mem_data = Mux(hs_in, io.df2mem.bits.mem_data, mem_data_r)
     io.dataRW.wdata := cur_mem_data// Mux(io.dataRW.addr(PADDR_WIDTH-1), cur_mem_data  << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W)), cur_mem_data)
     io.dataRW.wen   := curMode(DC_S_BIT)
     io.dataRW.avalid := hs_in && curMode =/= mode_NOP
     io.dataRW.wmask := bitmap
     io.dataRW.size := curMode(1,0)
     io.df2mem.ready := false.B
-    io.df2mem.membusy := valid_r && !io.dataRW.rvalid
+    io.mem2df.membusy := valid_r && !io.dataRW.rvalid
 
-    io.d_mem0.id := io.df2mem.dst
+    io.d_mem0.id := io.df2mem.bits.dst
     io.d_mem0.data := 0.U
-    io.d_mem0.state := Mux(io.df2mem.valid && io.df2mem.ctrl.dcMode(DC_L_BIT), d_wait, d_invalid)
+    io.d_mem0.state := Mux(io.df2mem.valid && io.df2mem.bits.ctrl.dcMode(DC_L_BIT), d_wait, d_invalid)
 
     io.d_mem1.id := dst_r
     io.d_mem1.data := Mux(ctrl_r.dcMode(DC_L_BIT), read_data, dst_d_r)
