@@ -165,11 +165,11 @@ class Fetch extends Module{
     val s2_nextpc = s1.out.bits.pc
 
     // Stage 3
-    val s3_in = PipelineNext(s2_out, io.if2id.ready, drop_in)
+    val s3_inst_valid = RegInit(false.B)
+    val s3_in = PipelineNext(s2_out, io.if2id.ready && (s3_inst_valid || io.instRead.rvalid), drop_in)
     s3_in.ready := !s3_in.valid || io.if2id.ready
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
 
-    val s3_inst_valid = RegInit(false.B)
     val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && io.instRead.rready)
     io.instRead.rready := !s3_inst_valid || io.if2id.ready
     when(drop_in) {
