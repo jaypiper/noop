@@ -22,8 +22,8 @@ class Execute extends Module{
     })
     val drop_r = RegInit(false.B)
     drop_r := false.B
-    val drop_in = drop_r
-    io.ex2df.drop   := drop_in
+    io.ex2df.drop   := drop_r
+
     val alu     = Module(new ALU)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
@@ -85,7 +85,7 @@ class Execute extends Module{
     val sIdle :: sWaitAlu :: Nil = Enum(2)
     val state = RegInit(sIdle)
     io.ex2df.exBusy := state =/= sIdle
-    when(!drop_in){
+    when(!drop_r){
         when((valid_r || state =/= sIdle) && !hs_out){
         }.elsewhen(io.df2ex.valid){
             io.df2ex.ready  := true.B
@@ -137,7 +137,7 @@ class Execute extends Module{
     val jmp_r = RegInit(false.B)
     jmp_r := false.B
 
-    when(!drop_in){
+    when(!drop_r){
         when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP && real_target =/= io.df2ex.bits.nextPC){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
