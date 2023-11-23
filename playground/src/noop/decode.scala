@@ -9,7 +9,8 @@ import noop.datapath._
 import noop.param.Insts._
 class Decode extends Module{
     val io = IO(new Bundle{
-        val if2id   = Flipped(new IF2ID)
+        val if2id   = Flipped(DecoupledIO(new IF2ID))
+        val id2if   = Output(new ID2IF)
         val id2df   = new ID2DF
         val idState = Input(new IdState)
     })
@@ -18,9 +19,9 @@ class Decode extends Module{
     val stall_r     = RegInit(false.B)
     drop_r := false.B;  stall_r := false.B
     val drop_in     = drop_r || io.id2df.drop
-    io.if2id.drop   := drop_in
-    io.if2id.stall  := (stall_r && !io.id2df.drop) || io.id2df.stall
-    dontTouch(io.if2id.stall)
+    io.id2if.drop   := drop_in
+    io.id2if.stall  := (stall_r && !io.id2df.drop) || io.id2df.stall
+    dontTouch(io.id2if.stall)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
@@ -44,7 +45,7 @@ class Decode extends Module{
 
     val hs_out = io.id2df.ready && io.id2df.valid
     val hs_in  = io.if2id.ready && io.if2id.valid
-    val inst_in = io.if2id.inst
+    val inst_in = io.if2id.bits.inst
     val instType = ListLookup(inst_in, decodeDefault, decodeTable)
     val dType = instType(0)
     val jmp_indi = instType(5) === true.B
@@ -59,8 +60,8 @@ class Decode extends Module{
         is(JType){ imm := Cat(inst_in(31), inst_in(19, 12), inst_in(20), inst_in(30, 21), 0.U(1.W)).asSInt }
     }
     when(hs_in){
-        inst_r          := io.if2id.inst
-        pc_r            := io.if2id.pc
+        inst_r          := io.if2id.bits.inst
+        pc_r            := io.if2id.bits.pc
         excep_r         := 0.U.asTypeOf(new Exception)
         ctrl_r.aluOp      := instType(1)
         ctrl_r.aluWidth   := instType(2)
@@ -73,14 +74,14 @@ class Decode extends Module{
         rrs2_r          := false.B
         dst_r           := inst_in(11,7)
         jmp_type_r      := NO_JMP
-        nextPC_r        := io.if2id.nextPC
+        nextPC_r        := io.if2id.bits.nextPC
 
-        recov_r         := io.if2id.recov
+        recov_r         := io.if2id.bits.recov
         when(dType === INVALID){
             excep_r.en      := true.B
             excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
             excep_r.tval    := inst_in
-            excep_r.pc      := io.if2id.pc
+            excep_r.pc      := io.if2id.bits.pc
             excep_r.etype   := 0.U
             stall_pipe()
         }
@@ -92,7 +93,7 @@ class Decode extends Module{
             when(jmp_indi){
                 jmp_type_r  := JMP_REG
                 rrs1_r      := true.B
-                rs2_d_r     := io.if2id.pc + 4.U
+                rs2_d_r     := io.if2id.bits.pc + 4.U
                 dst_d_r     := imm.asUInt
             }.elsewhen(rs2_is_csr){
                 rs1_d_r     := inst_in(19,15)
@@ -119,17 +120,17 @@ class Decode extends Module{
         }
         when(dType === UType){
             rs1_d_r     := imm.asUInt
-            rs2_d_r     := io.if2id.pc
+            rs2_d_r     := io.if2id.bits.pc
         }
         when(dType === JType){
-            rs1_d_r     := io.if2id.pc
-            rs2_d_r     := io.if2id.pc + 4.U
+            rs1_d_r     := io.if2id.bits.pc
+            rs2_d_r     := io.if2id.bits.pc + 4.U
             dst_d_r     := imm.asUInt
             jmp_type_r := JMP_PC
         }
 
         when(inst_in === Insts.MRET){
-            excep_r.pc  := io.if2id.pc
+            excep_r.pc  := io.if2id.bits.pc
             excep_r.en  := true.B
             excep_r.etype := ETYPE_MRET
             excep_r.cause := 0.U

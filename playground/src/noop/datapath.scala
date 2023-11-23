@@ -120,14 +120,15 @@ class ForceJmp extends Bundle{
 }
 
 class IF2ID extends Bundle{
-    val inst    = Output(UInt(INST_WIDTH.W))
-    val pc      = Output(UInt(PADDR_WIDTH.W))
-    val nextPC  = Output(UInt(PADDR_WIDTH.W))
-    val drop    = Input(Bool())
-    val stall   = Input(Bool())
-    val recov   = Output(Bool())
-    val valid   = Output(Bool())
-    val ready   = Input(Bool())
+    val inst    = UInt(INST_WIDTH.W)
+    val pc      = UInt(PADDR_WIDTH.W)
+    val nextPC  = UInt(PADDR_WIDTH.W)
+    val recov   = Bool()
+}
+
+class ID2IF extends Bundle{
+    val drop    = Bool()
+    val stall   = Bool()
 }
 
 class Ctrl extends Bundle{

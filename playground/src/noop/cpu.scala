@@ -90,6 +90,7 @@ class CPU extends Module{
     fetch.io.wb2if      <> writeback.io.wb2if
     fetch.io.branchFail <> execute.io.ex2if
     fetch.io.if2id      <> decode.io.if2id
+    fetch.io.id2if      := decode.io.id2if
     fetch.io.recov      <> writeback.io.recov
 
     decode.io.id2df     <> forwarding.io.id2df
