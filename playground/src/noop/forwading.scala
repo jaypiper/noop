@@ -74,9 +74,12 @@ class Forwarding extends Module{
     io.df2dp.bits.excep := io.id2df.bits.excep
     io.df2dp.bits.ctrl := io.id2df.bits.ctrl
     io.df2dp.bits.rs1 := io.id2df.bits.rs1
-    io.df2dp.bits.rs1_d := io.id2df.bits.rs1_d
+    io.df2dp.bits.rs1_d := Mux(io.id2df.bits.rrs1, rs1_data, io.id2df.bits.rs1_d)
     io.df2dp.bits.rs2 := io.id2df.bits.rs2
-    io.df2dp.bits.rs2_d := io.id2df.bits.rs2_d
+    io.df2dp.bits.rs2_d := Mux(io.id2df.bits.ctrl.writeCSREn,
+        io.csrRead.data,
+        Mux(io.id2df.bits.rrs2, rs2_data, io.id2df.bits.rs2_d)
+    )
     io.df2dp.bits.dst := io.id2df.bits.dst
     io.df2dp.bits.dst_d := io.id2df.bits.dst_d
     io.df2dp.bits.rcsr_id := Mux(io.id2df.bits.ctrl.writeCSREn, io.id2df.bits.rs2, 0.U)
@@ -90,14 +93,5 @@ class Forwarding extends Module{
         io.df2dp.bits.excep.etype := 0.U
         io.df2dp.bits.ctrl := 0.U.asTypeOf(new Ctrl)
         io.df2dp.bits.jmp_type := 0.U
-    }
-    when (rs1_valid && io.id2df.bits.rrs1) {
-        io.df2dp.bits.rs1_d := rs1_data
-    }
-    when (rs2_valid && io.id2df.bits.rrs2) {
-        io.df2dp.bits.rs2_d := rs2_data
-    }
-    when (io.id2df.bits.ctrl.writeCSREn) {
-        io.df2dp.bits.rs2_d := io.csrRead.data
     }
 }
