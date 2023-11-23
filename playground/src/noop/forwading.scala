@@ -49,9 +49,6 @@ class Forwarding extends Module{
     val recov_r     = RegInit(false.B)
     val valid_r     = RegInit(false.B)
 
-    val pre_dst     = RegInit(0.U(REG_WIDTH.W))
-    val pre_wr      = RegInit(false.B)
-
     val sIdle :: sWait :: Nil = Enum(2)
     val state = RegInit(sIdle)
     val hs_in   = io.id2df.ready && io.id2df.valid
@@ -188,14 +185,6 @@ class Forwarding extends Module{
     when(hs_in && io.id2df.bits.ctrl.writeCSREn) {
         rs2_d_r := io.csrRead.data
     }
-
-    when(hs_in){
-        pre_dst := io.id2df.bits.dst
-        pre_wr  := io.id2df.bits.ctrl.writeRegEn
-    }.elsewhen(hs_out){
-        pre_wr  := false.B
-    }
-
 
     io.id2df.ready := false.B
     when(!io.ex2df.drop && !drop_r){
