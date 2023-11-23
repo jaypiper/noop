@@ -22,30 +22,15 @@ class Decode extends Module{
     val drop_in     = drop_r || io.df2id.drop
     io.id2if.drop   := drop_in
     io.id2if.stall  := (stall_r && !io.df2id.drop) || io.df2id.stall
-    dontTouch(io.id2if.stall)
-    val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
-    val excep_r     = RegInit(0.U.asTypeOf(new Exception))
-    val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
-    val rs1_r       = RegInit(0.U(REG_WIDTH.W))
-    val rrs1_r      = RegInit(false.B)
-    val rs1_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val rs2_r       = RegInit(0.U(CSR_WIDTH.W))
-    val rrs2_r      = RegInit(false.B)
-    val rs2_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val dst_r       = RegInit(0.U(REG_WIDTH.W))
-    val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val jmp_type_r  = RegInit(0.U(JMP_WIDTH.W))
-    val recov_r     = RegInit(false.B)
-    val valid_r     = RegInit(false.B)
-    val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
 
     def stall_pipe() = {
-        stall_r := true.B;  drop_r := true.B; recov_r := true.B
+        when (io.if2id.fire) {
+            stall_r := true.B
+            drop_r := true.B
+            io.id2df.bits.recov := true.B
+        }
     }
 
-    val hs_out = io.id2df.ready && io.id2df.valid
-    val hs_in  = io.if2id.ready && io.if2id.valid
     val inst_in = io.if2id.bits.inst
     val instType = ListLookup(inst_in, decodeDefault, decodeTable)
     val dType = instType(0)
@@ -60,120 +45,88 @@ class Decode extends Module{
         is(UType){ imm := Cat(inst_in(31, 12), 0.U(12.W)).asSInt }
         is(JType){ imm := Cat(inst_in(31), inst_in(19, 12), inst_in(20), inst_in(30, 21), 0.U(1.W)).asSInt }
     }
-    when(hs_in){
-        inst_r          := io.if2id.bits.inst
-        pc_r            := io.if2id.bits.pc
-        excep_r         := 0.U.asTypeOf(new Exception)
-        ctrl_r.aluOp      := instType(1)
-        ctrl_r.aluWidth   := instType(2)
-        ctrl_r.dcMode     := instType(3)
-        ctrl_r.writeRegEn := instType(4) & (inst_in(11,7) =/= 0.U)
-        ctrl_r.writeCSREn := instType(6)
-        rs1_r           := inst_in(19,15)
-        rrs1_r          := false.B
-        rs2_r           := Mux(rs2_is_csr, inst_in(31,20), inst_in(24,20))
-        rrs2_r          := false.B
-        dst_r           := inst_in(11,7)
-        jmp_type_r      := NO_JMP
-        nextPC_r        := io.if2id.bits.nextPC
 
-        recov_r         := io.if2id.bits.recov
-        when(dType === INVALID){
-            excep_r.en      := true.B
-            excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
-            excep_r.tval    := inst_in
-            excep_r.pc      := io.if2id.bits.pc
-            excep_r.etype   := 0.U
+    io.id2df.bits := DontCare
+    io.id2df.bits.inst := io.if2id.bits.inst
+    io.id2df.bits.pc := io.if2id.bits.pc
+    io.id2df.bits.excep         := 0.U.asTypeOf(new Exception)
+    io.id2df.bits.ctrl.aluOp      := instType(1)
+    io.id2df.bits.ctrl.aluWidth   := instType(2)
+    io.id2df.bits.ctrl.dcMode     := instType(3)
+    io.id2df.bits.ctrl.writeRegEn := instType(4) & (inst_in(11,7) =/= 0.U)
+    io.id2df.bits.ctrl.writeCSREn := instType(6)
+    io.id2df.bits.rs1           := inst_in(19,15)
+    io.id2df.bits.rrs1          := false.B
+    io.id2df.bits.rs2           := Mux(rs2_is_csr, inst_in(31,20), inst_in(24,20))
+    io.id2df.bits.rrs2          := false.B
+    io.id2df.bits.dst           := inst_in(11,7)
+    io.id2df.bits.jmp_type      := NO_JMP
+    io.id2df.bits.nextPC := io.if2id.bits.nextPC
+
+    io.id2df.bits.recov         := io.if2id.bits.recov
+    when(dType === INVALID){
+        io.id2df.bits.excep.en      := true.B
+        io.id2df.bits.excep.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
+        io.id2df.bits.excep.tval    := inst_in
+        io.id2df.bits.excep.pc      := io.if2id.bits.pc
+        io.id2df.bits.excep.etype   := 0.U
+        stall_pipe()
+    }
+    when(dType === RType){
+        io.id2df.bits.rrs1  := true.B
+        io.id2df.bits.rrs2  := true.B
+    }
+    when(dType === IType){
+        when(jmp_indi){
+            io.id2df.bits.jmp_type  := JMP_REG
+            io.id2df.bits.rrs1      := true.B
+            io.id2df.bits.rs2_d     := io.if2id.bits.pc + 4.U
+            io.id2df.bits.dst_d     := imm.asUInt
+        }.elsewhen(rs2_is_csr){
+            io.id2df.bits.rs1_d     := inst_in(19,15)
+            io.id2df.bits.rrs1      := true.B
+            io.id2df.bits.rrs2      := true.B
             stall_pipe()
-        }
-        when(dType === RType){
-            rrs1_r  := true.B
-            rrs2_r  := true.B
-        }
-        when(dType === IType){
-            when(jmp_indi){
-                jmp_type_r  := JMP_REG
-                rrs1_r      := true.B
-                rs2_d_r     := io.if2id.bits.pc + 4.U
-                dst_d_r     := imm.asUInt
-            }.elsewhen(rs2_is_csr){
-                rs1_d_r     := inst_in(19,15)
-                rrs1_r      := true.B
-                rrs2_r      := true.B
-                stall_pipe()
-            }.otherwise{
-                rrs1_r      := true.B
-                rs2_d_r     := imm.asUInt
-                dst_d_r     := imm.asUInt
-            }
-        }
-        when(dType === SType){
-            rrs1_r      := true.B
-            rrs2_r      := true.B
-            dst_d_r     := imm.asUInt
-        }
-        when(dType === BType){
-            rrs1_r      := true.B
-            rrs2_r      := true.B
-            dst_d_r     := imm.asUInt
-            ctrl_r.brType := inst_in(14,12)
-            jmp_type_r  := JMP_COND
-        }
-        when(dType === UType){
-            rs1_d_r     := imm.asUInt
-            rs2_d_r     := io.if2id.bits.pc
-        }
-        when(dType === JType){
-            rs1_d_r     := io.if2id.bits.pc
-            rs2_d_r     := io.if2id.bits.pc + 4.U
-            dst_d_r     := imm.asUInt
-            jmp_type_r := JMP_PC
-        }
-
-        when(inst_in === Insts.MRET){
-            excep_r.pc  := io.if2id.bits.pc
-            excep_r.en  := true.B
-            excep_r.etype := ETYPE_MRET
-            excep_r.cause := 0.U
-            excep_r.tval  := 0.U
-            jmp_type_r  := JMP_CSR
-            rs2_r       := CSR_MEPC
-            stall_pipe()
-        }
-
-    }
-    
-    io.if2id.ready := false.B
-    when(!drop_in){
-        when(valid_r && !hs_out){
-        }.elsewhen(io.if2id.valid){
-            io.if2id.ready := true.B
+        }.otherwise{
+            io.id2df.bits.rrs1      := true.B
+            io.id2df.bits.rs2_d     := imm.asUInt
+            io.id2df.bits.dst_d     := imm.asUInt
         }
     }
-    when(!io.df2id.drop){
-       when(hs_in){
-           valid_r := true.B
-       }.elsewhen(hs_out){
-           valid_r := false.B
-       }
-
-    }.otherwise{
-        valid_r := false.B
+    when(dType === SType){
+        io.id2df.bits.rrs1      := true.B
+        io.id2df.bits.rrs2      := true.B
+        io.id2df.bits.dst_d     := imm.asUInt
     }
-    io.id2df.bits.inst       := inst_r
-    io.id2df.bits.pc         := pc_r
-    io.id2df.bits.nextPC     := nextPC_r
-    io.id2df.bits.excep      := excep_r
-    io.id2df.bits.ctrl       := ctrl_r
-    io.id2df.bits.rs1        := rs1_r
-    io.id2df.bits.rrs1       := rrs1_r
-    io.id2df.bits.rs1_d      := rs1_d_r
-    io.id2df.bits.rs2        := rs2_r
-    io.id2df.bits.rrs2       := rrs2_r
-    io.id2df.bits.rs2_d      := rs2_d_r
-    io.id2df.bits.dst        := dst_r
-    io.id2df.bits.dst_d      := dst_d_r
-    io.id2df.bits.jmp_type   := jmp_type_r
-    io.id2df.bits.recov      := recov_r
-    io.id2df.valid      := valid_r
+    when(dType === BType){
+        io.id2df.bits.rrs1      := true.B
+        io.id2df.bits.rrs2      := true.B
+        io.id2df.bits.dst_d     := imm.asUInt
+        io.id2df.bits.ctrl.brType := inst_in(14,12)
+        io.id2df.bits.jmp_type  := JMP_COND
+    }
+    when(dType === UType){
+        io.id2df.bits.rs1_d     := imm.asUInt
+        io.id2df.bits.rs2_d     := io.if2id.bits.pc
+    }
+    when(dType === JType){
+        io.id2df.bits.rs1_d     := io.if2id.bits.pc
+        io.id2df.bits.rs2_d     := io.if2id.bits.pc + 4.U
+        io.id2df.bits.dst_d     := imm.asUInt
+        io.id2df.bits.jmp_type := JMP_PC
+    }
+
+    when(inst_in === Insts.MRET){
+        io.id2df.bits.excep.pc  := io.if2id.bits.pc
+        io.id2df.bits.excep.en  := true.B
+        io.id2df.bits.excep.etype := ETYPE_MRET
+        io.id2df.bits.excep.cause := 0.U
+        io.id2df.bits.excep.tval  := 0.U
+        io.id2df.bits.jmp_type  := JMP_CSR
+        io.id2df.bits.rs2       := CSR_MEPC
+        stall_pipe()
+    }
+
+    io.if2id.ready := !io.if2id.valid || io.id2df.ready
+    io.id2df.valid      := io.if2id.valid && !drop_r
 }

@@ -14,6 +14,7 @@ import noop.writeback._
 import noop.regs._
 import noop.clint._
 import noop.plic._
+import noop.utils.PipelineConnect
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -93,6 +94,7 @@ class CPU extends Module{
     fetch.io.id2if      := decode.io.id2if
     fetch.io.recov      <> writeback.io.recov
 
+    PipelineConnect(decode.io.id2df, forwarding.io.id2df, forwarding.io.id2df.ready, forwarding.io.df2id.drop)
     decode.io.id2df     <> forwarding.io.id2df
     decode.io.df2id     := forwarding.io.df2id
     decode.io.idState   <> csrs.io.idState
