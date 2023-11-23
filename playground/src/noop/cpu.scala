@@ -13,6 +13,7 @@ import noop.memory._
 import noop.writeback._
 import noop.regs._
 import noop.clint._
+import noop.dispatch.Dispatch
 import noop.plic._
 import noop.utils.PipelineConnect
 
@@ -61,6 +62,7 @@ class CPU extends Module{
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
     val forwarding  = Module(new Forwarding)
+    val dispatch    = Module(new Dispatch)
     val execute     = Module(new Execute)
     val memory      = Module(new Memory)
     val writeback   = Module(new Writeback)
@@ -98,8 +100,7 @@ class CPU extends Module{
     decode.io.id2df     <> forwarding.io.id2df
     decode.io.df2id     := forwarding.io.df2id
     decode.io.idState   <> csrs.io.idState
-    forwarding.io.df2ex  <> execute.io.df2ex
-    forwarding.io.ex2df  := execute.io.ex2df
+
     forwarding.io.d_ex   <> execute.io.d_ex
     forwarding.io.d_mem1 <> memory.io.d_mem1
     forwarding.io.d_mem0 <> memory.io.d_mem0
@@ -107,8 +108,13 @@ class CPU extends Module{
     forwarding.io.rs2Read <> regs.io.rs2
     forwarding.io.csrRead <> csrs.io.rs
     forwarding.io.d_ex0 <> execute.io.d_ex0
-    forwarding.io.df2mem <> memory.io.df2mem
-    forwarding.io.mem2df := memory.io.mem2df
+
+    PipelineConnect(forwarding.io.df2dp, dispatch.io.df2dp, dispatch.io.df2dp.ready, dispatch.io.dp2df.drop)
+    forwarding.io.dp2df := dispatch.io.dp2df
+    dispatch.io.df2ex <> execute.io.df2ex
+    dispatch.io.ex2df := execute.io.ex2df
+    dispatch.io.df2mem <> memory.io.df2mem
+    dispatch.io.mem2df := memory.io.mem2df
 
     execute.io.ex2wb   <> writeback.io.ex2wb
     execute.io.updateBPU <> bpu.io.update
