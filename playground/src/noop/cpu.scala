@@ -58,7 +58,6 @@ class CPUIO extends Bundle{
 
 class CPU extends Module{
     val io = IO(new CPUIO)
-    dontTouch(io)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
     val forwarding  = Module(new Forwarding)

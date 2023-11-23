@@ -152,6 +152,4 @@ class ToAXI extends Module{
     io.outAxi.ra.bits.burst   := BURST_INCR
     //rd
     io.outAxi.rd.ready        := rdataEn
-
-    dontTouch(io.outAxi)
 }

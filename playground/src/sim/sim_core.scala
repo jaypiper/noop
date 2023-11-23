@@ -35,9 +35,6 @@ class SimTop extends Module{
     // intr_count := intr_count + 1.U
     // cpu.io.interrupt := intr_count === 0.U
 
-    // dontTouch(cpu.io.interrupt)
-    // dontTouch(cpu.io.slave)
-
     io.uart <> mmio.io.uart
 
     DifftestModule.finish("Piper")

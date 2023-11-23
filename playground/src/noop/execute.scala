@@ -134,8 +134,6 @@ class Execute extends Module{
     }
     val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
     val branchCounter = RegInit(0.U(DATA_WIDTH.W))
-    dontTouch(branchMissCounter)
-    dontTouch(branchCounter)
     val jmp_r = RegInit(false.B)
     jmp_r := false.B
 

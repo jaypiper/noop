@@ -92,6 +92,4 @@ class SimMEM extends Module{
     io.memAxi.rd.valid := rdValid
     io.memAxi.rd.bits.data := rdata
     io.memAxi.rd.bits.last := isLast
-
-    dontTouch(io.memAxi)
 }
