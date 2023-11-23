@@ -94,6 +94,7 @@ class CPU extends Module{
     fetch.io.recov      <> writeback.io.recov
 
     decode.io.id2df     <> forwarding.io.id2df
+    decode.io.df2id     := forwarding.io.df2id
     decode.io.idState   <> csrs.io.idState
     forwarding.io.df2ex  <> execute.io.df2ex
     forwarding.io.d_ex   <> execute.io.d_ex

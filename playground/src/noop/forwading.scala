@@ -9,7 +9,8 @@ import noop.param.cache_config._
 
 class Forwarding extends Module{
     val io = IO(new Bundle{
-        val id2df = Flipped(new ID2DF)
+        val id2df = Flipped(DecoupledIO(new ID2DF))
+        val df2id = Output(new PipelineBackCtrl)
         val df2ex = new DF2EX
         val df2mem = new DF2MEM
         val d_ex0    = Input(new RegForward)
@@ -27,8 +28,8 @@ class Forwarding extends Module{
     def stall_pipe() = {
         drop_r := true.B;   stall_r := true.B;  recov_r := true.B
     }
-    io.id2df.drop   := io.df2ex.drop || drop_r
-    io.id2df.stall  := (stall_r && !io.df2ex.drop) || io.df2ex.stall
+    io.df2id.drop   := io.df2ex.drop || drop_r
+    io.df2id.stall  := (stall_r && !io.df2ex.drop) || io.df2ex.stall
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
     val nextPC_r    = RegInit(0.U(PADDR_WIDTH.W))
@@ -63,10 +64,10 @@ class Forwarding extends Module{
     val rs2_valid   = Wire(Bool())
     rs1_valid := false.B;   rs1_wait    := false.B; rs1_data := 0.U
     rs2_valid := false.B;   rs2_wait    := false.B; rs2_data := 0.U
-    val cur_rs1     = Mux(hs_in, io.id2df.rs1, rs1_r)
-    val cur_rrs1    = Mux(hs_in, io.id2df.rrs1, rrs1_r)
-    val cur_rs2     = Mux(hs_in, io.id2df.rs2, rs2_r)
-    val cur_rrs2    = Mux(hs_in, io.id2df.rrs2, rrs2_r)
+    val cur_rs1     = Mux(hs_in, io.id2df.bits.rs1, rs1_r)
+    val cur_rrs1    = Mux(hs_in, io.id2df.bits.rrs1, rrs1_r)
+    val cur_rs2     = Mux(hs_in, io.id2df.bits.rs2, rs2_r)
+    val cur_rrs2    = Mux(hs_in, io.id2df.bits.rrs2, rrs2_r)
     when(cur_rrs1){
         // rs1 state
         when(cur_rs1 === 0.U){
@@ -145,23 +146,23 @@ class Forwarding extends Module{
     }
 
     when(hs_in){
-        inst_r      := io.id2df.inst
-        pc_r        := io.id2df.pc
-        nextPC_r    := io.id2df.nextPC
-        excep_r     := io.id2df.excep
-        ctrl_r      := io.id2df.ctrl
-        rs1_r       := io.id2df.rs1
-        rrs1_r      := io.id2df.rrs1
-        rs1_d_r     := io.id2df.rs1_d
-        rs2_r       := io.id2df.rs2
-        rrs2_r      := io.id2df.rrs2
-        rs2_d_r     := io.id2df.rs2_d
-        dst_r       := io.id2df.dst
-        dst_d_r     := io.id2df.dst_d
-        jmp_type_r  := io.id2df.jmp_type
-        rcsr_id_r   := Mux(io.id2df.ctrl.writeCSREn, io.id2df.rs2, 0.U)
-        recov_r     := io.id2df.recov
-        when(io.id2df.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
+        inst_r      := io.id2df.bits.inst
+        pc_r        := io.id2df.bits.pc
+        nextPC_r    := io.id2df.bits.nextPC
+        excep_r     := io.id2df.bits.excep
+        ctrl_r      := io.id2df.bits.ctrl
+        rs1_r       := io.id2df.bits.rs1
+        rrs1_r      := io.id2df.bits.rrs1
+        rs1_d_r     := io.id2df.bits.rs1_d
+        rs2_r       := io.id2df.bits.rs2
+        rrs2_r      := io.id2df.bits.rrs2
+        rs2_d_r     := io.id2df.bits.rs2_d
+        dst_r       := io.id2df.bits.dst
+        dst_d_r     := io.id2df.bits.dst_d
+        jmp_type_r  := io.id2df.bits.jmp_type
+        rcsr_id_r   := Mux(io.id2df.bits.ctrl.writeCSREn, io.id2df.bits.rs2, 0.U)
+        recov_r     := io.id2df.bits.recov
+        when(io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err){ // illegal instruction
             excep_r.cause   := CAUSE_ILLEGAL_INSTRUCTION.U
             excep_r.tval    := io.df2ex.inst
             excep_r.en      := true.B
@@ -183,13 +184,13 @@ class Forwarding extends Module{
             rs2_d_r := rs2_data
         }
     }
-    when(hs_in && io.id2df.ctrl.writeCSREn) {
+    when(hs_in && io.id2df.bits.ctrl.writeCSREn) {
         rs2_d_r := io.csrRead.data
     }
 
     when(hs_in){
-        pre_dst := io.id2df.dst
-        pre_wr  := io.id2df.ctrl.writeRegEn
+        pre_dst := io.id2df.bits.dst
+        pre_wr  := io.id2df.bits.ctrl.writeRegEn
     }.elsewhen(hs_out){
         pre_wr  := false.B
     }
@@ -224,9 +225,9 @@ class Forwarding extends Module{
         valid_r     := false.B
     }
 
-    io.rs1Read.id := io.id2df.rs1
-    io.rs2Read.id := io.id2df.rs2(4,0)
-    io.csrRead.id := io.id2df.rs2//TODO
+    io.rs1Read.id := io.id2df.bits.rs1
+    io.rs2Read.id := io.id2df.bits.rs2(4,0)
+    io.csrRead.id := io.id2df.bits.rs2//TODO
 
     val drop_in = io.df2ex.drop || io.df2mem.drop
 

@@ -10,17 +10,18 @@ import noop.param.Insts._
 class Decode extends Module{
     val io = IO(new Bundle{
         val if2id   = Flipped(DecoupledIO(new IF2ID))
-        val id2if   = Output(new ID2IF)
-        val id2df   = new ID2DF
+        val id2if   = Output(new PipelineBackCtrl)
+        val id2df   = DecoupledIO(new ID2DF)
+        val df2id   = Input(new PipelineBackCtrl)
         val idState = Input(new IdState)
     })
     // from if
     val drop_r      = RegInit(false.B)
     val stall_r     = RegInit(false.B)
     drop_r := false.B;  stall_r := false.B
-    val drop_in     = drop_r || io.id2df.drop
+    val drop_in     = drop_r || io.df2id.drop
     io.id2if.drop   := drop_in
-    io.id2if.stall  := (stall_r && !io.id2df.drop) || io.id2df.stall
+    io.id2if.stall  := (stall_r && !io.df2id.drop) || io.df2id.stall
     dontTouch(io.id2if.stall)
     val inst_r      = RegInit(0.U(INST_WIDTH.W))
     val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
@@ -149,7 +150,7 @@ class Decode extends Module{
             io.if2id.ready := true.B
         }
     }
-    when(!io.id2df.drop){
+    when(!io.df2id.drop){
        when(hs_in){
            valid_r := true.B
        }.elsewhen(hs_out){
@@ -159,20 +160,20 @@ class Decode extends Module{
     }.otherwise{
         valid_r := false.B
     }
-    io.id2df.inst       := inst_r
-    io.id2df.pc         := pc_r
-    io.id2df.nextPC     := nextPC_r
-    io.id2df.excep      := excep_r
-    io.id2df.ctrl       := ctrl_r
-    io.id2df.rs1        := rs1_r
-    io.id2df.rrs1       := rrs1_r
-    io.id2df.rs1_d      := rs1_d_r
-    io.id2df.rs2        := rs2_r
-    io.id2df.rrs2       := rrs2_r
-    io.id2df.rs2_d      := rs2_d_r
-    io.id2df.dst        := dst_r
-    io.id2df.dst_d      := dst_d_r
-    io.id2df.jmp_type   := jmp_type_r
-    io.id2df.recov      := recov_r
+    io.id2df.bits.inst       := inst_r
+    io.id2df.bits.pc         := pc_r
+    io.id2df.bits.nextPC     := nextPC_r
+    io.id2df.bits.excep      := excep_r
+    io.id2df.bits.ctrl       := ctrl_r
+    io.id2df.bits.rs1        := rs1_r
+    io.id2df.bits.rrs1       := rrs1_r
+    io.id2df.bits.rs1_d      := rs1_d_r
+    io.id2df.bits.rs2        := rs2_r
+    io.id2df.bits.rrs2       := rrs2_r
+    io.id2df.bits.rs2_d      := rs2_d_r
+    io.id2df.bits.dst        := dst_r
+    io.id2df.bits.dst_d      := dst_d_r
+    io.id2df.bits.jmp_type   := jmp_type_r
+    io.id2df.bits.recov      := recov_r
     io.id2df.valid      := valid_r
 }

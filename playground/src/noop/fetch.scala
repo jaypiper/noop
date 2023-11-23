@@ -81,7 +81,7 @@ class FetchIO extends Bundle{
     // val intr_in     = Input(new RaiseIntr)
     val branchFail  = Input(new ForceJmp)
     val if2id       = DecoupledIO(new IF2ID)
-    val id2if       = Input(new ID2IF)
+    val id2if       = Input(new PipelineBackCtrl)
     val bp          = Flipped(new PredictIO2)
 }
 
