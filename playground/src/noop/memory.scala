@@ -3,6 +3,7 @@ package noop.memory
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.BundleLiterals._
+import difftest.{DiffStoreEvent, DifftestModule}
 import noop.param.common._
 import noop.param.cache_config._
 import noop.param.decode_config._
@@ -187,4 +188,18 @@ class Memory extends Module{
     io.mem2wb.is_mmio   := mem_addr_r < "h30000000".U
     io.mem2wb.recov     := recov_r
     io.mem2wb.valid     := valid_r && io.dataRW.rvalid
+
+    if (isSim) {
+        val difftest = DifftestModule(new DiffStoreEvent, dontCare = true, delay = 10)
+        val is_mem_store = io.dataRW.wen && io.dataRW.addr >= "h30000000".U
+        difftest.valid := io.dataRW.avalid && io.dataRW.ready && is_mem_store
+        difftest.addr := Cat(io.dataRW.addr(PADDR_WIDTH - 1, 3), 0.U(3.W))
+        difftest.data := (io.dataRW.wdata & io.dataRW.wmask) << Cat(io.dataRW.addr(2, 0), 0.U(3.W))
+        difftest.mask := MuxLookup(curMode(1, 0), 0.U(8.W))(Seq(
+            0.U -> "h1".U(8.W),
+            1.U -> "h3".U(8.W),
+            2.U -> "hf".U(8.W),
+            3.U -> "hff".U(8.W)
+        )) << io.dataRW.addr(2, 0)
+    }
 }
