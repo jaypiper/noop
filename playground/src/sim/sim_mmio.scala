@@ -5,6 +5,7 @@ import noop.param.common._
 import axi._
 import axi.axi_config._
 import chisel3.util.experimental.loadMemoryFromFile
+import difftest.UARTIO
 import difftest.common.DifftestFlash
 import noop.datapath._
 
@@ -39,6 +40,7 @@ object port{
 class SimMMIOIO extends Bundle{
     val mmioAxi = new AxiSlave
     // val int     = Output(Bool())
+    val uart = new UARTIO
 }
 
 class SimMMIO extends Module{
@@ -91,6 +93,10 @@ class SimMMIO extends Module{
     }.elsewhen (io.mmioAxi.rd.fire) {
         has_flash_read := false.B
     }
+
+    io.uart.out.valid := false.B
+    io.uart.out.ch := DontCare
+    io.uart.in.valid := false.B
 
     uart(5) := 0x20.U
     switch(state){
@@ -148,9 +154,8 @@ class SimMMIO extends Module{
                 when(waddr >= port.UART_BASE && waddr <= port.UART_BASE + 7.U){
                     val offset = waddr(2,0)
                     uart(waddr - port.UART_BASE) := (inputwd >> (offset*8.U))(7,0)
-                    when((waddr & 0x7.U) === 0.U){
-                        printf("%c", inputwd(7, 0))
-                    }
+                    io.uart.out.valid := (waddr & 0x7.U) === 0.U
+                    io.uart.out.ch := inputwd(7, 0)
                 }.elsewhen(waddr === port.CLINT_MTIMECMP){
                     mtimecmp := inputwd
                 }.otherwise{
