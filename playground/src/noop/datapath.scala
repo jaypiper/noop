@@ -12,9 +12,9 @@ class RegRead extends Bundle{
 }
 
 class RegWrite extends Bundle{
-    val id      = Input(UInt(REG_WIDTH.W))
-    val data    = Input(UInt(DATA_WIDTH.W))
-    val en      = Input(Bool())
+    val id      = UInt(REG_WIDTH.W)
+    val data    = UInt(DATA_WIDTH.W)
+    val en      = Bool()
 }
 
 class CSRRead extends Bundle{

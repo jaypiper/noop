@@ -11,14 +11,28 @@ class Regs extends Module{
     val io = IO(new Bundle{
         val rs1 = Vec(ISSUE_WIDTH, new RegRead)
         val rs2 = Vec(ISSUE_WIDTH, new RegRead)
-        val dst = Vec(ISSUE_WIDTH, new RegWrite)
+        val dst = Vec(ISSUE_WIDTH, Input(new RegWrite))
     })
     val regs = RegInit(VecInit(Seq.fill(32)(0.U(DATA_WIDTH.W))))
-    io.rs1.foreach(r => r.data := regs(r.id))
-    io.rs2.foreach(r => r.data := regs(r.id))
-    io.dst.foreach(dst => {
-        when(dst.en) {
-            regs(dst.id) := dst.data
+
+    val write = RegNext(io.dst)
+
+    def read(addr: UInt): UInt = {
+        val data = Wire(UInt(DATA_WIDTH.W))
+        data := regs(addr)
+        write.foreach(w => {
+            when(w.en && w.id === addr) {
+                data := w.data
+            }
+        })
+        data
+    }
+    io.rs1.foreach(r => r.data := read(r.id))
+    io.rs2.foreach(r => r.data := read(r.id))
+
+    write.foreach(w => {
+        when(w.en) {
+            regs(w.id) := w.data
         }
     })
     if (false) {
@@ -29,7 +43,7 @@ class Regs extends Module{
 
     if (isSim) {
         val difftest = DifftestModule(new DiffArchIntRegState, dontCare = true)
-        difftest.value := regs
+        difftest.value := (0 until 32).map(i => read(i.U))
     }
 }
 

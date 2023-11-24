@@ -13,7 +13,7 @@ class Writeback extends Module{
         val mem2wb  = Flipped(ValidIO(new MEM2RB))
         val ex2wb   = Vec(ISSUE_WIDTH, Flipped(ValidIO(new MEM2RB)))
         val d_wb    = Vec(ISSUE_WIDTH, Output(new RegForward))
-        val wReg    = Vec(ISSUE_WIDTH, Flipped(new RegWrite))
+        val wReg    = Vec(ISSUE_WIDTH, Output(new RegWrite))
         val wCsr    = Flipped(new CSRWrite)
         val excep   = Output(new Exception)
         val wb2if   = Output(new ForceJmp)
