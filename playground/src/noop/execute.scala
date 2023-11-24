@@ -53,7 +53,6 @@ class Execute extends Module{
     ))
 
     io.df2ex.ready := !io.df2ex.valid || alu.io.valid
-    io.ex2df.exBusy := state === sWaitAlu
 
     // branch & jmp
     val branchAlu = Module(new BranchALU)

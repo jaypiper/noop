@@ -188,7 +188,6 @@ class DF2EX extends Bundle{
 
 class EX2DF extends Bundle {
     val drop = Bool()
-    val exBusy = Bool()
 }
 
 class EX2MEM extends Bundle{
