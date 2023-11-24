@@ -74,9 +74,22 @@ class Execute extends Module{
     io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, io.ex2wb.valid)
     io.updateBPU.target := jmp_target_r
 
-    val force_jump = is_jmp && real_target =/= io.df2ex.bits.nextPC
-    io.ex2if.valid  := RegNext(force_jump)
+    val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
+    io.flush := is_jmp && jmp_mispred
+    io.ex2if.valid  := RegNext(io.flush)
     io.ex2if.seq_pc := jmp_target_r
+
+    val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
+    val branchCounter = RegInit(0.U(DATA_WIDTH.W))
+    when(is_jmp) {
+        branchCounter := branchCounter + 1.U
+        when (jmp_mispred) {
+            branchMissCounter := branchMissCounter + 1.U
+        }
+    }
+    when (io.ex2wb.valid && io.ex2wb.bits.pc === "h80009780".U) {
+        // printf(p"branchNum: $branchCounter, branchMiss: $branchMissCounter\n")
+    }
 
     // data forwarding
     io.d_ex0.id := io.df2ex.bits.dst
@@ -85,8 +98,6 @@ class Execute extends Module{
         Mux(alu.io.valid, d_valid, d_wait),
         d_invalid
     )
-
-    io.flush := force_jump
 
     // out
     io.ex2wb.valid := io.df2ex.valid && alu.io.valid
