@@ -34,7 +34,6 @@ class Execute extends Module{
     }
 
     val hs_in   = io.df2ex.ready && io.df2ex.valid
-    val hs_out  = io.ex2wb.ready && io.ex2wb.valid
     val alu64 = io.df2ex.bits.ctrl.aluWidth === IS_ALU64
     val aluop  = io.df2ex.bits.ctrl.aluOp
 
@@ -91,13 +90,11 @@ class Execute extends Module{
 
     // data forwarding
     io.d_ex0.id := io.df2ex.bits.dst
-    io.d_ex0.data :=  wdata
-    io.d_ex0.state := d_invalid
-    when(hs_in && alu.io.valid) {
-        io.d_ex0.state := Mux(io.df2ex.bits.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.df2ex.bits.ctrl.writeRegEn, d_valid, d_invalid))
-    }.elsewhen(hs_in) {
-        io.d_ex0.state := d_wait
-    }
+    io.d_ex0.data := wdata
+    io.d_ex0.state := Mux(io.df2ex.valid && io.df2ex.bits.ctrl.writeRegEn,
+        Mux(alu.io.valid, d_valid, d_wait),
+        d_invalid
+    )
 
     // out
     io.ex2wb.valid := io.df2ex.valid && alu.io.valid
