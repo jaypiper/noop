@@ -9,16 +9,18 @@ import noop.datapath._
 
 class Regs extends Module{
     val io = IO(new Bundle{
-        val rs1 = new RegRead
-        val rs2 = new RegRead
-        val dst = new RegWrite
+        val rs1 = Vec(ISSUE_WIDTH, new RegRead)
+        val rs2 = Vec(ISSUE_WIDTH, new RegRead)
+        val dst = Vec(ISSUE_WIDTH, new RegWrite)
     })
     val regs = RegInit(VecInit(Seq.fill(32)(0.U(DATA_WIDTH.W))))
-    io.rs1.data := regs(io.rs1.id)
-    io.rs2.data := regs(io.rs2.id)
-    when(io.dst.en){
-        regs(io.dst.id) := io.dst.data
-    }
+    io.rs1.foreach(r => r.data := regs(r.id))
+    io.rs2.foreach(r => r.data := regs(r.id))
+    io.dst.foreach(dst => {
+        when(dst.en) {
+            regs(dst.id) := dst.data
+        }
+    })
     if (false) {
         val updateRegs = Module(new UpdateRegs)
         updateRegs.io.regs_data := regs.asUInt

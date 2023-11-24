@@ -80,8 +80,8 @@ class FetchIO extends Bundle{
     val recov       = Input(Bool())
     // val intr_in     = Input(new RaiseIntr)
     val branchFail  = Input(new ForceJmp)
-    val if2id       = DecoupledIO(new IF2ID)
-    val id2if       = Input(new PipelineBackCtrl)
+    val if2id       = Vec(2, DecoupledIO(new IF2ID))
+    val id2if       = Vec(2, Input(new PipelineBackCtrl))
     val bp          = Flipped(new PredictIO2)
 }
 
@@ -135,8 +135,8 @@ class FetchS1 extends Module {
 class Fetch extends Module{
     val io = IO(new FetchIO)
 
-    val drop_in = io.id2if.drop
-    val stall_in = io.id2if.stall
+    val drop_in = io.id2if(0).drop
+    val stall_in = io.id2if(0).stall
 
     // Stage 1
     val s1 = Module(new FetchS1)
@@ -166,17 +166,17 @@ class Fetch extends Module{
 
     // Stage 3
     val s3_inst_valid = RegInit(false.B)
-    val s3_in = PipelineNext(s2_out, io.if2id.ready && (s3_inst_valid || io.instRead.rvalid), drop_in)
-    s3_in.ready := !s3_in.valid || io.if2id.ready
+    val s3_in = PipelineNext(s2_out, io.if2id(0).ready && (s3_inst_valid || io.instRead.rvalid), drop_in)
+    s3_in.ready := !s3_in.valid || io.if2id(0).ready
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
 
     val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && io.instRead.rready)
-    io.instRead.rready := !s3_inst_valid || io.if2id.ready
+    io.instRead.rready := !s3_inst_valid || io.if2id(0).ready
     when(drop_in) {
         s3_inst_valid := false.B
-    }.elsewhen(io.instRead.rvalid && !s3_inst_valid && !io.if2id.ready) {
+    }.elsewhen(io.instRead.rvalid && !s3_inst_valid && !io.if2id(0).ready) {
         s3_inst_valid := s3_in.valid
-    }.elsewhen(!io.instRead.rvalid && s3_inst_valid && io.if2id.ready) {
+    }.elsewhen(!io.instRead.rvalid && s3_inst_valid && io.if2id(0).ready) {
         s3_inst_valid := false.B
     }
 
@@ -184,10 +184,13 @@ class Fetch extends Module{
     val s3_out_valid = s3_in.valid && (s3_inst_valid || io.instRead.rvalid)
     val s3_out_inst = Mux(s3_inst_valid, s3_inst, io.instRead.inst)
 
-    io.if2id.valid := s3_out_valid
-    io.if2id.bits.pc := s3_in.bits.pc
+    io.if2id(0).valid := s3_out_valid
+    io.if2id(0).bits.pc := s3_in.bits.pc
     private def inst_sel(inst: UInt, pc: UInt): UInt = inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))(pc(2))
-    io.if2id.bits.inst := inst_sel(s3_out_inst, io.if2id.bits.pc)
-    io.if2id.bits.nextPC := s3_nextpc
-    io.if2id.bits.recov := false.B  // TODO: remove
+    io.if2id(0).bits.inst := inst_sel(s3_out_inst, io.if2id(0).bits.pc)
+    io.if2id(0).bits.nextPC := s3_nextpc
+    io.if2id(0).bits.recov := false.B  // TODO: remove
+
+    io.if2id(1).valid := false.B
+    io.if2id(1).bits := DontCare
 }

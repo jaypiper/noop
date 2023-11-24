@@ -59,10 +59,10 @@ class CPUIO extends Bundle{
 class CPU extends Module{
     val io = IO(new CPUIO)
     val fetch       = Module(new Fetch)
-    val decode      = Module(new Decode)
-    val forwarding  = Module(new Forwarding)
-    val dispatch    = Module(new Dispatch)
-    val execute     = Module(new Execute)
+    val decode      = Seq.fill(2)(Module(new Decode))
+    val forwarding  = Seq.fill(2)(Module(new Forwarding))
+    val dispatch    = Seq.fill(2)(Module(new Dispatch))
+    val execute     = Seq.fill(2)(Module(new Execute))
     val memory      = Module(new Memory)
     val writeback   = Module(new Writeback)
 
@@ -79,7 +79,7 @@ class CPU extends Module{
     val fetchCrossbar = Module(new FetchCrossBar)
     val crossBar = Module(new CrossBar)
 
-    // fetch.io.instRead  <> icache.io.icPort
+    // Fetch
     fetch.io.instRead <> fetchCrossbar.io.instIO
     fetchCrossbar.io.icRead <> icache.io.icPort
     fetchCrossbar.io.flashRead <> fetch2Axi.io.dataIO
@@ -90,32 +90,66 @@ class CPU extends Module{
 
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
-    fetch.io.branchFail <> execute.io.ex2if
-    fetch.io.if2id      <> decode.io.if2id
-    fetch.io.id2if      := decode.io.id2if
+    // TODO: only head now
+    fetch.io.branchFail <> execute.head.io.ex2if
+    for (i <- 0 until ISSUE_WIDTH) {
+        fetch.io.if2id(i) <> decode(i).io.if2id
+        fetch.io.id2if(i) := decode(i).io.id2if
+    }
     fetch.io.recov      <> writeback.io.recov
 
-    PipelineConnect(decode.io.id2df, forwarding.io.id2df, forwarding.io.id2df.ready, forwarding.io.df2id.drop)
-    decode.io.df2id     := forwarding.io.df2id
-    decode.io.idState   <> csrs.io.idState
+    // Decode
+    for (i <- 0 until ISSUE_WIDTH) {
+        PipelineConnect(decode(i).io.id2df, forwarding(i).io.id2df, forwarding(i).io.id2df.ready, forwarding(i).io.df2id.drop)
+        decode(i).io.df2id := forwarding(i).io.df2id
+        // TODO
+        if (i == 0) {
+            decode(i).io.idState <> csrs.io.idState
+        }
+        else {
+            decode(i).io.idState := DontCare // TODO
+        }
+    }
 
-    forwarding.io.d_wb   <> writeback.io.d_wb
-    forwarding.io.d_mem1 <> memory.io.d_mem1
-    forwarding.io.d_mem0 <> memory.io.d_mem0
-    forwarding.io.rs1Read <> regs.io.rs1
-    forwarding.io.rs2Read <> regs.io.rs2
-    forwarding.io.csrRead <> csrs.io.rs
-    forwarding.io.d_ex0 <> execute.io.d_ex0
+    // Regfile and Forwarding
+    for (i <- 0 until ISSUE_WIDTH) {
+        forwarding(i).io.d_wb := writeback.io.d_wb
+        forwarding(i).io.d_mem1 := memory.io.d_mem1
+        forwarding(i).io.d_mem0 := memory.io.d_mem0
+        forwarding(i).io.rs1Read <> regs.io.rs1(i)
+        forwarding(i).io.rs2Read <> regs.io.rs2(i)
+        // TODO
+        if (i == 0) {
+            forwarding(i).io.csrRead <> csrs.io.rs
+        }
+        else {
+            forwarding(i).io.csrRead := DontCare
+        }
+        forwarding(i).io.d_ex0 := execute.map(_.io.d_ex0)
+    }
 
-    PipelineConnect(forwarding.io.df2dp, dispatch.io.df2dp, dispatch.io.df2dp.ready, dispatch.io.dp2df.drop)
-    forwarding.io.dp2df := dispatch.io.dp2df
-    dispatch.io.df2ex <> execute.io.df2ex
-    dispatch.io.ex2df := execute.io.ex2df
-    dispatch.io.df2mem <> memory.io.df2mem
-    dispatch.io.mem2df := memory.io.mem2df
+    // Dispatch arbiter and execution unitsf
+    for (i <- 0 until ISSUE_WIDTH) {
+        PipelineConnect(forwarding(i).io.df2dp, dispatch(i).io.df2dp, dispatch(i).io.df2dp.ready, dispatch(i).io.dp2df.drop)
+        forwarding(i).io.dp2df := dispatch(i).io.dp2df
+        dispatch(i).io.df2ex <> execute(i).io.df2ex
+        dispatch(i).io.ex2df := execute(i).io.ex2df
+        if (i == 0) {
+            dispatch(i).io.df2mem <> memory.io.df2mem
+            dispatch(i).io.mem2df := memory.io.mem2df
+        }
+        else {
+            dispatch(i).io.df2mem := DontCare
+            dispatch(i).io.mem2df := DontCare
+        }
+    }
 
-    writeback.io.ex2wb := PipelineNext(execute.io.ex2wb)
-    execute.io.updateBPU <> bpu.io.update
+    // Writeback
+    (0 until ISSUE_WIDTH).foreach(i =>
+        writeback.io.ex2wb(i) := PipelineNext(execute(i).io.ex2wb)
+    )
+    // TODO: only head now
+    bpu.io.update := execute.head.io.updateBPU
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW
     // memory.io.va2pa     <> tlb_mem.io.va2pa

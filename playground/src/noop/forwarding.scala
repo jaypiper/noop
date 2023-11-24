@@ -12,8 +12,8 @@ class Forwarding extends Module{
         val df2id = Output(new PipelineBackCtrl)
         val df2dp = DecoupledIO(new DF2EX)
         val dp2df = Input(new PipelineBackCtrl)
-        val d_ex0    = Input(new RegForward)
-        val d_wb    = Input(new RegForward)
+        val d_ex0   = Vec(ISSUE_WIDTH, Input(new RegForward))
+        val d_wb    = Vec(ISSUE_WIDTH, Input(new RegForward))
         val d_mem0  = Input(new RegForward)
         val d_mem1  = Input(new RegForward)
         val rs1Read = Flipped(new RegRead)
@@ -50,7 +50,7 @@ class Forwarding extends Module{
     }
 
     // forward source: listed in priority order
-    val fwd_source = Seq(io.d_ex0, io.d_mem0, io.d_wb, io.d_mem1)
+    val fwd_source = io.d_ex0 ++ Seq(io.d_mem0) ++ io.d_wb ++ Seq(io.d_mem1)
     val (rs1_valid, rs1_data) = do_forward(fwd_source, io.id2df.bits.rs1, io.rs1Read.data)
     val (rs2_valid, rs2_data) = do_forward(fwd_source, io.id2df.bits.rs2, io.rs2Read.data)
 
