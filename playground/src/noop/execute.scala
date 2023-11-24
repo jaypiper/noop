@@ -75,19 +75,11 @@ class Execute extends Module{
         (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
     ))
 
-    val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
-    val branchCounter = RegInit(0.U(DATA_WIDTH.W))
-
     when(!drop_r){
         when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP && real_target =/= io.df2ex.bits.nextPC){
             forceJmp.seq_pc := real_target
             forceJmp.valid := true.B
             drop_r  := true.B
-            branchMissCounter := branchMissCounter + 1.U
-            // printf("failed pc=%x inst=%x next=%x real=%x\n", io.df2ex.pc, io.df2ex.inst, io.df2ex.nextPC, real_target)
-        }
-        when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP) {
-            branchCounter := branchCounter + 1.U
         }
     }
 
