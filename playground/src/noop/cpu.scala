@@ -114,7 +114,7 @@ class CPU extends Module{
     dispatch.io.df2mem <> memory.io.df2mem
     dispatch.io.mem2df := memory.io.mem2df
 
-    execute.io.ex2wb   <> writeback.io.ex2wb
+    PipelineConnect(execute.io.ex2wb, writeback.io.ex2wb, true.B, false.B)
     execute.io.updateBPU <> bpu.io.update
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW

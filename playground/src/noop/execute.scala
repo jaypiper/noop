@@ -24,20 +24,10 @@ class Execute extends Module{
     io.ex2df.drop   := drop_r
 
     val alu     = Module(new ALU)
-    val inst_r      = RegInit(0.U(INST_WIDTH.W))
-    val pc_r        = RegInit(0.U(PADDR_WIDTH.W))
-    val excep_r     = RegInit(0.U.asTypeOf(new Exception))
-    val ctrl_r      = RegInit(0.U.asTypeOf(new Ctrl))
     val mem_addr_r  = RegInit(0.U(PADDR_WIDTH.W))
     val mem_data_r  = RegInit(0.U(DATA_WIDTH.W))
-    val csr_id_r    = RegInit(0.U(CSR_WIDTH.W))
-    val csr_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val dst_r       = RegInit(0.U(REG_WIDTH.W))
-    val dst_d_r     = RegInit(0.U(DATA_WIDTH.W))
-    val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
     val alu64_r     = RegInit(false.B)
     val next_pc_r   = RegInit(0.U(PADDR_WIDTH.W))  // for intr; updated by branch
-    val recov_r     = RegInit(false.B)
 
     val sIdle :: sWaitAlu :: Nil = Enum(2)
     val state = RegInit(sIdle)
@@ -60,8 +50,7 @@ class Execute extends Module{
     alu.io.val2     := val2
     alu.io.alu64    := alu64
     alu.io.en       := io.df2ex.valid && state === sIdle
-    val cur_alu64   = Mux(hs_in, alu64, alu64_r)
-    val alu_out = Mux(cur_alu64, alu.io.out(63, 0), sext32to64(alu.io.out))
+    val alu_out = Mux(alu64, alu.io.out(63, 0), sext32to64(alu.io.out))
     val wdata   = PriorityMux(Seq(
         (io.df2ex.bits.ctrl.dcMode(DC_S_BIT),    io.df2ex.bits.dst_d),
         (io.df2ex.bits.ctrl.writeCSREn,          io.df2ex.bits.rs2_d),
@@ -69,32 +58,14 @@ class Execute extends Module{
     ))
 
     when(hs_in){
-        inst_r      := io.df2ex.bits.inst
-        pc_r        := io.df2ex.bits.pc
-        excep_r     := io.df2ex.bits.excep
-        ctrl_r      := io.df2ex.bits.ctrl
         mem_addr_r  := alu_out
         mem_data_r  := wdata
-        csr_id_r    := io.df2ex.bits.rs2
-        csr_d_r     := alu_out
-        dst_r       := io.df2ex.bits.dst
-        dst_d_r     := wdata
-        rcsr_id_r   := io.df2ex.bits.rcsr_id
         alu64_r     := alu64
-        recov_r     := io.df2ex.bits.recov
-        when(io.df2ex.bits.excep.cause(63)){
-            excep_r.pc := next_pc_r
-        }
 
     }
     io.df2ex.ready := !io.df2ex.valid || alu.io.valid
     io.ex2df.exBusy := state === sWaitAlu
 
-    when(state === sWaitAlu){
-        when(alu.io.valid){
-            dst_d_r     := alu_out
-        }
-    }
     // branch & jmp
     val branchAlu = Module(new BranchALU)
     val forceJmp = RegInit(0.U.asTypeOf(new ForceJmp))
@@ -136,9 +107,9 @@ class Execute extends Module{
         }
     }
     val target_r = RegNext(real_target)
-    io.updateBPU.pc := pc_r
+    io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, io.ex2wb.valid)
     io.updateBPU.target := target_r
-    io.updateBPU.valid := io.ex2wb.valid && jmp_r
+    io.updateBPU.valid := RegNext(io.ex2wb.valid) && jmp_r
     io.ex2if.seq_pc := forceJmp.seq_pc
     io.ex2if.valid  := forceJmp.valid
 
@@ -152,27 +123,20 @@ class Execute extends Module{
         io.d_ex0.state := d_wait
     }
 
-    val ex_out_valid = io.df2ex.valid && alu.io.valid
-    val wb_in_valid = RegInit(false.B)
-    when (ex_out_valid) {
-        wb_in_valid := true.B
-    }.otherwise {
-        wb_in_valid := false.B
-    }
-
     // out
-    io.ex2wb.bits.inst      := inst_r
-    io.ex2wb.bits.pc        := pc_r
-    io.ex2wb.bits.excep     := excep_r
-    io.ex2wb.bits.ctrl      := ctrl_r
-    io.ex2wb.bits.csr_id     := csr_id_r
-    io.ex2wb.bits.csr_d      := csr_d_r
-    io.ex2wb.bits.csr_en     := ctrl_r.writeCSREn
-    io.ex2wb.bits.dst        := dst_r
-    io.ex2wb.bits.dst_d      := dst_d_r
-    io.ex2wb.bits.dst_en     := ctrl_r.writeRegEn
-    io.ex2wb.bits.rcsr_id   := rcsr_id_r
-    io.ex2wb.bits.is_mmio   := false.B
-    io.ex2wb.valid     := wb_in_valid
-    io.ex2wb.bits.recov     := recov_r
+    io.ex2wb.valid := io.df2ex.valid && alu.io.valid
+    io.ex2wb.bits.inst := io.df2ex.bits.inst
+    io.ex2wb.bits.pc := io.df2ex.bits.pc
+    io.ex2wb.bits.excep := io.df2ex.bits.excep
+    io.ex2wb.bits.excep.pc := Mux(io.df2ex.bits.excep.cause(63), io.df2ex.bits.nextPC, io.df2ex.bits.excep.pc)
+    io.ex2wb.bits.ctrl := io.df2ex.bits.ctrl
+    io.ex2wb.bits.csr_id := io.df2ex.bits.rs2
+    io.ex2wb.bits.csr_d := alu_out
+    io.ex2wb.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
+    io.ex2wb.bits.dst := io.df2ex.bits.dst
+    io.ex2wb.bits.dst_d := Mux(state === sWaitAlu && alu.io.valid, alu_out, wdata)
+    io.ex2wb.bits.dst_en := io.df2ex.bits.ctrl.writeRegEn
+    io.ex2wb.bits.rcsr_id := io.df2ex.bits.rcsr_id
+    io.ex2wb.bits.is_mmio := false.B
+    io.ex2wb.bits.recov := io.df2ex.bits.recov
 }
