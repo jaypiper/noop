@@ -9,7 +9,6 @@ class Dispatch extends Module {
   val io = IO(new Bundle {
     val df2dp = Flipped(DecoupledIO(new DF2EX))
     val df2ex = DecoupledIO(new DF2EX)
-    val flush = Input(Bool())
     val df2mem = DecoupledIO(new DF2MEM)
     val mem2df = Input(new MEM2DF)
   })

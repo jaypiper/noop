@@ -79,6 +79,16 @@ class CPU extends Module{
     val fetchCrossbar = Module(new FetchCrossBar)
     val crossBar = Module(new CrossBar)
 
+    // Flush
+    // execute: should flush
+    val wb_flush = RegNext(execute(0).io.flush)
+    // No need for wb_flush at execute and decode:
+    // Old instructions have been flushed by execute_flush,
+    // and new instructions will not come to decode/execute in the next cycle
+    val execute_flush = execute(0).io.flush
+    val decode_flush = forwarding(0).io.flush || execute_flush
+    val fetch_flush = decode(0).io.flush || decode_flush || wb_flush
+
     // Fetch
     fetch.io.instRead <> fetchCrossbar.io.instIO
     fetchCrossbar.io.icRead <> icache.io.icPort
@@ -94,14 +104,14 @@ class CPU extends Module{
     fetch.io.branchFail <> execute.head.io.ex2if
     for (i <- 0 until ISSUE_WIDTH) {
         fetch.io.if2id(i) <> decode(i).io.if2id
-        fetch.io.id2if(i) := decode(i).io.id2if
     }
-    fetch.io.recov      <> writeback.io.recov
+    fetch.io.control.stall := decode(0).io.stall
+    fetch.io.control.flush := fetch_flush
+    fetch.io.recov := writeback.io.recov
 
     // Decode
     for (i <- 0 until ISSUE_WIDTH) {
-        PipelineConnect(decode(i).io.id2df, forwarding(i).io.id2df, forwarding(i).io.id2df.ready, forwarding(i).io.df2id.drop)
-        decode(i).io.df2id := forwarding(i).io.df2id
+        PipelineConnect(decode(i).io.id2df, forwarding(i).io.id2df, forwarding(i).io.id2df.ready, decode_flush)
         // TODO
         if (i == 0) {
             decode(i).io.idState <> csrs.io.idState
@@ -126,7 +136,6 @@ class CPU extends Module{
             forwarding(i).io.csrRead := DontCare
         }
         forwarding(i).io.d_ex0 := execute.map(_.io.d_ex0)
-        forwarding(i).io.flush := RegNext(execute(i).io.flush)
     }
 
     // Dispatch arbiter and execution units
@@ -135,10 +144,9 @@ class CPU extends Module{
             forwarding(i).io.df2dp,
             dispatch(i).io.df2dp,
             dispatch(i).io.df2dp.ready,
-            forwarding(i).io.flush || execute(i).io.flush
+            execute_flush
         )
         dispatch(i).io.df2ex <> execute(i).io.df2ex
-        dispatch(i).io.flush := execute(i).io.flush
         if (i == 0) {
             dispatch(i).io.df2mem <> memory.io.df2mem
             dispatch(i).io.mem2df := memory.io.mem2df

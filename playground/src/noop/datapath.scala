@@ -127,7 +127,7 @@ class IF2ID extends Bundle{
 }
 
 class PipelineBackCtrl extends Bundle{
-    val drop    = Bool()
+    val flush    = Bool()
     val stall   = Bool()
 }
 

@@ -81,7 +81,7 @@ class FetchIO extends Bundle{
     // val intr_in     = Input(new RaiseIntr)
     val branchFail  = Input(new ForceJmp)
     val if2id       = Vec(2, DecoupledIO(new IF2ID))
-    val id2if       = Vec(2, Input(new PipelineBackCtrl))
+    val control     = Input(new PipelineBackCtrl)
     val bp          = Flipped(new PredictIO2)
 }
 
@@ -92,7 +92,7 @@ class FetchS1 extends Module {
         val recov = Input(Bool())
         val branchFail = Input(new ForceJmp)
         val stall = Input(Bool())
-        val drop = Input(Bool())
+        val flush = Input(Bool())
         val bp_is_jmp = Input(Bool())
         val bp_target = Input(UInt(PADDR_WIDTH.W))
     })
@@ -120,7 +120,7 @@ class FetchS1 extends Module {
             }
         }
         is(sStall) {
-            when((io.drop && !io.stall) || io.recov) {
+            when((io.flush && !io.stall) || io.recov) {
                 state := sIdle
             }
         }
@@ -135,8 +135,8 @@ class FetchS1 extends Module {
 class Fetch extends Module{
     val io = IO(new FetchIO)
 
-    val drop_in = io.id2if(0).drop
-    val stall_in = io.id2if(0).stall
+    val flush_in = io.control.flush
+    val stall_in = io.control.stall
 
     // Stage 1
     val s1 = Module(new FetchS1)
@@ -145,7 +145,7 @@ class Fetch extends Module{
     s1.io.recov := io.recov
     s1.io.branchFail := io.branchFail
     s1.io.stall := stall_in
-    s1.io.drop := drop_in
+    s1.io.flush := flush_in
     s1.io.bp_is_jmp := io.bp.jmp
     s1.io.bp_target := io.bp.target
 
@@ -158,7 +158,7 @@ class Fetch extends Module{
 
     // Stage 2
     val s2_out_ready = Wire(Bool())
-    val s2_in = PipelineNext(s1.out, s2_out_ready, drop_in)
+    val s2_in = PipelineNext(s1.out, s2_out_ready, flush_in)
     val s2_out = WireInit(s2_in)
     s2_out_ready := s2_out.ready
     s2_in.ready := !s2_in.valid || s2_out.ready
@@ -166,13 +166,13 @@ class Fetch extends Module{
 
     // Stage 3
     val s3_inst_valid = RegInit(false.B)
-    val s3_in = PipelineNext(s2_out, io.if2id(0).ready && (s3_inst_valid || io.instRead.rvalid), drop_in)
+    val s3_in = PipelineNext(s2_out, io.if2id(0).ready && (s3_inst_valid || io.instRead.rvalid), flush_in)
     s3_in.ready := !s3_in.valid || io.if2id(0).ready
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
 
     val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && io.instRead.rready)
     io.instRead.rready := !s3_inst_valid || io.if2id(0).ready
-    when(drop_in) {
+    when(flush_in) {
         s3_inst_valid := false.B
     }.elsewhen(io.instRead.rvalid && !s3_inst_valid && !io.if2id(0).ready) {
         s3_inst_valid := s3_in.valid

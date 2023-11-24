@@ -9,9 +9,8 @@ import noop.datapath._
 class Forwarding extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(DecoupledIO(new ID2DF))
-        val df2id = Output(new PipelineBackCtrl)
         val df2dp = DecoupledIO(new DF2EX)
-        val flush = Input(Bool())
+        val flush = Output(Bool())
         val d_ex0   = Vec(ISSUE_WIDTH, Input(new RegForward))
         val d_wb    = Vec(ISSUE_WIDTH, Input(new RegForward))
         val d_mem0  = Input(new RegForward)
@@ -20,18 +19,6 @@ class Forwarding extends Module{
         val rs2Read = Flipped(new RegRead)
         val csrRead = Flipped(new CSRRead)
     })
-    val drop_r      = RegInit(false.B)
-    drop_r          := false.B
-    val stall_r     = RegInit(false.B)
-    stall_r         := false.B
-    def stall_pipe() = {
-        drop_r := true.B;   stall_r := true.B
-    }
-    io.df2id.drop   := io.flush || drop_r
-    io.df2id.stall  := stall_r && !io.flush
-
-    val hs_in   = io.id2df.ready && io.id2df.valid
-    val hs_out  = io.df2dp.ready && io.df2dp.valid
 
     def do_forward(source: Seq[RegForward], rs: UInt, rfData: UInt): (Bool, UInt) = {
         val valid = WireInit(true.B)
@@ -54,11 +41,7 @@ class Forwarding extends Module{
     val (rs1_valid, rs1_data) = do_forward(fwd_source, io.id2df.bits.rs1, io.rs1Read.data)
     val (rs2_valid, rs2_data) = do_forward(fwd_source, io.id2df.bits.rs2, io.rs2Read.data)
 
-    when (io.df2dp.fire) {
-        when (io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err) { // illegal instruction
-            stall_pipe()
-        }
-    }
+    io.flush := io.id2df.valid && io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err
 
     val rs_ready = (rs1_valid || !io.id2df.bits.rrs1) && (rs2_valid || !io.id2df.bits.rrs2)
     io.id2df.ready := !io.id2df.valid || rs_ready && io.df2dp.ready

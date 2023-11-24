@@ -127,29 +127,19 @@ class Decoder extends Module {
 class Decode extends Module{
     val io = IO(new Bundle{
         val if2id   = Flipped(DecoupledIO(new IF2ID))
-        val id2if   = Output(new PipelineBackCtrl)
         val id2df   = DecoupledIO(new ID2DF)
-        val df2id   = Input(new PipelineBackCtrl)
+        val stall   = Output(Bool())
+        val flush   = Output(Bool())
         val idState = Input(new IdState)
     })
-    // from if
-    val drop_r      = RegInit(false.B)
-    val stall_r     = RegInit(false.B)
-    drop_r := false.B;  stall_r := false.B
-    val drop_in     = drop_r || io.df2id.drop
-    io.id2if.drop   := drop_in
-    io.id2if.stall  := (stall_r && !io.df2id.drop) || io.df2id.stall
-
     val decoder = Module(new Decoder)
     decoder.io.in := io.if2id.bits
     io.id2df.bits := decoder.io.out
+    io.id2df.bits.recov := decoder.io.stall
 
-    when (io.if2id.fire && decoder.io.stall) {
-        stall_r := true.B
-        drop_r := true.B
-        io.id2df.bits.recov := true.B
-    }
+    io.stall := io.if2id.valid && decoder.io.stall
+    io.flush := io.if2id.valid && decoder.io.stall
 
     io.if2id.ready := !io.if2id.valid || io.id2df.ready
-    io.id2df.valid      := io.if2id.valid && !drop_r
+    io.id2df.valid      := io.if2id.valid
 }
