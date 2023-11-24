@@ -79,3 +79,43 @@ object PipelineNext {
     right
   }
 }
+
+class PipelineAdjuster[T <: Data](gen: T, width: Int) extends Module {
+  val io = IO(new Bundle() {
+    val in = Vec(width, Flipped(DecoupledIO(gen)))
+    val out = Vec(width, DecoupledIO(gen))
+    val flush = Input(Bool())
+  })
+  io.out.tail.foreach(o => {
+    o.valid := false.B
+    o.bits := DontCare
+  })
+
+  val in_try = RegInit(VecInit.fill(width)(true.B))
+  val try_index = PriorityEncoder(in_try)
+
+  io.out.head.valid := io.in(try_index).valid
+  io.out.head.bits := io.in(try_index).bits
+  when (io.flush || io.in.head.ready) {
+    in_try.foreach(_ := true.B)
+  }.elsewhen (io.out.head.fire) {
+    in_try(try_index) := false.B
+  }
+
+  val is_last = try_index === (width - 1).U || !io.in(try_index + 1.U).valid
+  io.in.foreach(_.ready := !io.in(try_index).valid || io.out.head.ready && is_last)
+}
+
+object PipelineAdjuster {
+  def apply[T <: Data](
+    left: Seq[DecoupledIO[T]],
+    flush: Bool
+  ) = {
+    val adjuster = Module(new PipelineAdjuster(left.head.bits.cloneType, left.length))
+    val right = Wire(adjuster.io.out.cloneType)
+    adjuster.io.in <> left
+    adjuster.io.out <> right
+    adjuster.io.flush := flush
+    right
+  }
+}

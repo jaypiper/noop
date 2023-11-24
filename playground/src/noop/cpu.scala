@@ -15,7 +15,7 @@ import noop.regs._
 import noop.clint._
 import noop.dispatch.Dispatch
 import noop.plic._
-import noop.utils.{PipelineConnect, PipelineNext}
+import noop.utils.{PipelineAdjuster, PipelineConnect, PipelineNext}
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -102,8 +102,10 @@ class CPU extends Module{
     fetch.io.wb2if      <> writeback.io.wb2if
     // TODO: only head now
     fetch.io.branchFail <> execute.head.io.ex2if
+    val fetchResults = PipelineAdjuster(fetch.io.if2id, decode(0).io.flush || decode_flush)
     for (i <- 0 until ISSUE_WIDTH) {
-        fetch.io.if2id(i) <> decode(i).io.if2id
+        //fetch.io.if2id(i) <> decode(i).io.if2id
+        fetchResults(i) <> decode(i).io.if2id
     }
     fetch.io.control.stall := decode(0).io.stall
     fetch.io.control.flush := fetch_flush

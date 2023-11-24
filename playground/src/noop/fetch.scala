@@ -98,15 +98,18 @@ class FetchS1 extends Module {
     val instRead = IO(DecoupledIO())
     val out = IO(DecoupledIO(new Bundle {
         val pc = UInt(PADDR_WIDTH.W)
+        val fetch_two = Bool()
     }))
 
     val pc = RegInit(PC_START)
+    val fetch_two = !pc(2) && !io.bp.jmp
+    val pc_seq = Mux(fetch_two, pc + 8.U, pc + 4.U)
     val next_pc = PriorityMux(Seq(
         (io.reg2if.valid, io.reg2if.seq_pc),
         (io.wb2if.valid, io.wb2if.seq_pc),
         (io.branchFail.valid, io.branchFail.seq_pc),
         (io.bp.jmp && out.fire, io.bp.target),
-        (out.fire, pc + 4.U),
+        (out.fire, pc_seq),
         (true.B, pc)))
     pc := next_pc
 
@@ -127,6 +130,7 @@ class FetchS1 extends Module {
 
     out.valid := state === sIdle && instRead.ready
     out.bits.pc := pc
+    out.bits.fetch_two := fetch_two
 
     instRead.valid := state === sIdle && out.ready
 
@@ -180,14 +184,16 @@ class Fetch extends Module{
     // When instRead returns, try bypass it to if2id.
     val s3_out_valid = s3_in.valid && (s3_inst_valid || io.instRead.rvalid)
     val s3_out_inst = Mux(s3_inst_valid, s3_inst, io.instRead.inst)
-
+    val insts = s3_out_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
     io.if2id(0).valid := s3_out_valid
     io.if2id(0).bits.pc := s3_in.bits.pc
-    private def inst_sel(inst: UInt, pc: UInt): UInt = inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))(pc(2))
-    io.if2id(0).bits.inst := inst_sel(s3_out_inst, io.if2id(0).bits.pc)
-    io.if2id(0).bits.nextPC := s3_nextpc
+    io.if2id(0).bits.inst := insts(io.if2id(0).bits.pc(2))
+    io.if2id(0).bits.nextPC := Mux(s3_in.bits.fetch_two, io.if2id(1).bits.pc, s3_nextpc)
     io.if2id(0).bits.recov := false.B  // TODO: remove
 
-    io.if2id(1).valid := false.B
-    io.if2id(1).bits := DontCare
+    io.if2id(1).valid := s3_out_valid && s3_in.bits.fetch_two
+    io.if2id(1).bits.pc := s3_in.bits.pc + 4.U
+    io.if2id(1).bits.inst := insts(1)
+    io.if2id(1).bits.nextPC := s3_nextpc
+    io.if2id(1).bits.recov := false.B
 }
