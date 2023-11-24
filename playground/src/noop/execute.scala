@@ -39,7 +39,14 @@ class Execute extends Module{
     val alu64_r     = RegInit(false.B)
     val next_pc_r   = RegInit(0.U(PADDR_WIDTH.W))  // for intr; updated by branch
     val recov_r     = RegInit(false.B)
-    val valid_r     = RegInit(false.B)    
+
+    val sIdle :: sWaitAlu :: Nil = Enum(2)
+    val state = RegInit(sIdle)
+    when(io.df2ex.fire && !alu.io.valid) {
+        state := sWaitAlu
+    }.elsewhen(state === sWaitAlu && alu.io.valid) {
+        state := sIdle
+    }
 
     val hs_in   = io.df2ex.ready && io.df2ex.valid
     val hs_out  = io.ex2wb.ready && io.ex2wb.valid
@@ -53,7 +60,7 @@ class Execute extends Module{
     alu.io.val1     := val1
     alu.io.val2     := val2
     alu.io.alu64    := alu64
-    alu.io.en       := false.B
+    alu.io.en       := io.df2ex.valid && state === sIdle
     val cur_alu64   = Mux(hs_in, alu64, alu64_r)
     val alu_out = Mux(cur_alu64, alu.io.out(63, 0), sext32to64(alu.io.out))
     val wdata   = PriorityMux(Seq(
@@ -81,33 +88,12 @@ class Execute extends Module{
         }
 
     }
-    io.df2ex.ready  := false.B
-    val sIdle :: sWaitAlu :: Nil = Enum(2)
-    val state = RegInit(sIdle)
-    io.ex2df.exBusy := state =/= sIdle
-    when(!drop_r){
-        when((valid_r || state =/= sIdle) && !hs_out){
-        }.elsewhen(io.df2ex.valid){
-            io.df2ex.ready  := true.B
-            alu.io.en       := true.B
-        }
-    }
+    io.df2ex.ready := !io.df2ex.valid || alu.io.valid
+    io.ex2df.exBusy := state === sWaitAlu
 
-    when(state === sIdle){
-        when(hs_in && !alu.io.valid){
-            valid_r := false.B
-            state := sWaitAlu
-        }.elsewhen(hs_in){
-            valid_r := true.B
-        }.elsewhen(hs_out){
-            valid_r := false.B
-        }
-    }
     when(state === sWaitAlu){
         when(alu.io.valid){
-            state       := sIdle
             dst_d_r     := alu_out
-            valid_r     := true.B
         }
     }
     // branch & jmp
@@ -153,7 +139,7 @@ class Execute extends Module{
     val target_r = RegNext(real_target)
     io.updateBPU.pc := pc_r
     io.updateBPU.target := target_r
-    io.updateBPU.valid := valid_r && jmp_r
+    io.updateBPU.valid := io.ex2wb.valid && jmp_r
     io.ex2if.seq_pc := forceJmp.seq_pc
     io.ex2if.valid  := forceJmp.valid
 
@@ -170,10 +156,18 @@ class Execute extends Module{
     }.elsewhen(hs_in) {
         io.d_ex0.state := d_wait
     }
-    when(valid_r){
+    when(io.ex2wb.valid){
         io.d_ex.state   := Mux(ctrl_r.dcMode(DC_L_BIT), d_wait, Mux(ctrl_r.writeRegEn, d_valid, d_invalid))
     }.elsewhen(state =/= sIdle){
         io.d_ex.state   := d_wait
+    }
+
+    val ex_out_valid = io.df2ex.valid && alu.io.valid
+    val wb_in_valid = RegInit(false.B)
+    when (ex_out_valid) {
+        wb_in_valid := true.B
+    }.otherwise {
+        wb_in_valid := false.B
     }
 
     // out
@@ -188,6 +182,6 @@ class Execute extends Module{
     io.ex2wb.bits.dst_en     := ctrl_r.writeRegEn
     io.ex2wb.bits.rcsr_id   := rcsr_id_r
     io.ex2wb.bits.is_mmio   := false.B
-    io.ex2wb.valid     := valid_r
+    io.ex2wb.valid     := wb_in_valid
     io.ex2wb.bits.recov     := recov_r
 }
