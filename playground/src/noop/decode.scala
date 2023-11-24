@@ -126,20 +126,27 @@ class Decoder extends Module {
 
 class Decode extends Module{
     val io = IO(new Bundle{
-        val if2id   = Flipped(DecoupledIO(new IF2ID))
-        val id2df   = DecoupledIO(new ID2DF)
-        val stall   = Output(Bool())
-        val flush   = Output(Bool())
+        val if2id   = Vec(ISSUE_WIDTH, Flipped(DecoupledIO(new IF2ID)))
+        val id2df   = Vec(ISSUE_WIDTH, DecoupledIO(new ID2DF))
+        val stall   = Vec(ISSUE_WIDTH, Output(Bool()))
         val idState = Input(new IdState)
     })
-    val decoder = Module(new Decoder)
-    decoder.io.in := io.if2id.bits
-    io.id2df.bits := decoder.io.out
-    io.id2df.bits.recov := decoder.io.stall
+    val decoder = Seq.fill(ISSUE_WIDTH)(Module(new Decoder))
 
-    io.stall := io.if2id.valid && decoder.io.stall
-    io.flush := io.if2id.valid && decoder.io.stall
+    val stall = io.if2id.zip(decoder).map{ case (in, dec) => in.valid && dec.io.stall }
 
-    io.if2id.ready := !io.if2id.valid || io.id2df.ready
-    io.id2df.valid      := io.if2id.valid
+    for (((in, out), (dec, i)) <- io.if2id.zip(io.id2df).zip(decoder.zipWithIndex)) {
+        dec.io.in := in.bits
+
+        in.ready := !in.valid || out.ready
+
+        out.valid := in.valid
+        if (i > 0) { // check whether flushed by previous instructions
+            out.valid := io.if2id(i).valid && !VecInit(stall.take(i)).asUInt.orR
+        }
+        out.bits := dec.io.out
+        out.bits.recov := dec.io.stall
+    }
+
+    io.stall := stall
 }

@@ -13,6 +13,7 @@ import noop.memory._
 import noop.writeback._
 import noop.regs._
 import noop.clint._
+import noop.datapath.ID2DF
 import noop.dispatch.Dispatch
 import noop.plic._
 import noop.utils.{PipelineAdjuster, PipelineConnect, PipelineNext}
@@ -59,7 +60,7 @@ class CPUIO extends Bundle{
 class CPU extends Module{
     val io = IO(new CPUIO)
     val fetch       = Module(new Fetch)
-    val decode      = Seq.fill(2)(Module(new Decode))
+    val decode      = Module(new Decode)
     val forwarding  = Seq.fill(2)(Module(new Forwarding))
     val dispatch    = Seq.fill(2)(Module(new Dispatch))
     val execute     = Seq.fill(2)(Module(new Execute))
@@ -86,8 +87,7 @@ class CPU extends Module{
     // Old instructions have been flushed by execute_flush,
     // and new instructions will not come to decode/execute in the next cycle
     val execute_flush = execute(0).io.flush
-    val decode_flush = forwarding(0).io.flush || execute_flush
-    val fetch_flush = decode(0).io.flush || decode_flush || wb_flush
+    val forward_flush = forwarding(0).io.flush || execute_flush
 
     // Fetch
     fetch.io.instRead <> fetchCrossbar.io.instIO
@@ -102,26 +102,24 @@ class CPU extends Module{
     fetch.io.wb2if      <> writeback.io.wb2if
     // TODO: only head now
     fetch.io.branchFail <> execute.head.io.ex2if
-    val fetchResults = PipelineAdjuster(fetch.io.if2id, decode(0).io.flush || decode_flush)
-    for (i <- 0 until ISSUE_WIDTH) {
-        //fetch.io.if2id(i) <> decode(i).io.if2id
-        fetchResults(i) <> decode(i).io.if2id
-    }
-    fetch.io.control.stall := decode(0).io.stall
-    fetch.io.control.flush := fetch_flush
+    fetch.io.if2id <> decode.io.if2id
+    fetch.io.stall := decode.io.stall.asUInt.orR
+    fetch.io.flush(0) := decode.io.stall(0) || forward_flush || wb_flush
+    fetch.io.flush(1) := decode.io.stall.asUInt.orR || forward_flush || wb_flush
     fetch.io.recov := writeback.io.recov
 
     // Decode
+    val forward_pipe = Wire(Vec(2, Decoupled(new ID2DF)))
+    val fetchResults = PipelineAdjuster(forward_pipe, forward_flush)
     for (i <- 0 until ISSUE_WIDTH) {
-        PipelineConnect(decode(i).io.id2df, forwarding(i).io.id2df, forwarding(i).io.id2df.ready, decode_flush)
-        // TODO
-        if (i == 0) {
-            decode(i).io.idState <> csrs.io.idState
-        }
-        else {
-            decode(i).io.idState := DontCare // TODO
-        }
+        // PipelineConnect(decode(i).io.id2df, forwarding(i).io.id2df, forwarding(i).io.id2df.ready, forward_flush)
+        PipelineConnect(decode.io.id2df(i), forward_pipe(i), forward_pipe(i).ready, forward_flush)
+        forwarding(i).io.id2df.valid := fetchResults(i).valid
+        forwarding(i).io.id2df.bits := fetchResults(i).bits
+        fetchResults(i).ready := forwarding(i).io.id2df.ready
     }
+    decode.io.idState := csrs.io.idState
+
 
     // Regfile and Forwarding
     for (i <- 0 until ISSUE_WIDTH) {
