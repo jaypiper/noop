@@ -103,7 +103,6 @@ class Memory extends Module{
     val valid_r    = RegInit(false.B)
 
     val hs_in   = io.df2mem.ready && io.df2mem.valid
-    val hs1     = Wire(Bool())
     val hs_out  = io.mem2wb.ready && io.mem2wb.valid
     val curMode = Mux(hs_in, io.df2mem.bits.ctrl.dcMode, ctrl_r.dcMode)
     val bitmap = MuxLookup(curMode(1,0), 0.U(DATA_WIDTH.W), Seq(
@@ -118,7 +117,6 @@ class Memory extends Module{
         mode_LH -> Cat(Fill(DATA_WIDTH - 16, data_uint(15)), data_uint(15, 0)),
         mode_LW -> Cat(Fill(DATA_WIDTH - 32, data_uint(31)), data_uint(31, 0))
         ))
-    hs1 := false.B
     when(hs_in){
         inst_r     := io.df2mem.bits.inst
         pc_r       := io.df2mem.bits.pc
@@ -168,9 +166,6 @@ class Memory extends Module{
     }.elsewhen(io.df2mem.valid){
         io.df2mem.ready := true.B
     }
-    
-    hs1 := io.dataRW.avalid && io.dataRW.ready
-    
 
     io.mem2wb.bits.inst      := inst_r
     io.mem2wb.bits.pc        := pc_r
