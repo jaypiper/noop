@@ -126,14 +126,19 @@ class CPU extends Module{
             forwarding(i).io.csrRead := DontCare
         }
         forwarding(i).io.d_ex0 := execute.map(_.io.d_ex0)
+        forwarding(i).io.flush := RegNext(execute(i).io.flush)
     }
 
-    // Dispatch arbiter and execution unitsf
+    // Dispatch arbiter and execution units
     for (i <- 0 until ISSUE_WIDTH) {
-        PipelineConnect(forwarding(i).io.df2dp, dispatch(i).io.df2dp, dispatch(i).io.df2dp.ready, dispatch(i).io.dp2df.drop)
-        forwarding(i).io.dp2df := dispatch(i).io.dp2df
+        PipelineConnect(
+            forwarding(i).io.df2dp,
+            dispatch(i).io.df2dp,
+            dispatch(i).io.df2dp.ready,
+            forwarding(i).io.flush || execute(i).io.flush
+        )
         dispatch(i).io.df2ex <> execute(i).io.df2ex
-        dispatch(i).io.ex2df := execute(i).io.ex2df
+        dispatch(i).io.flush := execute(i).io.flush
         if (i == 0) {
             dispatch(i).io.df2mem <> memory.io.df2mem
             dispatch(i).io.mem2df := memory.io.mem2df

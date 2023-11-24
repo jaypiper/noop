@@ -11,7 +11,7 @@ class Forwarding extends Module{
         val id2df = Flipped(DecoupledIO(new ID2DF))
         val df2id = Output(new PipelineBackCtrl)
         val df2dp = DecoupledIO(new DF2EX)
-        val dp2df = Input(new PipelineBackCtrl)
+        val flush = Input(Bool())
         val d_ex0   = Vec(ISSUE_WIDTH, Input(new RegForward))
         val d_wb    = Vec(ISSUE_WIDTH, Input(new RegForward))
         val d_mem0  = Input(new RegForward)
@@ -27,8 +27,8 @@ class Forwarding extends Module{
     def stall_pipe() = {
         drop_r := true.B;   stall_r := true.B
     }
-    io.df2id.drop   := io.dp2df.drop || drop_r
-    io.df2id.stall  := (stall_r && !io.dp2df.drop) || io.dp2df.stall
+    io.df2id.drop   := io.flush || drop_r
+    io.df2id.stall  := stall_r && !io.flush
 
     val hs_in   = io.id2df.ready && io.id2df.valid
     val hs_out  = io.df2dp.ready && io.df2dp.valid

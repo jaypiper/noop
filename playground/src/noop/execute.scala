@@ -13,7 +13,7 @@ import noop.alu._
 class Execute extends Module{
     val io = IO(new Bundle{
         val df2ex       = Flipped(DecoupledIO(new DF2EX))
-        val ex2df       = Output(new EX2DF)
+        val flush       = Output(Bool())
         val ex2wb       = ValidIO(new MEM2RB)
         val d_ex0       = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
@@ -86,7 +86,7 @@ class Execute extends Module{
         d_invalid
     )
 
-    io.ex2df.drop   := RegNext(force_jump)
+    io.flush := force_jump
 
     // out
     io.ex2wb.valid := io.df2ex.valid && alu.io.valid
