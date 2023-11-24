@@ -24,10 +24,6 @@ class Execute extends Module{
     io.ex2df.drop   := drop_r
 
     val alu     = Module(new ALU)
-    val mem_addr_r  = RegInit(0.U(PADDR_WIDTH.W))
-    val mem_data_r  = RegInit(0.U(DATA_WIDTH.W))
-    val alu64_r     = RegInit(false.B)
-    val next_pc_r   = RegInit(0.U(PADDR_WIDTH.W))  // for intr; updated by branch
 
     val sIdle :: sWaitAlu :: Nil = Enum(2)
     val state = RegInit(sIdle)
@@ -57,12 +53,6 @@ class Execute extends Module{
         (true.B,                            alu_out)
     ))
 
-    when(hs_in){
-        mem_addr_r  := alu_out
-        mem_data_r  := wdata
-        alu64_r     := alu64
-
-    }
     io.df2ex.ready := !io.df2ex.valid || alu.io.valid
     io.ex2df.exBusy := state === sWaitAlu
 
@@ -85,9 +75,6 @@ class Execute extends Module{
         (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
     ))
 
-    when(hs_in){
-        next_pc_r       := real_target      // for intr
-    }
     val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
     val branchCounter = RegInit(0.U(DATA_WIDTH.W))
     val jmp_r = RegInit(false.B)
