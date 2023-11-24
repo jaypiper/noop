@@ -19,8 +19,6 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         val dcRW    = Flipped(new DcacheRW)
         val icRW    = Flipped(new DcacheRW)
     })
-    val pre_type    = RegInit(0.U(2.W))
-    val data_r      = RegInit(0.U(DATA_WIDTH.W))
     val inp_mem     = (io.dataRW.addr >= "h8000d000".U) && (io.dataRW.addr < "h8000e000".U)
     val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80008000".U
     io.mmio.addr    := io.dataRW.addr
@@ -46,17 +44,19 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     io.dataRW.ready := false.B
 
     when(inp_mem){
-        pre_type        := 1.U
         io.dcRW.avalid := io.dataRW.avalid
         io.dataRW.ready := io.dcRW.ready
     }.elsewhen(inp_ic){
-        pre_type        := 2.U
         io.icRW.avalid := io.dataRW.avalid
         io.dataRW.ready := io.icRW.ready
     }.otherwise{
-        pre_type        := 0.U
         io.mmio.avalid := io.dataRW.avalid
         io.dataRW.ready := io.mmio.ready
+    }
+
+    val pre_type = RegInit(0.U(2.W))
+    when(io.dataRW.avalid && io.dataRW.ready) {
+        pre_type := Mux(inp_mem, 1.U, Mux(inp_ic, 2.U, 0.U))
     }
 
     when(pre_type === 1.U){
