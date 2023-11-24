@@ -15,9 +15,7 @@ class Dispatch extends Module {
     val mem2df = Input(new MEM2DF)
   })
 
-  val out_is_ready = !io.mem2df.membusy && io.df2dp.bits.ctrl.dcMode === mode_NOP && io.df2ex.ready ||
-    io.df2ex.ready && io.df2dp.bits.ctrl.dcMode =/= mode_NOP && io.df2mem.ready
-  io.df2dp.ready := !io.df2dp.valid || out_is_ready
+  io.df2dp.ready := Mux(io.df2dp.bits.ctrl.dcMode === mode_NOP, io.df2ex.ready && !io.mem2df.membusy, io.df2mem.ready)
 
   val drop_in = io.ex2df.drop || io.mem2df.drop
   io.dp2df.drop := drop_in
@@ -51,6 +49,6 @@ class Dispatch extends Module {
   io.df2mem.bits.dst_d := 0.U
   io.df2mem.bits.rcsr_id := 0.U
   io.df2mem.bits.recov := io.df2dp.bits.recov
-  io.df2mem.valid := io.df2dp.valid && !drop_in && io.df2ex.ready && io.df2dp.bits.ctrl.dcMode =/= mode_NOP
+  io.df2mem.valid := io.df2dp.valid && !drop_in && io.df2dp.bits.ctrl.dcMode =/= mode_NOP
 
 }
