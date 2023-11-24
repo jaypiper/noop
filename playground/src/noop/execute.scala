@@ -58,8 +58,6 @@ class Execute extends Module{
 
     // branch & jmp
     val branchAlu = Module(new BranchALU)
-    val forceJmp = RegInit(0.U.asTypeOf(new ForceJmp))
-    forceJmp.valid := false.B
     branchAlu.io.val1   := val1
     branchAlu.io.val2   := val2
     branchAlu.io.brType := io.df2ex.bits.ctrl.brType
@@ -77,19 +75,19 @@ class Execute extends Module{
 
     when(!drop_r){
         when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP && real_target =/= io.df2ex.bits.nextPC){
-            forceJmp.seq_pc := real_target
-            forceJmp.valid := true.B
             drop_r  := true.B
         }
     }
 
     val is_jmp = io.ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
+    val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, io.ex2wb.valid)
-    io.updateBPU.target := RegEnable(real_target, is_jmp)
+    io.updateBPU.target := jmp_target_r
 
-    io.ex2if.seq_pc := forceJmp.seq_pc
-    io.ex2if.valid  := forceJmp.valid
+    val force_jump = is_jmp && real_target =/= io.df2ex.bits.nextPC
+    io.ex2if.valid  := RegNext(force_jump)
+    io.ex2if.seq_pc := jmp_target_r
 
     // data forwarding
     io.d_ex0.id := io.df2ex.bits.dst
