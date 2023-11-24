@@ -175,6 +175,7 @@ class Memory extends Module{
     io.mem2wb.bits.inst      := inst_r
     io.mem2wb.bits.pc        := pc_r
     io.mem2wb.bits.excep     := excep_r
+    io.mem2wb.bits.ctrl      := ctrl_r
     io.mem2wb.bits.csr_id    := csr_id_r
     io.mem2wb.bits.csr_d     := csr_d_r
     io.mem2wb.bits.csr_en    := csr_en_r

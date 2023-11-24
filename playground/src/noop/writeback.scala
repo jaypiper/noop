@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import difftest.{ArchEvent, DiffArchEvent, DiffInstrCommit, DiffTrapEvent, DifftestModule}
 import noop.param.common._
+import noop.param.cache_config._
 import noop.param.decode_config._
 import noop.datapath._
 
@@ -11,6 +12,7 @@ class Writeback extends Module{
     val io = IO(new Bundle{
         val mem2wb  = Flipped(DecoupledIO(new MEM2RB))
         val ex2wb   = Flipped(DecoupledIO(new MEM2RB))
+        val d_wb    = Output(new RegForward)
         val wReg    = Flipped(new RegWrite)
         val wCsr    = Flipped(new CSRWrite)
         val excep   = Output(new Exception)
@@ -29,6 +31,14 @@ class Writeback extends Module{
         recov_r := io.mem2wb.bits.recov
     }.elsewhen(io.ex2wb.valid) {
         recov_r := io.ex2wb.bits.recov
+    }
+
+    // data forwarding
+    io.d_wb.id := io.ex2wb.bits.dst
+    io.d_wb.data := io.ex2wb.bits.dst_d
+    io.d_wb.state := d_invalid
+    when(io.ex2wb.valid) {
+        io.d_wb.state := Mux(io.ex2wb.bits.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.ex2wb.bits.ctrl.writeRegEn, d_valid, d_invalid))
     }
 
     io.wReg.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.dst, io.ex2wb.bits.dst)

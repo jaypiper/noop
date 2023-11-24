@@ -233,6 +233,7 @@ class MEM2RB extends Bundle{
     val inst    = UInt(INST_WIDTH.W)
     val pc      = UInt(PADDR_WIDTH.W)
     val excep   = new Exception
+    val ctrl    = new Ctrl
     val csr_id  = UInt(CSR_WIDTH.W)
     val csr_d   = UInt(DATA_WIDTH.W)
     val csr_en  = Bool()

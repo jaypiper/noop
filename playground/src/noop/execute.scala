@@ -16,7 +16,6 @@ class Execute extends Module{
         val ex2df       = Output(new EX2DF)
         val ex2wb       = DecoupledIO(new MEM2RB)
         val d_ex0       = Output(new RegForward)
-        val d_ex        = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)
     })
@@ -143,11 +142,7 @@ class Execute extends Module{
     io.ex2if.seq_pc := forceJmp.seq_pc
     io.ex2if.valid  := forceJmp.valid
 
-    // data forwading
-
-    io.d_ex.id     := dst_r
-    io.d_ex.data   := dst_d_r
-    io.d_ex.state  := d_invalid
+    // data forwarding
     io.d_ex0.id := io.df2ex.bits.dst
     io.d_ex0.data :=  wdata
     io.d_ex0.state := d_invalid
@@ -155,11 +150,6 @@ class Execute extends Module{
         io.d_ex0.state := Mux(io.df2ex.bits.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.df2ex.bits.ctrl.writeRegEn, d_valid, d_invalid))
     }.elsewhen(hs_in) {
         io.d_ex0.state := d_wait
-    }
-    when(io.ex2wb.valid){
-        io.d_ex.state   := Mux(ctrl_r.dcMode(DC_L_BIT), d_wait, Mux(ctrl_r.writeRegEn, d_valid, d_invalid))
-    }.elsewhen(state =/= sIdle){
-        io.d_ex.state   := d_wait
     }
 
     val ex_out_valid = io.df2ex.valid && alu.io.valid
@@ -174,6 +164,7 @@ class Execute extends Module{
     io.ex2wb.bits.inst      := inst_r
     io.ex2wb.bits.pc        := pc_r
     io.ex2wb.bits.excep     := excep_r
+    io.ex2wb.bits.ctrl      := ctrl_r
     io.ex2wb.bits.csr_id     := csr_id_r
     io.ex2wb.bits.csr_d      := csr_d_r
     io.ex2wb.bits.csr_en     := ctrl_r.writeCSREn
