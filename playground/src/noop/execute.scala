@@ -77,8 +77,6 @@ class Execute extends Module{
 
     val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
     val branchCounter = RegInit(0.U(DATA_WIDTH.W))
-    val jmp_r = RegInit(false.B)
-    jmp_r := false.B
 
     when(!drop_r){
         when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP && real_target =/= io.df2ex.bits.nextPC){
@@ -90,13 +88,14 @@ class Execute extends Module{
         }
         when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP) {
             branchCounter := branchCounter + 1.U
-            jmp_r := true.B
         }
     }
-    val target_r = RegNext(real_target)
+
+    val is_jmp = io.ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
+    io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, io.ex2wb.valid)
-    io.updateBPU.target := target_r
-    io.updateBPU.valid := RegNext(io.ex2wb.valid) && jmp_r
+    io.updateBPU.target := RegEnable(real_target, is_jmp)
+
     io.ex2if.seq_pc := forceJmp.seq_pc
     io.ex2if.valid  := forceJmp.valid
 
