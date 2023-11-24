@@ -224,7 +224,7 @@ class DF2MEM extends Bundle{
     val recov   = Bool()
 }
 
-class MEM2DF extends PipelineBackCtrl {
+class MEM2DF extends Bundle {
     val membusy = Bool()
 }
 

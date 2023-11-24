@@ -83,9 +83,6 @@ class Memory extends Module{
     // stage 1
     val s1_out = Wire(Decoupled(new MEM2RB))
 
-    io.mem2df.drop  := false.B
-    io.mem2df.stall := false.B
-
     val wmask = MuxLookup(io.df2mem.bits.ctrl.dcMode(1,0), 0.U(DATA_WIDTH.W))(Seq(
         0.U -> "hff".U(DATA_WIDTH.W),
         1.U -> "hffff".U(DATA_WIDTH.W),

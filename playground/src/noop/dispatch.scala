@@ -17,7 +17,7 @@ class Dispatch extends Module {
 
   io.df2dp.ready := Mux(io.df2dp.bits.ctrl.dcMode === mode_NOP, io.df2ex.ready && !io.mem2df.membusy, io.df2mem.ready)
 
-  val drop_in = io.ex2df.drop || io.mem2df.drop
+  val drop_in = io.ex2df.drop
   io.dp2df.drop := drop_in
   io.dp2df.stall := false.B
 
