@@ -39,7 +39,7 @@ class Writeback extends Module{
     io.wCsr.en := wb_valid && wb.csr_en
 
     io.excep := wb.excep
-    io.excep.en := wb_valid && wb.excep.en || io.ex2wb.valid &&io.ex2wb.bits.excep.en
+    io.excep.en := wb_valid && wb.excep.en
 
     val force_jump = wb_valid && wb.recov && !wb.excep.en
     io.wb2if.valid := RegNext(force_jump, false.B)
