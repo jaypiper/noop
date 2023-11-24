@@ -14,7 +14,7 @@ class Execute extends Module{
     val io = IO(new Bundle{
         val df2ex       = Flipped(DecoupledIO(new DF2EX))
         val ex2df       = Output(new EX2DF)
-        val ex2wb       = DecoupledIO(new MEM2RB)
+        val ex2wb       = ValidIO(new MEM2RB)
         val d_ex0       = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)

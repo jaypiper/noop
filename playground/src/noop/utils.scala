@@ -69,4 +69,13 @@ object PipelineNext {
     PipelineConnect(left, right, rightOutFire, isFlush)
     right
   }
+
+  def apply[T <: Data](
+    left: ValidIO[T]
+  ): ValidIO[T] = {
+    val right = Wire(ValidIO(left.bits.cloneType))
+    right.valid := RegNext(left.valid, false.B)
+    right.bits := RegEnable(left.bits, left.valid)
+    right
+  }
 }

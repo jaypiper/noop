@@ -10,28 +10,20 @@ import noop.datapath._
 
 class Writeback extends Module{
     val io = IO(new Bundle{
-        val mem2wb  = Flipped(DecoupledIO(new MEM2RB))
-        val ex2wb   = Flipped(DecoupledIO(new MEM2RB))
+        val mem2wb  = Flipped(ValidIO(new MEM2RB))
+        val ex2wb   = Flipped(ValidIO(new MEM2RB))
         val d_wb    = Output(new RegForward)
         val wReg    = Flipped(new RegWrite)
         val wCsr    = Flipped(new CSRWrite)
         val excep   = Output(new Exception)
         val wb2if   = Output(new ForceJmp)
         val recov   = Output(Bool())
-        val updateTrace = Output(new UpdateTrace)
     })
-    val recov_r     = RegInit(false.B)
-    recov_r := false.B
+    val wb_valid = io.ex2wb.valid || io.mem2wb.valid
+    assert(!io.ex2wb.valid || !io.mem2wb.valid, "do not allow simultaneous writeback now")
+    val wb = Mux(io.ex2wb.valid, io.ex2wb.bits, io.mem2wb.bits)
 
-    io.mem2wb.ready := true.B
-    io.ex2wb.ready := true.B
-
-    io.recov        := recov_r
-    when(io.mem2wb.valid) {
-        recov_r := io.mem2wb.bits.recov
-    }.elsewhen(io.ex2wb.valid) {
-        recov_r := io.ex2wb.bits.recov
-    }
+    io.recov := RegNext(wb_valid && wb.recov, false.B)
 
     // data forwarding
     io.d_wb.id := io.ex2wb.bits.dst
@@ -41,40 +33,21 @@ class Writeback extends Module{
         io.d_wb.state := Mux(io.ex2wb.bits.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.ex2wb.bits.ctrl.writeRegEn, d_valid, d_invalid))
     }
 
-    io.wReg.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.dst, io.ex2wb.bits.dst)
-    io.wReg.data    := Mux(io.mem2wb.valid, io.mem2wb.bits.dst_d, io.ex2wb.bits.dst_d)
-    io.wReg.en      := io.mem2wb.valid && io.mem2wb.bits.dst_en || io.ex2wb.valid &&io.ex2wb.bits.dst_en
+    io.wReg.id := wb.dst
+    io.wReg.data := wb.dst_d
+    io.wReg.en := wb_valid && wb.dst_en
 
-    io.wCsr.id      := Mux(io.mem2wb.valid, io.mem2wb.bits.csr_id, io.ex2wb.bits.csr_id)
-    io.wCsr.data    := Mux(io.mem2wb.valid, io.mem2wb.bits.csr_d, io.ex2wb.bits.csr_d)
-    io.wCsr.en      := io.mem2wb.valid && io.mem2wb.bits.csr_en || io.ex2wb.valid &&io.ex2wb.bits.csr_en
+    io.wCsr.id := wb.csr_id
+    io.wCsr.data := wb.csr_d
+    io.wCsr.en := wb_valid && wb.csr_en
 
-    io.excep        := io.ex2wb.bits.excep
-    io.excep.en     := io.mem2wb.valid && io.mem2wb.bits.excep.en || io.ex2wb.valid &&io.ex2wb.bits.excep.en
+    io.excep := wb.excep
+    io.excep.en := wb_valid && wb.excep.en || io.ex2wb.valid &&io.ex2wb.bits.excep.en
 
-    val forceJmp = RegInit(0.U.asTypeOf(new ForceJmp))
-    forceJmp.valid := false.B
-    io.wb2if        := forceJmp
-    when(io.mem2wb.valid){
-        recov_r := io.mem2wb.bits.recov
-        when(io.mem2wb.bits.recov && !io.mem2wb.bits.excep.en){
-            forceJmp.valid  := true.B
-            forceJmp.seq_pc := io.mem2wb.bits.pc + 4.U
-        }
-    }.elsewhen(io.ex2wb.valid) {
-        recov_r := io.ex2wb.bits.recov
-        when(io.ex2wb.bits.recov && !io.ex2wb.bits.excep.en){
-            forceJmp.valid  := true.B
-            forceJmp.seq_pc := io.ex2wb.bits.pc + 4.U
-        }
-    }
+    val force_jump = wb_valid && wb.recov && !wb.excep.en
+    io.wb2if.valid := RegNext(force_jump, false.B)
+    io.wb2if.seq_pc := RegEnable(wb.pc + 4.U, force_jump)
 
-    io.updateTrace.valid := io.ex2wb.valid
-    io.updateTrace.inst := io.ex2wb.bits.inst
-    io.updateTrace.pc := io.ex2wb.bits.pc
-
-    val wb_valid = io.mem2wb.valid || io.ex2wb.valid
-    val wb = Mux(io.mem2wb.valid, io.mem2wb.bits, io.ex2wb.bits)
     if (false) {
         val is_mmio = io.mem2wb.bits.is_mmio && io.mem2wb.valid
         val instFinish = Module(new InstFinish)

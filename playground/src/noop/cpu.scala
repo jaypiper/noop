@@ -15,7 +15,7 @@ import noop.regs._
 import noop.clint._
 import noop.dispatch.Dispatch
 import noop.plic._
-import noop.utils.PipelineConnect
+import noop.utils.{PipelineConnect, PipelineNext}
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -114,7 +114,7 @@ class CPU extends Module{
     dispatch.io.df2mem <> memory.io.df2mem
     dispatch.io.mem2df := memory.io.mem2df
 
-    PipelineConnect(execute.io.ex2wb, writeback.io.ex2wb, true.B, false.B)
+    writeback.io.ex2wb := PipelineNext(execute.io.ex2wb)
     execute.io.updateBPU <> bpu.io.update
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW
