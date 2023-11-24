@@ -82,7 +82,7 @@ class FetchIO extends Bundle{
     val branchFail  = Input(new ForceJmp)
     val if2id       = Vec(2, DecoupledIO(new IF2ID))
     val control     = Input(new PipelineBackCtrl)
-    val bp          = Flipped(new PredictIO2)
+    val bp          = Vec(ISSUE_WIDTH, Flipped(new PredictIO2))
 }
 
 class FetchS1 extends Module {
@@ -93,7 +93,7 @@ class FetchS1 extends Module {
         val branchFail = Input(new ForceJmp)
         val stall = Input(Bool())
         val flush = Input(Bool())
-        val bp = Flipped(new PredictIO2)
+        val bp = Vec(ISSUE_WIDTH, Flipped(new PredictIO2))
     })
     val instRead = IO(DecoupledIO())
     val out = IO(DecoupledIO(new Bundle {
@@ -102,13 +102,14 @@ class FetchS1 extends Module {
     }))
 
     val pc = RegInit(PC_START)
-    val fetch_two = !pc(2) && !io.bp.jmp
+    val fetch_two = !pc(2) && !io.bp(0).jmp
     val pc_seq = Mux(fetch_two, pc + 8.U, pc + 4.U)
     val next_pc = PriorityMux(Seq(
         (io.reg2if.valid, io.reg2if.seq_pc),
         (io.wb2if.valid, io.wb2if.seq_pc),
         (io.branchFail.valid, io.branchFail.seq_pc),
-        (io.bp.jmp && out.fire, io.bp.target),
+        (io.bp(0).jmp && out.fire, io.bp(0).target),
+        (fetch_two && io.bp(1).jmp && out.fire, io.bp(1).target),
         (out.fire, pc_seq),
         (true.B, pc)))
     pc := next_pc
@@ -134,7 +135,8 @@ class FetchS1 extends Module {
 
     instRead.valid := state === sIdle && out.ready
 
-    io.bp.pc := pc
+    io.bp(0).pc := pc
+    io.bp(1).pc := Cat(pc(PADDR_WIDTH - 1, 3), 4.U(3.W))
 }
 
 class Fetch extends Module{
@@ -192,7 +194,7 @@ class Fetch extends Module{
     io.if2id(0).bits.recov := false.B  // TODO: remove
 
     io.if2id(1).valid := s3_out_valid && s3_in.bits.fetch_two
-    io.if2id(1).bits.pc := s3_in.bits.pc + 4.U
+    io.if2id(1).bits.pc := Cat(s3_in.bits.pc(PADDR_WIDTH - 1, 3), 4.U(3.W))
     io.if2id(1).bits.inst := insts(1)
     io.if2id(1).bits.nextPC := s3_nextpc
     io.if2id(1).bits.recov := false.B
