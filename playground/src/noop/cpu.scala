@@ -96,7 +96,6 @@ class CPU extends Module{
     fetch.io.recov      <> writeback.io.recov
 
     PipelineConnect(decode.io.id2df, forwarding.io.id2df, forwarding.io.id2df.ready, forwarding.io.df2id.drop)
-    decode.io.id2df     <> forwarding.io.id2df
     decode.io.df2id     := forwarding.io.df2id
     decode.io.idState   <> csrs.io.idState
 
