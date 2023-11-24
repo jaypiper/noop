@@ -93,8 +93,7 @@ class FetchS1 extends Module {
         val branchFail = Input(new ForceJmp)
         val stall = Input(Bool())
         val flush = Input(Bool())
-        val bp_is_jmp = Input(Bool())
-        val bp_target = Input(UInt(PADDR_WIDTH.W))
+        val bp = Flipped(new PredictIO2)
     })
     val instRead = IO(DecoupledIO())
     val out = IO(DecoupledIO(new Bundle {
@@ -106,7 +105,7 @@ class FetchS1 extends Module {
         (io.reg2if.valid, io.reg2if.seq_pc),
         (io.wb2if.valid, io.wb2if.seq_pc),
         (io.branchFail.valid, io.branchFail.seq_pc),
-        (io.bp_is_jmp && out.fire, io.bp_target),
+        (io.bp.jmp && out.fire, io.bp.target),
         (out.fire, pc + 4.U),
         (true.B, pc)))
     pc := next_pc
@@ -130,6 +129,8 @@ class FetchS1 extends Module {
     out.bits.pc := pc
 
     instRead.valid := state === sIdle && out.ready
+
+    io.bp.pc := pc
 }
 
 class Fetch extends Module{
@@ -146,11 +147,7 @@ class Fetch extends Module{
     s1.io.branchFail := io.branchFail
     s1.io.stall := stall_in
     s1.io.flush := flush_in
-    s1.io.bp_is_jmp := io.bp.jmp
-    s1.io.bp_target := io.bp.target
-
-    io.bp.pc := s1.out.bits.pc
-    io.bp.valid := s1.out.fire
+    s1.io.bp <> io.bp
 
     s1.instRead.ready := io.instRead.ready
     io.instRead.addr := s1.out.bits.pc
