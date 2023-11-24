@@ -28,10 +28,7 @@ class Writeback extends Module{
     // data forwarding
     io.d_wb.id := io.ex2wb.bits.dst
     io.d_wb.data := io.ex2wb.bits.dst_d
-    io.d_wb.state := d_invalid
-    when(io.ex2wb.valid) {
-        io.d_wb.state := Mux(io.ex2wb.bits.ctrl.dcMode(DC_L_BIT), d_wait, Mux(io.ex2wb.bits.ctrl.writeRegEn, d_valid, d_invalid))
-    }
+    io.d_wb.state := Mux(io.ex2wb.valid && io.ex2wb.bits.ctrl.writeRegEn, d_valid, d_invalid)
 
     io.wReg.id := wb.dst
     io.wReg.data := wb.dst_d
