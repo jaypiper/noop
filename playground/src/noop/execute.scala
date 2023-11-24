@@ -19,9 +19,6 @@ class Execute extends Module{
         val ex2if       = Output(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)
     })
-    val drop_r = RegInit(false.B)
-    drop_r := false.B
-    io.ex2df.drop   := drop_r
 
     val alu     = Module(new ALU)
 
@@ -71,12 +68,6 @@ class Execute extends Module{
         (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
     ))
 
-    when(!drop_r){
-        when(hs_in && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP && real_target =/= io.df2ex.bits.nextPC){
-            drop_r  := true.B
-        }
-    }
-
     val is_jmp = io.ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
@@ -94,6 +85,8 @@ class Execute extends Module{
         Mux(alu.io.valid, d_valid, d_wait),
         d_invalid
     )
+
+    io.ex2df.drop   := RegNext(force_jump)
 
     // out
     io.ex2wb.valid := io.df2ex.valid && alu.io.valid
