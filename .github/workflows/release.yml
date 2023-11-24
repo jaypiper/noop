@@ -1,8 +1,8 @@
-name: Nightly Regression
+name: Release
+
 on:
-  schedule:
-    # run at 19:33 UTC (3:07 UTC+8)
-    - cron: '07 19 * * *'
+  push:
+    branches: [ master ]
 
 jobs:
   release:
