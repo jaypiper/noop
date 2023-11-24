@@ -80,11 +80,14 @@ class Writeback extends Module{
     }
 
     if (isSim) {
+        val instrCnt = RegInit(0.U(64.W))
+        instrCnt := instrCnt + PopCount(wb_valid)
         val timer = RegInit(0.U(64.W))
         timer := timer + 1.U
         val difftest = DifftestModule(new DiffTrapEvent, dontCare = true)
         difftest.hasTrap := false.B
         difftest.cycleCnt := timer
+        difftest.instrCnt := instrCnt
     }
 }
 
