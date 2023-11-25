@@ -19,7 +19,16 @@ class Writeback extends Module{
         val wb2if   = Output(new ForceJmp)
         val recov   = Output(Bool())
     })
-    val writeback_ports = Seq(io.ex2wb.head, io.mem2wb) +: io.ex2wb.tail.map(Seq(_))
+    // Dirty code here: mem2wb will choose either port 0 or port 1 for writeback
+    val mem2wb0 = WireInit(io.mem2wb)
+    mem2wb0.valid := io.mem2wb.valid && !io.ex2wb.head.valid
+    val mem2wb1 = WireInit(io.mem2wb)
+    mem2wb1.valid := io.mem2wb.valid && io.ex2wb.head.valid
+
+    val writeback_ports = Seq(
+        Seq(io.ex2wb(0), mem2wb0),
+        Seq(io.ex2wb(1), mem2wb1)
+    ) ++ io.ex2wb.drop(2).map(Seq(_))
     val wb_valid = writeback_ports.map(ports => {
         assert(PopCount(ports.map(_.valid)) <= 1.U, "do not allow simultaneous writeback now")
         VecInit(ports.map(_.valid)).asUInt.orR
@@ -40,23 +49,28 @@ class Writeback extends Module{
         wReg.en := v && wb.dst_en
     }
 
-    // TODO: allow only the first instruction for now
-    val wb_special_v = wb_valid.head
-    val wb_special = writebacks.head
+    val csr_wen = wb_valid.zip(writebacks).map{ case (v, w) => v && w.csr_en }
+    assert(PopCount(csr_wen) <= 1.U, "do not allow simultaneous csr_wen now")
+    val csr_wb = PriorityMux(csr_wen, writebacks)
+    io.wCsr.id := csr_wb.csr_id
+    io.wCsr.data := csr_wb.csr_d
+    io.wCsr.en := VecInit(csr_wen).asUInt.orR
 
-    io.wCsr.id := wb_special.csr_id
-    io.wCsr.data := wb_special.csr_d
-    io.wCsr.en := wb_special_v && wb_special.csr_en
+    val excep_en = wb_valid.zip(writebacks).map{ case (v, w) => v && w.excep.en }
+    assert(PopCount(excep_en) <= 1.U, "do not allow simultaneous excep_en now")
+    val excep_wb = PriorityMux(excep_en, writebacks)
+    io.excep := excep_wb.excep
+    io.excep.en := VecInit(excep_en).asUInt.orR
 
-    io.excep := wb_special.excep
-    io.excep.en := wb_special_v && wb_special.excep.en
+    val recov_en = wb_valid.zip(writebacks).map{ case (v, w) => v && w.recov }
+    io.recov := RegNext(VecInit(recov_en).asUInt.orR, false.B)
 
-    // TODO: what is recov
-    io.recov := RegNext(wb_special_v && wb_special.recov, false.B)
-
-    val force_jump = wb_special_v && wb_special.recov && !wb_special.excep.en
-    io.wb2if.valid := RegNext(force_jump, false.B)
-    io.wb2if.seq_pc := RegEnable(wb_special.pc + 4.U, force_jump)
+    val wb2if = wb_valid.zip(writebacks).map{ case (v, w) => v && w.recov && !w.excep.en }
+    assert(PopCount(wb2if) <= 1.U, "do not allow simultaneous wb2if_valid now")
+    val wb2if_wb = PriorityMux(wb2if, writebacks)
+    val wb2if_valid = VecInit(wb2if).asUInt.orR
+    io.wb2if.valid := RegNext(wb2if_valid, false.B)
+    io.wb2if.seq_pc := RegEnable(wb2if_wb.pc + 4.U, wb2if_valid)
 
     if (isSim) {
         for (((v, wb), i) <- wb_valid.zip(writebacks).zipWithIndex) {
@@ -74,9 +88,9 @@ class Writeback extends Module{
     if (isSim) {
         val difftest = DifftestModule(new DiffArchEvent, delay = 1, dontCare = true)
         difftest.valid := false.B
-        difftest.interrupt := wb_special.excep.etype === 0.U
-        difftest.exception := wb_special.excep.cause
-        difftest.exceptionPC := wb_special.excep.pc
+        difftest.interrupt := excep_wb.excep.etype === 0.U
+        difftest.exception := excep_wb.excep.cause
+        difftest.exceptionPC := excep_wb.excep.pc
     }
 
     if (isSim) {
