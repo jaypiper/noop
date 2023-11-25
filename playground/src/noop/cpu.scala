@@ -129,6 +129,7 @@ class CPU extends Module{
 
     // Dispatch arbiter and execution units
     val execute_pipe = Wire(Vec(2, Decoupled(new DF2EX)))
+    VecPipelineConnect(forwarding.map(_.io.df2dp), execute_pipe, execute_flush)
     val forwardResults = PipelineAdjuster(execute_pipe, execute_flush)
     for (i <- 0 until ISSUE_WIDTH) {
         // PipelineConnect(
@@ -137,7 +138,6 @@ class CPU extends Module{
         //     dispatch(i).io.df2dp.ready,
         //     execute_flush
         // )
-        PipelineConnect(forwarding(i).io.df2dp, execute_pipe(i), execute_pipe(i).ready, execute_flush)
         dispatch(i).io.df2dp.valid := forwardResults(i).valid
         dispatch(i).io.df2dp.bits := forwardResults(i).bits
         forwardResults(i).ready := dispatch(i).io.df2dp.ready

@@ -164,6 +164,18 @@ object VecPipelineConnect {
     }
     connect(left, pipeline, right.map(_.ready), isFlush)
   }
+
+  def apply[T <: Data](
+    left: Seq[DecoupledIO[T]],
+    right: Seq[DecoupledIO[T]],
+    isFlush: Bool
+  ): Seq[T] = {
+    val pipeline_prev = Wire(VecDecoupledIO(left.length, left.head.bits))
+    pipeline_prev.valid := left.map(_.valid)
+    pipeline_prev.bits := left.map(_.bits)
+    left.foreach(_.ready := pipeline_prev.ready)
+    apply(pipeline_prev, right, isFlush)
+  }
 }
 
 class PipelineAdjuster[T <: Data](gen: T, width: Int) extends Module {
