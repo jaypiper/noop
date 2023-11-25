@@ -94,8 +94,7 @@ class CPU extends Module{
 
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
-    // TODO: only head now
-    fetch.io.branchFail <> execute.head.io.ex2if
+    fetch.io.branchFail := PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
     fetch.io.if2id <> decode.io.if2id
     // branch mis-prediction has higher priority than decode stall
     fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush_r
@@ -113,9 +112,9 @@ class CPU extends Module{
 
 
     // Regfile and Forwarding
-    val fwd_source = execute.map(_.io.d_ex0) ++
+    val fwd_source = execute.map(_.io.d_ex0).reverse ++
       Seq(memory.io.d_mem0) ++
-      writeback.io.d_wb ++
+      writeback.io.d_wb.reverse ++
       Seq(memory.io.d_mem1)
     for (i <- 0 until ISSUE_WIDTH) {
         forwarding(i).io.fwd_source := forwarding.take(i).map(_.io.d_fd) ++ fwd_source
@@ -125,24 +124,19 @@ class CPU extends Module{
     }
 
     // Dispatch arbiter and execution units
-    val execute_pipe = Wire(Vec(2, Decoupled(new DF2EX)))
-    VecPipelineConnect(forwarding.map(_.io.df2dp), execute_pipe, execute_flush || execute_flush_r)
-    val forwardResults = PipelineAdjuster(execute_pipe, execute_flush || execute_flush_r)
+    VecPipelineConnect(forwarding.map(_.io.df2dp), dispatch.io.df2dp, execute_flush || execute_flush_r)
     for (i <- 0 until ISSUE_WIDTH) {
-        dispatch.io.df2dp(i).valid := forwardResults(i).valid
-        dispatch.io.df2dp(i).bits := forwardResults(i).bits
-        forwardResults(i).ready := dispatch.io.df2dp(i).ready
         dispatch.io.df2ex(i) <> execute(i).io.df2ex
         dispatch.io.df2mem <> memory.io.df2mem
         dispatch.io.mem2df := memory.io.mem2df
     }
 
     // Writeback
-    (0 until ISSUE_WIDTH).foreach(i =>
-        writeback.io.ex2wb(i) := PipelineNext(execute(i).io.ex2wb)
+    writeback.io.ex2wb.head := PipelineNext(execute.head.io.ex2wb)
+    (1 until ISSUE_WIDTH).foreach(i =>
+        writeback.io.ex2wb(i) := PipelineNext(execute(i).io.ex2wb, VecInit(execute.take(i).map(_.io.flush)).asUInt.orR)
     )
-    // TODO: only head now
-    bpu.io.update := execute.head.io.updateBPU
+    bpu.io.update := PriorityMux(execute.map(_.io.updateBPU.valid), execute.map(_.io.updateBPU))
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW
     // memory.io.va2pa     <> tlb_mem.io.va2pa
