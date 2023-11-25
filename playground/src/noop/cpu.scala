@@ -60,7 +60,7 @@ class CPU extends Module{
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
     val forwarding  = Seq.tabulate(2)(i => Module(new Forwarding(6 + i)))
-    val dispatch    = Seq.fill(2)(Module(new Dispatch))
+    val dispatch    = Module(new Dispatch)
     val execute     = Seq.fill(2)(Module(new Execute))
     val memory      = Module(new Memory)
     val writeback   = Module(new Writeback)
@@ -132,24 +132,12 @@ class CPU extends Module{
     VecPipelineConnect(forwarding.map(_.io.df2dp), execute_pipe, execute_flush)
     val forwardResults = PipelineAdjuster(execute_pipe, execute_flush)
     for (i <- 0 until ISSUE_WIDTH) {
-        // PipelineConnect(
-        //     forwarding(i).io.df2dp,
-        //     dispatch(i).io.df2dp,
-        //     dispatch(i).io.df2dp.ready,
-        //     execute_flush
-        // )
-        dispatch(i).io.df2dp.valid := forwardResults(i).valid
-        dispatch(i).io.df2dp.bits := forwardResults(i).bits
-        forwardResults(i).ready := dispatch(i).io.df2dp.ready
-        dispatch(i).io.df2ex <> execute(i).io.df2ex
-        if (i == 0) {
-            dispatch(i).io.df2mem <> memory.io.df2mem
-            dispatch(i).io.mem2df := memory.io.mem2df
-        }
-        else {
-            dispatch(i).io.df2mem := DontCare
-            dispatch(i).io.mem2df := DontCare
-        }
+        dispatch.io.df2dp(i).valid := forwardResults(i).valid
+        dispatch.io.df2dp(i).bits := forwardResults(i).bits
+        forwardResults(i).ready := dispatch.io.df2dp(i).ready
+        dispatch.io.df2ex(i) <> execute(i).io.df2ex
+        dispatch.io.df2mem <> memory.io.df2mem
+        dispatch.io.mem2df := memory.io.mem2df
     }
 
     // Writeback
