@@ -91,15 +91,20 @@ class PipelineAdjuster[T <: Data](gen: T, width: Int) extends Module {
     o.bits := DontCare
   })
 
-  val in_try = RegInit(VecInit.fill(width)(true.B))
+  val in_try_r = RegInit(VecInit.fill(width)(true.B))
+  val just_in = RegNext(io.in.head.ready)
+  val in_try = Mux(just_in, VecInit(io.in.map(_.valid)), in_try_r)
+
   val try_index = PriorityEncoder(in_try)
 
   io.out.head.valid := io.in(try_index).valid
   io.out.head.bits := io.in(try_index).bits
   when (io.flush || io.in.head.ready) {
-    in_try.foreach(_ := true.B)
+    in_try_r.foreach(_ := true.B)
+  }.elsewhen(just_in && !io.out.head.fire) {
+    in_try_r := in_try
   }.elsewhen (io.out.head.fire) {
-    in_try(try_index) := false.B
+    in_try_r(try_index) := false.B
   }
 
   val is_last = try_index === (width - 1).U || !io.in(try_index + 1.U).valid
