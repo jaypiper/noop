@@ -61,7 +61,7 @@ class CPU extends Module{
     val io = IO(new CPUIO)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
-    val forwarding  = Seq.fill(2)(Module(new Forwarding))
+    val forwarding  = Seq.fill(2)(Module(new Forwarding(6)))
     val dispatch    = Seq.fill(2)(Module(new Dispatch))
     val execute     = Seq.fill(2)(Module(new Execute))
     val memory      = Module(new Memory)
@@ -122,10 +122,12 @@ class CPU extends Module{
 
 
     // Regfile and Forwarding
+    val fwd_source = execute.map(_.io.d_ex0) ++
+      Seq(memory.io.d_mem0) ++
+      writeback.io.d_wb ++
+      Seq(memory.io.d_mem1)
     for (i <- 0 until ISSUE_WIDTH) {
-        forwarding(i).io.d_wb := writeback.io.d_wb
-        forwarding(i).io.d_mem1 := memory.io.d_mem1
-        forwarding(i).io.d_mem0 := memory.io.d_mem0
+        forwarding(i).io.fwd_source := fwd_source
         forwarding(i).io.rs1Read <> regs.io.rs1(i)
         forwarding(i).io.rs2Read <> regs.io.rs2(i)
         // TODO
@@ -135,7 +137,6 @@ class CPU extends Module{
         else {
             forwarding(i).io.csrRead := DontCare
         }
-        forwarding(i).io.d_ex0 := execute.map(_.io.d_ex0)
     }
 
     // Dispatch arbiter and execution units

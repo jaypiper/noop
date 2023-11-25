@@ -6,15 +6,12 @@ import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
 
-class Forwarding extends Module{
+class Forwarding(n_forward: Int) extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(DecoupledIO(new ID2DF))
         val df2dp = DecoupledIO(new DF2EX)
         val flush = Output(Bool())
-        val d_ex0   = Vec(ISSUE_WIDTH, Input(new RegForward))
-        val d_wb    = Vec(ISSUE_WIDTH, Input(new RegForward))
-        val d_mem0  = Input(new RegForward)
-        val d_mem1  = Input(new RegForward)
+        val fwd_source = Vec(n_forward, Input(new RegForward))
         val rs1Read = Flipped(new RegRead)
         val rs2Read = Flipped(new RegRead)
         val csrRead = Flipped(new CSRRead)
@@ -37,9 +34,8 @@ class Forwarding extends Module{
     }
 
     // forward source: listed in priority order
-    val fwd_source = io.d_ex0 ++ Seq(io.d_mem0) ++ io.d_wb ++ Seq(io.d_mem1)
-    val (rs1_valid, rs1_data) = do_forward(fwd_source, io.id2df.bits.rs1, io.rs1Read.data)
-    val (rs2_valid, rs2_data) = do_forward(fwd_source, io.id2df.bits.rs2, io.rs2Read.data)
+    val (rs1_valid, rs1_data) = do_forward(io.fwd_source, io.id2df.bits.rs1, io.rs1Read.data)
+    val (rs2_valid, rs2_data) = do_forward(io.fwd_source, io.id2df.bits.rs2, io.rs2Read.data)
 
     io.flush := io.id2df.valid && io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err
 
