@@ -7,6 +7,7 @@ import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
 import noop.param.Insts._
+import noop.utils.VecDecoupledIO
 
 class Decoder extends Module {
     val io = IO(new Bundle {
@@ -127,7 +128,7 @@ class Decoder extends Module {
 class Decode extends Module{
     val io = IO(new Bundle{
         val if2id   = Vec(ISSUE_WIDTH, Flipped(DecoupledIO(new IF2ID)))
-        val id2df   = Vec(ISSUE_WIDTH, DecoupledIO(new ID2DF))
+        val id2df   = VecDecoupledIO(ISSUE_WIDTH, new ID2DF)
         val stall   = Vec(ISSUE_WIDTH, Output(Bool()))
         val idState = Input(new IdState)
     })
@@ -135,17 +136,17 @@ class Decode extends Module{
 
     val stall = io.if2id.zip(decoder).map{ case (in, dec) => in.valid && dec.io.stall }
 
-    for (((in, out), (dec, i)) <- io.if2id.zip(io.id2df).zip(decoder.zipWithIndex)) {
+    for ((in, (dec, i)) <- io.if2id.zip(decoder.zipWithIndex)) {
         dec.io.in := in.bits
 
-        in.ready := !in.valid || out.ready
+        in.ready := !in.valid || io.id2df.ready
 
-        out.valid := in.valid
+        io.id2df.valid(i) := in.valid
         if (i > 0) { // check whether flushed by previous instructions
-            out.valid := io.if2id(i).valid && !VecInit(stall.take(i)).asUInt.orR
+            io.id2df.valid(i) := io.if2id(i).valid && !VecInit(stall.take(i)).asUInt.orR
         }
-        out.bits := dec.io.out
-        out.bits.recov := dec.io.stall
+        io.id2df.bits(i) := dec.io.out
+        io.id2df.bits(i).recov := dec.io.stall
     }
 
     io.stall := stall

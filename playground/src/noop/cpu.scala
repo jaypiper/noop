@@ -13,7 +13,7 @@ import noop.fetch._
 import noop.memory._
 import noop.param.common._
 import noop.regs._
-import noop.utils.{PipelineAdjuster, PipelineConnect, PipelineNext}
+import noop.utils.{PipelineAdjuster, PipelineConnect, PipelineNext, VecPipelineConnect}
 import noop.writeback._
 
 class CPU_AXI_IO extends Bundle{
@@ -107,13 +107,10 @@ class CPU extends Module{
     fetch.io.recov := writeback.io.recov
 
     // Decode
-    for (i <- 0 until ISSUE_WIDTH) {
-        PipelineConnect(decode.io.id2df(i), forwarding(i).io.id2df, forwarding(i).io.rightFire, forward_flush)
-        forwarding(i).io.blockOut := false.B
-        if (i > 0) {
-            forwarding(i).io.blockOut := VecInit(forwarding.take(i).map(_.io.rightStall)).asUInt.orR
-        }
-        forwarding(i).io.blockIn := !VecInit(forwarding.zipWithIndex.filterNot(_._2 == i).map(_._1.io.rightFire)).asUInt.andR
+    VecPipelineConnect(decode.io.id2df, forwarding.map(_.io.id2df), forward_flush)
+    forwarding.head.io.blockOut := false.B
+    for (i <- 1 until ISSUE_WIDTH) {
+        forwarding(i).io.blockOut := VecInit(forwarding.take(i).map(_.io.rightStall)).asUInt.orR
     }
     decode.io.idState := csrs.io.idState
 

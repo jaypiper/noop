@@ -80,6 +80,92 @@ object PipelineNext {
   }
 }
 
+class VecDecoupledIO[T <: Data](val length: Int, gen: T) extends Bundle {
+  val ready = Input(Bool())
+  val valid = Output(Vec(length, Bool()))
+  val bits = Output(Vec(length, gen))
+}
+
+object VecDecoupledIO {
+  def apply[T <: Data](length: Int, gen: T): VecDecoupledIO[T] = new VecDecoupledIO(length, gen.cloneType)
+}
+
+class VecPipelineConnectPipe[T <: Data](nWays: Int, gen: T) extends Module {
+  val io = IO(new Bundle() {
+    val in = Flipped(VecDecoupledIO(nWays, gen))
+    val out = VecDecoupledIO(nWays, gen)
+    val rightOutFire = Input(Vec(nWays, Bool()))
+    val isFlush = Input(Bool())
+  })
+
+  VecPipelineConnect.connect(io.in, io.out, io.rightOutFire, io.isFlush)
+}
+
+object VecPipelineConnect {
+  def connect[T <: Data](
+    left: VecDecoupledIO[T],
+    right: VecDecoupledIO[T],
+    rightOutFire: Seq[Bool],
+    isFlush: Bool
+  ): Seq[T] = {
+    require(left.length == right.length && right.length == rightOutFire.length)
+    val length = left.length
+    val valid = RegInit(VecInit.fill(length)(false.B))
+
+    left.ready := right.ready
+    (0 until length).map(i => {
+      val leftFire = left.valid(i) && right.ready
+      when(rightOutFire(i)) { valid(i) := false.B }
+      when(leftFire) { valid(i) := true.B }
+      when(isFlush) { valid(i) := false.B }
+
+      right.valid(i) := valid(i)
+      val data = RegEnable(left.bits(i), leftFire)
+      right.bits(i) := data
+      data
+    })
+  }
+
+  def apply[T <: Data](
+    left: VecDecoupledIO[T],
+    right: VecDecoupledIO[T],
+    rightOutFire: Seq[Bool],
+    isFlush: Bool,
+    moduleName: Option[String] = None
+  ): Option[Seq[T]] = {
+    require(left.length == right.length && right.length == rightOutFire.length)
+    val length = left.length
+    if (moduleName.isDefined) {
+      val pipeline = Module(new VecPipelineConnectPipe(length, left.bits))
+      pipeline.suggestName(moduleName.get)
+      pipeline.io.in <> left
+      pipeline.io.rightOutFire := rightOutFire
+      pipeline.io.isFlush := isFlush
+      pipeline.io.out <> right
+      pipeline.io.out.ready := right.ready
+      None
+    }
+    else {
+      // do not use module here to please DCE
+      Some(connect(left, right, rightOutFire, isFlush))
+    }
+  }
+
+  def apply[T <: Data](
+    left: VecDecoupledIO[T],
+    right: Seq[DecoupledIO[T]],
+    isFlush: Bool
+  ): Seq[T] = {
+    val pipeline = Wire(VecDecoupledIO(right.length, right.head.bits))
+    pipeline.ready := VecInit(right.map(_.ready)).asUInt.andR
+    right.zipWithIndex.foreach { case (r, i) =>
+      r.valid := pipeline.valid(i)
+      r.bits := pipeline.bits(i)
+    }
+    connect(left, pipeline, right.map(_.ready), isFlush)
+  }
+}
+
 class PipelineAdjuster[T <: Data](gen: T, width: Int) extends Module {
   val io = IO(new Bundle() {
     val in = Vec(width, Flipped(DecoupledIO(gen)))
