@@ -15,20 +15,7 @@ class Dispatch extends Module {
 
   io.df2dp.ready := Mux(io.df2dp.bits.ctrl.dcMode === mode_NOP, io.df2ex.ready && !io.mem2df.membusy, io.df2mem.ready)
 
-  io.df2ex.bits.inst := io.df2dp.bits.inst
-  io.df2ex.bits.pc := io.df2dp.bits.pc
-  io.df2ex.bits.nextPC := io.df2dp.bits.nextPC
-  io.df2ex.bits.excep := io.df2dp.bits.excep
-  io.df2ex.bits.ctrl := io.df2dp.bits.ctrl
-  io.df2ex.bits.rs1 := io.df2dp.bits.rs1
-  io.df2ex.bits.rs1_d := io.df2dp.bits.rs1_d
-  io.df2ex.bits.rs2 := io.df2dp.bits.rs2
-  io.df2ex.bits.rs2_d := io.df2dp.bits.rs2_d
-  io.df2ex.bits.dst := io.df2dp.bits.dst
-  io.df2ex.bits.dst_d := io.df2dp.bits.dst_d
-  io.df2ex.bits.jmp_type := io.df2dp.bits.jmp_type
-  io.df2ex.bits.rcsr_id := io.df2dp.bits.rcsr_id
-  io.df2ex.bits.recov := io.df2dp.bits.recov
+  io.df2ex.bits := io.df2dp.bits
   io.df2ex.valid := io.df2dp.valid && !io.mem2df.membusy && io.df2dp.bits.ctrl.dcMode === mode_NOP
 
   io.df2mem.bits.inst := io.df2dp.bits.inst
