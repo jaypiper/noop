@@ -167,9 +167,17 @@ class Fetch extends Module{
     s2_out_ready := s2_out.ready
     s2_in.ready := !s2_in.valid || s2_out.ready
     val s2_nextpc = s1.out.bits.pc
+    val s2_inst_valid = RegInit(false.B)
+    val s3_inst_valid = RegInit(false.B)
+    when(flush_in || s2_out_ready) {
+        s2_inst_valid := false.B
+    }.elsewhen(io.instRead.rvalid && s3_inst_valid) {
+        s2_inst_valid := true.B
+        assert(s2_in.valid, "response for what?")
+    }
+    val s2_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && s3_inst_valid)
 
     // Stage 3
-    val s3_inst_valid = RegInit(false.B)
     val s3_valid = RegInit(VecInit.fill(ISSUE_WIDTH)(false.B))
     // The first instruction should not be flushed by the second one
     val s3_flush = Seq(io.flush.head, flush_in)
@@ -186,10 +194,13 @@ class Fetch extends Module{
     val s3_bits = RegEnable(s2_out.bits, s2_out.fire)
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
 
-    val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && io.instRead.rready)
-    io.instRead.rready := !s3_inst_valid || io.if2id(0).ready
+    val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && (!s3_inst_valid || s2_out.fire))
+    io.instRead.rready := true.B
     when(io.flush(0)) {
         s3_inst_valid := false.B
+    }.elsewhen(s2_inst_valid && s2_out.fire) {
+        s3_inst_valid := true.B
+        s3_inst := s2_inst
     }.elsewhen(io.instRead.rvalid && !s3_inst_valid && !io.if2id(0).ready) {
         s3_inst_valid := s3_valid.head
     }.elsewhen(!io.instRead.rvalid && s3_inst_valid && io.if2id(0).ready) {
