@@ -10,8 +10,13 @@ class Forwarding(n_forward: Int) extends Module{
     val io = IO(new Bundle{
         val id2df = Flipped(DecoupledIO(new ID2DF))
         val df2dp = DecoupledIO(new DF2EX)
+        val rightStall = Output(Bool())
+        val rightFire = Output(Bool())
         val flush = Output(Bool())
+        val blockIn = Input(Bool())
+        val blockOut = Input(Bool())
         val fwd_source = Vec(n_forward, Input(new RegForward))
+        val d_fd = Output(new RegForward)
         val rs1Read = Flipped(new RegRead)
         val rs2Read = Flipped(new RegRead)
         val csrRead = Flipped(new CSRRead)
@@ -40,13 +45,15 @@ class Forwarding(n_forward: Int) extends Module{
     io.flush := io.id2df.valid && io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err
 
     val rs_ready = (rs1_valid || !io.id2df.bits.rrs1) && (rs2_valid || !io.id2df.bits.rrs2)
-    io.id2df.ready := !io.id2df.valid || rs_ready && io.df2dp.ready
+    io.rightStall := io.id2df.valid && !rs_ready
+    io.rightFire := !io.id2df.valid || rs_ready && !io.blockOut && io.df2dp.ready
+    io.id2df.ready := io.rightFire && !io.blockIn
 
     io.rs1Read.id := io.id2df.bits.rs1
     io.rs2Read.id := io.id2df.bits.rs2(4,0)
     io.csrRead.id := io.id2df.bits.rs2//TODO
 
-    io.df2dp.valid := io.id2df.valid && rs_ready
+    io.df2dp.valid := io.id2df.valid && rs_ready && !io.blockOut
     io.df2dp.bits.inst := io.id2df.bits.inst
     io.df2dp.bits.pc := io.id2df.bits.pc
     io.df2dp.bits.nextPC := io.id2df.bits.nextPC
@@ -73,4 +80,8 @@ class Forwarding(n_forward: Int) extends Module{
         io.df2dp.bits.ctrl := 0.U.asTypeOf(new Ctrl)
         io.df2dp.bits.jmp_type := 0.U
     }
+
+    io.d_fd.state := Mux(io.id2df.valid, d_wait, d_invalid)
+    io.d_fd.id := io.id2df.bits.dst
+    io.d_fd.data := DontCare
 }

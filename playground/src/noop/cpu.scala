@@ -2,21 +2,19 @@ package noop.cpu
 
 import chisel3._
 import chisel3.util._
-import noop.param.common._
-import noop.cache._
-import noop.bus._
 import noop.bpu._
-import noop.fetch._
+import noop.bus._
+import noop.cache._
+import noop.datapath.DF2EX
 import noop.decode._
-import noop.execute._
-import noop.memory._
-import noop.writeback._
-import noop.regs._
-import noop.clint._
-import noop.datapath.ID2DF
 import noop.dispatch.Dispatch
-import noop.plic._
+import noop.execute._
+import noop.fetch._
+import noop.memory._
+import noop.param.common._
+import noop.regs._
 import noop.utils.{PipelineAdjuster, PipelineConnect, PipelineNext}
+import noop.writeback._
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -61,7 +59,7 @@ class CPU extends Module{
     val io = IO(new CPUIO)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
-    val forwarding  = Seq.fill(2)(Module(new Forwarding(6)))
+    val forwarding  = Seq.tabulate(2)(i => Module(new Forwarding(6 + i)))
     val dispatch    = Seq.fill(2)(Module(new Dispatch))
     val execute     = Seq.fill(2)(Module(new Execute))
     val memory      = Module(new Memory)
@@ -109,14 +107,13 @@ class CPU extends Module{
     fetch.io.recov := writeback.io.recov
 
     // Decode
-    val forward_pipe = Wire(Vec(2, Decoupled(new ID2DF)))
-    val fetchResults = PipelineAdjuster(forward_pipe, forward_flush)
     for (i <- 0 until ISSUE_WIDTH) {
-        // PipelineConnect(decode(i).io.id2df, forwarding(i).io.id2df, forwarding(i).io.id2df.ready, forward_flush)
-        PipelineConnect(decode.io.id2df(i), forward_pipe(i), forward_pipe(i).ready, forward_flush)
-        forwarding(i).io.id2df.valid := fetchResults(i).valid
-        forwarding(i).io.id2df.bits := fetchResults(i).bits
-        fetchResults(i).ready := forwarding(i).io.id2df.ready
+        PipelineConnect(decode.io.id2df(i), forwarding(i).io.id2df, forwarding(i).io.rightFire, forward_flush)
+        forwarding(i).io.blockOut := false.B
+        if (i > 0) {
+            forwarding(i).io.blockOut := VecInit(forwarding.take(i).map(_.io.rightStall)).asUInt.orR
+        }
+        forwarding(i).io.blockIn := !VecInit(forwarding.zipWithIndex.filterNot(_._2 == i).map(_._1.io.rightFire)).asUInt.andR
     }
     decode.io.idState := csrs.io.idState
 
@@ -127,26 +124,26 @@ class CPU extends Module{
       writeback.io.d_wb ++
       Seq(memory.io.d_mem1)
     for (i <- 0 until ISSUE_WIDTH) {
-        forwarding(i).io.fwd_source := fwd_source
+        forwarding(i).io.fwd_source := forwarding.take(i).map(_.io.d_fd) ++ fwd_source
         forwarding(i).io.rs1Read <> regs.io.rs1(i)
         forwarding(i).io.rs2Read <> regs.io.rs2(i)
-        // TODO
-        if (i == 0) {
-            forwarding(i).io.csrRead <> csrs.io.rs
-        }
-        else {
-            forwarding(i).io.csrRead := DontCare
-        }
+        forwarding(i).io.csrRead <> csrs.io.rs(i)
     }
 
     // Dispatch arbiter and execution units
+    val execute_pipe = Wire(Vec(2, Decoupled(new DF2EX)))
+    val forwardResults = PipelineAdjuster(execute_pipe, execute_flush)
     for (i <- 0 until ISSUE_WIDTH) {
-        PipelineConnect(
-            forwarding(i).io.df2dp,
-            dispatch(i).io.df2dp,
-            dispatch(i).io.df2dp.ready,
-            execute_flush
-        )
+        // PipelineConnect(
+        //     forwarding(i).io.df2dp,
+        //     dispatch(i).io.df2dp,
+        //     dispatch(i).io.df2dp.ready,
+        //     execute_flush
+        // )
+        PipelineConnect(forwarding(i).io.df2dp, execute_pipe(i), execute_pipe(i).ready, execute_flush)
+        dispatch(i).io.df2dp.valid := forwardResults(i).valid
+        dispatch(i).io.df2dp.bits := forwardResults(i).bits
+        forwardResults(i).ready := dispatch(i).io.df2dp.ready
         dispatch(i).io.df2ex <> execute(i).io.df2ex
         if (i == 0) {
             dispatch(i).io.df2mem <> memory.io.df2mem

@@ -49,7 +49,7 @@ class Regs extends Module{
 
 class Csrs extends Module{
     val io = IO(new Bundle{
-        val rs      = new CSRRead
+        val rs      = Vec(ISSUE_WIDTH, new CSRRead)
         val rd      = new CSRWrite
         val excep   = Input(new Exception)
         // val mmuState = Output(new MmuState)
@@ -102,29 +102,32 @@ class Csrs extends Module{
 // intr
    
 // csr read
-    io.rs.is_err    := false.B
-    when(io.rs.id === CSR_MSTATUS){
-        io.rs.data := mstatus
-    }.elsewhen(io.rs.id === CSR_MEPC){
-        io.rs.data := mepc
-    }.elsewhen(io.rs.id === CSR_MTVAL){
-        io.rs.data := mtval
-    }.elsewhen(io.rs.id === CSR_MSCRATCH){
-        io.rs.data := mscratch
-    }.elsewhen(io.rs.id === CSR_MTVEC){
-        io.rs.data := mtvec
-    }.elsewhen(io.rs.id === CSR_MIE){
-        io.rs.data := mie
-    }.elsewhen(io.rs.id === CSR_MIP){
-        io.rs.data := mip
-    }.elsewhen(io.rs.id === CSR_MCAUSE){
-        io.rs.data := mcause
-    }.elsewhen(io.rs.id === CSR_MCYCLE) {
-        io.rs.data := mcycle
-    }.otherwise{
-        io.rs.data      := 0.U
-        io.rs.is_err    := true.B
+    for (rs <- io.rs) {
+        rs.is_err := false.B
+        when(rs.id === CSR_MSTATUS) {
+            rs.data := mstatus
+        }.elsewhen(rs.id === CSR_MEPC) {
+            rs.data := mepc
+        }.elsewhen(rs.id === CSR_MTVAL) {
+            rs.data := mtval
+        }.elsewhen(rs.id === CSR_MSCRATCH) {
+            rs.data := mscratch
+        }.elsewhen(rs.id === CSR_MTVEC) {
+            rs.data := mtvec
+        }.elsewhen(rs.id === CSR_MIE) {
+            rs.data := mie
+        }.elsewhen(rs.id === CSR_MIP) {
+            rs.data := mip
+        }.elsewhen(rs.id === CSR_MCAUSE) {
+            rs.data := mcause
+        }.elsewhen(rs.id === CSR_MCYCLE) {
+            rs.data := mcycle
+        }.otherwise {
+            rs.data := 0.U
+            rs.is_err := true.B
+        }
     }
+
     when(!io.rd.en){
     }.elsewhen(io.rd.id === CSR_MSTATUS){
         val new_mstatus = io.rd.data & MSTATUS_MASK
