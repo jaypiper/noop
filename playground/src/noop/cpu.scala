@@ -79,13 +79,9 @@ class CPU extends Module{
     val crossBar = Module(new CrossBar)
 
     // Flush
-    // execute: should flush
-    val wb_flush = RegNext(execute(0).io.flush)
-    // No need for wb_flush at execute and decode:
-    // Old instructions have been flushed by execute_flush,
-    // and new instructions will not come to decode/execute in the next cycle
-    val execute_flush = execute(0).io.flush
-    val forward_flush = forwarding(0).io.flush || execute_flush
+    val execute_flush = VecInit(execute.map(_.io.flush)).asUInt.orR
+    val execute_flush_r = RegNext(execute_flush)
+    val forward_flush = VecInit(forwarding.map(_.io.flush)).asUInt.orR || execute_flush_r
 
     // Fetch
     fetch.io.instRead <> fetchCrossbar.io.instIO
@@ -101,9 +97,10 @@ class CPU extends Module{
     // TODO: only head now
     fetch.io.branchFail <> execute.head.io.ex2if
     fetch.io.if2id <> decode.io.if2id
-    fetch.io.stall := decode.io.stall.asUInt.orR
-    fetch.io.flush(0) := decode.io.stall(0) || forward_flush || wb_flush
-    fetch.io.flush(1) := decode.io.stall.asUInt.orR || forward_flush || wb_flush
+    // branch mis-prediction has higher priority than decode stall
+    fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush_r
+    fetch.io.flush(0) := decode.io.stall(0) || forward_flush
+    fetch.io.flush(1) := decode.io.stall.asUInt.orR || forward_flush
     fetch.io.recov := writeback.io.recov
 
     // Decode
@@ -129,8 +126,8 @@ class CPU extends Module{
 
     // Dispatch arbiter and execution units
     val execute_pipe = Wire(Vec(2, Decoupled(new DF2EX)))
-    VecPipelineConnect(forwarding.map(_.io.df2dp), execute_pipe, execute_flush)
-    val forwardResults = PipelineAdjuster(execute_pipe, execute_flush)
+    VecPipelineConnect(forwarding.map(_.io.df2dp), execute_pipe, execute_flush || execute_flush_r)
+    val forwardResults = PipelineAdjuster(execute_pipe, execute_flush || execute_flush_r)
     for (i <- 0 until ISSUE_WIDTH) {
         dispatch.io.df2dp(i).valid := forwardResults(i).valid
         dispatch.io.df2dp(i).bits := forwardResults(i).bits
