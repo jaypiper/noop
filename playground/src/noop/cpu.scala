@@ -98,8 +98,8 @@ class CPU extends Module{
     fetch.io.if2id <> decode.io.if2id
     // branch mis-prediction has higher priority than decode stall
     fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush_r
-    fetch.io.flush(0) := decode.io.stall(0) || forward_flush
-    fetch.io.flush(1) := decode.io.stall.asUInt.orR || forward_flush
+    fetch.io.flush := forward_flush
+    fetch.io.dec_flush := decode.io.stall
     fetch.io.recov := writeback.io.recov
 
     // Decode

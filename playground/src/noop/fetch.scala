@@ -82,7 +82,8 @@ class FetchIO extends Bundle{
     val branchFail  = Input(new ForceJmp)
     val if2id       = Vec(ISSUE_WIDTH, DecoupledIO(new IF2ID))
     val stall       = Input(Bool())
-    val flush       = Vec(ISSUE_WIDTH, Input(Bool()))
+    val flush       = Input(Bool())
+    val dec_flush   = Vec(ISSUE_WIDTH, Input(Bool()))
     val bp          = Vec(ISSUE_WIDTH, Flipped(new PredictIO2))
 }
 
@@ -143,7 +144,7 @@ class FetchS1 extends Module {
 class Fetch extends Module{
     val io = IO(new FetchIO)
 
-    val flush_in = io.flush.asUInt.orR
+    val flush_in = io.flush || io.dec_flush.asUInt.orR
     val stall_in = io.stall
 
     // Stage 1
@@ -164,6 +165,7 @@ class Fetch extends Module{
     val s2_out_ready = Wire(Bool())
     val s2_in = PipelineNext(s1.out, s2_out_ready, flush_in)
     val s2_out = WireInit(s2_in)
+    s2_out.valid := s2_in.valid && !io.dec_flush.asUInt.orR
     s2_out_ready := s2_out.ready
     s2_in.ready := !s2_in.valid || s2_out.ready
     val s2_nextpc = s1.out.bits.pc
@@ -180,9 +182,9 @@ class Fetch extends Module{
     // Stage 3
     val s3_valid = RegInit(VecInit.fill(ISSUE_WIDTH)(false.B))
     // The first instruction should not be flushed by the second one
-    val s3_flush = Seq(io.flush.head, flush_in)
+    val s3_flush = Seq(io.flush, io.flush || io.dec_flush.head)
     for (((v, f), i) <- s3_valid.zip(s3_flush).zipWithIndex) {
-        when(f) {
+        when(io.flush ) {
             v := false.B
         }.elsewhen(s2_out.valid && s2_out_ready) {
             v := true.B
@@ -196,7 +198,7 @@ class Fetch extends Module{
 
     val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && (!s3_inst_valid || s2_out.fire))
     io.instRead.rready := true.B
-    when(io.flush(0)) {
+    when(io.flush) {
         s3_inst_valid := false.B
     }.elsewhen(s2_inst_valid && s2_out.fire) {
         s3_inst_valid := true.B
