@@ -7,7 +7,7 @@ import noop.datapath._
 import noop.param.cache_config._
 import noop.param.decode_config._
 import noop.param.noop_tools._
-import noop.utils.PipelineNext
+import noop.utils.{PipelineConnect, PipelineNext}
 
 class Execute extends Module{
     val io = IO(new Bundle{
@@ -61,38 +61,38 @@ class Execute extends Module{
     ))
 
     // pipeline
-    val ex2wb = Wire(ValidIO(new MEM2RB))
-    ex2wb.valid := io.df2ex.valid && alu.io.valid
-    ex2wb.bits.inst := io.df2ex.bits.inst
-    ex2wb.bits.pc := io.df2ex.bits.pc
-    ex2wb.bits.excep := io.df2ex.bits.excep
-    ex2wb.bits.excep.pc := Mux(io.df2ex.bits.excep.cause(63), io.df2ex.bits.nextPC, io.df2ex.bits.excep.pc)
-    ex2wb.bits.ctrl := io.df2ex.bits.ctrl
-    ex2wb.bits.csr_id := io.df2ex.bits.rs2
-    ex2wb.bits.csr_d := alu_out
-    ex2wb.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
-    ex2wb.bits.dst := io.df2ex.bits.dst
-    ex2wb.bits.dst_d := wdata
-    ex2wb.bits.dst_en := io.df2ex.bits.ctrl.writeRegEn
-    ex2wb.bits.rcsr_id := io.df2ex.bits.rcsr_id
-    ex2wb.bits.is_mmio := false.B
-    ex2wb.bits.recov := io.df2ex.bits.recov
+    val s0_out = Wire(DecoupledIO(new MEM2RB))
+    s0_out.valid := io.df2ex.valid && alu.io.valid
+    s0_out.bits.inst := io.df2ex.bits.inst
+    s0_out.bits.pc := io.df2ex.bits.pc
+    s0_out.bits.excep := io.df2ex.bits.excep
+    s0_out.bits.excep.pc := Mux(io.df2ex.bits.excep.cause(63), io.df2ex.bits.nextPC, io.df2ex.bits.excep.pc)
+    s0_out.bits.ctrl := io.df2ex.bits.ctrl
+    s0_out.bits.csr_id := io.df2ex.bits.rs2
+    s0_out.bits.csr_d := alu_out
+    s0_out.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
+    s0_out.bits.dst := io.df2ex.bits.dst
+    s0_out.bits.dst_d := wdata
+    s0_out.bits.dst_en := io.df2ex.bits.ctrl.writeRegEn
+    s0_out.bits.rcsr_id := io.df2ex.bits.rcsr_id
+    s0_out.bits.is_mmio := false.B
+    s0_out.bits.recov := io.df2ex.bits.recov
 
     // data forwarding
-    io.d_ex0.id := ex2wb.bits.dst
-    io.d_ex0.data := ex2wb.bits.dst_d
+    io.d_ex0.id := s0_out.bits.dst
+    io.d_ex0.data := s0_out.bits.dst_d
     io.d_ex0.state := Mux(io.df2ex.valid && io.df2ex.bits.ctrl.writeRegEn,
         Mux(alu.io.valid, d_valid, d_wait),
         d_invalid
     )
 
     // flush
-    val is_jmp = ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
+    val is_jmp = s0_out.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
     val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.mispred := RegEnable(jmp_mispred, is_jmp)
-    io.updateBPU.pc := RegEnable(ex2wb.bits.pc, is_jmp)
+    io.updateBPU.pc := RegEnable(s0_out.bits.pc, is_jmp)
     io.updateBPU.target := jmp_target_r
 
     io.flushOut := is_jmp && jmp_mispred
@@ -100,7 +100,12 @@ class Execute extends Module{
     io.ex2if.seq_pc := jmp_target_r
 
     // out
-    io.ex2wb := PipelineNext(ex2wb, io.flushIn)
+    val s1_in = Wire(DecoupledIO(new MEM2RB))
+    PipelineConnect(s0_out, s1_in, s1_in.ready, io.flushIn)
+
+    s1_in.ready := true.B
+    io.ex2wb.valid := s1_in.valid
+    io.ex2wb.bits := s1_in.bits
 
     // data forwarding
     io.d_ex1.id := io.ex2wb.bits.dst
