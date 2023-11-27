@@ -21,7 +21,8 @@ class Execute extends Module{
         val updateBPU = Output(new UpdateIO2)
     })
 
-    val alu     = Module(new ALU)
+    val alu = Module(new ALU)
+    val mul = Module(new MUL)
 
     val alu64 = io.df2ex.bits.ctrl.aluWidth === IS_ALU64
     val aluop  = io.df2ex.bits.ctrl.aluOp
@@ -33,15 +34,21 @@ class Execute extends Module{
     alu.io.val1     := val1
     alu.io.val2     := val2
     alu.io.alu64    := alu64
-    alu.io.en       := io.df2ex.valid
     val alu_out = Mux(alu64, alu.io.out(63, 0), sext32to64(alu.io.out))
-    val wdata   = PriorityMux(Seq(
-        (io.df2ex.bits.ctrl.dcMode(DC_S_BIT),    io.df2ex.bits.dst_d),
-        (io.df2ex.bits.ctrl.writeCSREn,          io.df2ex.bits.rs2_d),
-        (true.B,                            alu_out)
+
+    val is_mul = aluop === alu_MUL
+    mul.io.a := val1
+    mul.io.b := val2
+    mul.io.en := io.df2ex.valid && is_mul && RegNext(io.df2ex.ready)
+
+    val wdata = PriorityMux(Seq(
+        (io.df2ex.bits.ctrl.dcMode(DC_S_BIT), io.df2ex.bits.dst_d),
+        (io.df2ex.bits.ctrl.writeCSREn, io.df2ex.bits.rs2_d),
+        (mul.io.out.valid, sext32to64(mul.io.out.bits)),
+        (true.B, alu_out)
     ))
 
-    io.df2ex.ready := !io.df2ex.valid || alu.io.valid
+    io.df2ex.ready := !io.df2ex.valid || !is_mul || mul.io.out.valid
 
     // branch & jmp
     val branchAlu = Module(new BranchALU)
@@ -62,7 +69,7 @@ class Execute extends Module{
 
     // pipeline
     val s0_out = Wire(DecoupledIO(new MEM2RB))
-    s0_out.valid := io.df2ex.valid && alu.io.valid
+    s0_out.valid := io.df2ex.valid && (!is_mul || mul.io.out.valid)
     s0_out.bits.inst := io.df2ex.bits.inst
     s0_out.bits.pc := io.df2ex.bits.pc
     s0_out.bits.excep := io.df2ex.bits.excep
@@ -82,7 +89,7 @@ class Execute extends Module{
     io.d_ex0.id := s0_out.bits.dst
     io.d_ex0.data := s0_out.bits.dst_d
     io.d_ex0.state := Mux(io.df2ex.valid && io.df2ex.bits.ctrl.writeRegEn,
-        Mux(alu.io.valid, d_valid, d_wait),
+        Mux(!is_mul || mul.io.out.valid, d_valid, d_wait),
         d_invalid
     )
 

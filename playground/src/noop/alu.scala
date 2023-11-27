@@ -9,23 +9,12 @@ class ALUIO extends Bundle{
     val val1    = Input(UInt(DATA_WIDTH.W))
     val val2    = Input(UInt(DATA_WIDTH.W))
     val alu64   = Input(Bool())
-    val en      = Input(Bool())
     val out     = Output(UInt(DATA_WIDTH.W))
-    val valid   = Output(Bool())
 }
 
 class ALU extends Module{
     val io = IO(new ALUIO)
-    val multiplier = Module(new MUL)
-    val sIdle :: sWaitMul :: Nil = Enum(2)
-    val state = RegInit(sIdle)
 
-    multiplier.io.a     := io.val1
-    multiplier.io.b     := io.val2
-    multiplier.io.en    := false.B
-
-    io.valid := false.B
-    io.out   := 0.U
     val alu_val = Mux1H(Seq(
         (io.alu_op === alu_NOP)     -> (0.U(DATA_WIDTH.W)),
         (io.alu_op === alu_MV1)     -> (io.val1),
@@ -43,22 +32,6 @@ class ALU extends Module{
         (io.alu_op === alu_SLTU)    -> Mux(io.val1 < io.val2, 1.U, 0.U)
     ))
     io.out := alu_val
-    io.valid := (io.alu_op =/= alu_MUL) && io.en
-    switch(state){
-        is(sIdle){
-            when(io.en && (io.alu_op === alu_MUL)){
-                multiplier.io.en := true.B
-                state := sWaitMul
-            }
-        }
-        is(sWaitMul){
-            io.out := multiplier.io.out
-            io.valid := multiplier.io.valid
-            when(multiplier.io.valid){
-                state := sIdle
-            }
-        }
-    }
 }
 
 class BranchALUIO extends Bundle{
