@@ -7,7 +7,7 @@ import noop.datapath._
 import noop.param.cache_config._
 import noop.param.decode_config._
 import noop.param.noop_tools._
-import noop.utils.{PipelineConnect, PipelineNext}
+import noop.utils.PipelineConnect
 
 class Execute extends Module{
     val io = IO(new Bundle{
@@ -20,6 +20,8 @@ class Execute extends Module{
         val ex2if       = Output(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)
     })
+
+    val s0_out = Wire(DecoupledIO(new MEM2RB))
 
     val alu = Module(new ALU)
     val mul = Module(new MUL)
@@ -39,16 +41,15 @@ class Execute extends Module{
     val is_mul = aluop === alu_MUL
     mul.io.a := val1
     mul.io.b := val2
-    mul.io.en := io.df2ex.valid && is_mul && RegNext(io.df2ex.ready)
+    mul.io.en := io.df2ex.valid && is_mul && s0_out.ready
 
     val wdata = PriorityMux(Seq(
         (io.df2ex.bits.ctrl.dcMode(DC_S_BIT), io.df2ex.bits.dst_d),
         (io.df2ex.bits.ctrl.writeCSREn, io.df2ex.bits.rs2_d),
-        (mul.io.out.valid, sext32to64(mul.io.out.bits)),
         (true.B, alu_out)
     ))
 
-    io.df2ex.ready := !io.df2ex.valid || !is_mul || mul.io.out.valid
+    io.df2ex.ready := !io.df2ex.valid || s0_out.ready
 
     // branch & jmp
     val branchAlu = Module(new BranchALU)
@@ -68,8 +69,7 @@ class Execute extends Module{
     ))
 
     // pipeline
-    val s0_out = Wire(DecoupledIO(new MEM2RB))
-    s0_out.valid := io.df2ex.valid && (!is_mul || mul.io.out.valid)
+    s0_out.valid := io.df2ex.valid
     s0_out.bits.inst := io.df2ex.bits.inst
     s0_out.bits.pc := io.df2ex.bits.pc
     s0_out.bits.excep := io.df2ex.bits.excep
@@ -89,7 +89,7 @@ class Execute extends Module{
     io.d_ex0.id := s0_out.bits.dst
     io.d_ex0.data := s0_out.bits.dst_d
     io.d_ex0.state := Mux(io.df2ex.valid && io.df2ex.bits.ctrl.writeRegEn,
-        Mux(!is_mul || mul.io.out.valid, d_valid, d_wait),
+        Mux(is_mul, d_wait, d_valid),
         d_invalid
     )
 
@@ -109,13 +109,21 @@ class Execute extends Module{
     // out
     val s1_in = Wire(DecoupledIO(new MEM2RB))
     PipelineConnect(s0_out, s1_in, s1_in.ready, io.flushIn)
+    val s1_is_mul = RegEnable(is_mul, s0_out.fire)
 
-    s1_in.ready := true.B
-    io.ex2wb.valid := s1_in.valid
+    val data_valid = !s1_is_mul || mul.io.out.valid
+    s1_in.ready := !s1_in.valid || data_valid
+    io.ex2wb.valid := s1_in.valid && data_valid
     io.ex2wb.bits := s1_in.bits
+    when (s1_is_mul) {
+        io.ex2wb.bits.dst_d := sext32to64(mul.io.out.bits)
+    }
 
     // data forwarding
     io.d_ex1.id := io.ex2wb.bits.dst
     io.d_ex1.data := io.ex2wb.bits.dst_d
-    io.d_ex1.state := Mux(io.ex2wb.valid && io.ex2wb.bits.ctrl.writeRegEn, d_valid, d_invalid)
+    io.d_ex1.state := Mux(s1_in.valid && s1_in.bits.ctrl.writeRegEn,
+        Mux(data_valid, d_valid, d_wait),
+        d_invalid
+    )
 }
