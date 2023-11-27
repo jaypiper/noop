@@ -153,7 +153,7 @@ class CPU extends Module{
     (1 until ISSUE_WIDTH).foreach(i =>
         writeback.io.ex2wb(i) := PipelineNext(execute(i).io.ex2wb, VecInit(execute.take(i).map(_.io.flush)).asUInt.orR)
     )
-    bpu.io.update := PriorityMux(execute.map(_.io.updateBPU.valid), execute.map(_.io.updateBPU))
+    bpu.io.update := PriorityMux(execute.map(_.io.updateBPU.needUpdate), execute.map(_.io.updateBPU))
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW
     // memory.io.va2pa     <> tlb_mem.io.va2pa

@@ -69,24 +69,16 @@ class Execute extends Module{
     ))
 
     val is_jmp = io.ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
+    val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
-    io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, io.ex2wb.valid)
+    io.updateBPU.mispred := RegEnable(jmp_mispred, is_jmp)
+    io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, is_jmp)
     io.updateBPU.target := jmp_target_r
 
-    val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
     io.flush := is_jmp && jmp_mispred
     io.ex2if.valid  := RegNext(io.flush)
     io.ex2if.seq_pc := jmp_target_r
-
-    val branchMissCounter = RegInit(0.U(DATA_WIDTH.W))
-    val branchCounter = RegInit(0.U(DATA_WIDTH.W))
-    when(is_jmp) {
-        branchCounter := branchCounter + 1.U
-        when (jmp_mispred) {
-            branchMissCounter := branchMissCounter + 1.U
-        }
-    }
 
     // data forwarding
     io.d_ex0.id := io.df2ex.bits.dst

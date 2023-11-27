@@ -103,7 +103,7 @@ class SimpleBPU2 extends Module {
     val btb_update_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === io.update.pc))
     val btb_update_hit = btb_update_vec.asUInt.orR
     val btb_update_idx = OHToUInt(btb_update_vec)
-    when (io.update.valid) {
+    when (io.update.needUpdate) {
         when(btb_update_hit) {
             btb(btb_update_idx)(0) := io.update.pc
             btb(btb_update_idx)(1) := io.update.target

@@ -261,7 +261,10 @@ class PredictIO2 extends Bundle {
 class UpdateIO2 extends Bundle {
     val pc = UInt(PADDR_WIDTH.W)
     val valid = Bool()
+    val mispred = Bool()
     val target = UInt(PADDR_WIDTH.W)
+
+    def needUpdate: Bool = valid && mispred
 }
 
 class UpdateTrace extends Bundle {
