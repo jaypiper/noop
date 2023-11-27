@@ -13,6 +13,7 @@ class Execute extends Module{
     val io = IO(new Bundle{
         val df2ex       = Flipped(DecoupledIO(new DF2EX))
         val flushIn     = Input(Bool())
+        val blockIn     = Input(Bool())
         val flushOut    = Output(Bool())
         val ex2wb       = ValidIO(new MEM2RB)
         val d_ex0       = Output(new RegForward)
@@ -108,15 +109,27 @@ class Execute extends Module{
 
     // out
     val s1_in = Wire(DecoupledIO(new MEM2RB))
-    PipelineConnect(s0_out, s1_in, s1_in.ready, io.flushIn)
+    val s1_bits = PipelineConnect(s0_out, s1_in, s1_in.ready, io.flushIn).get
     val s1_is_mul = RegEnable(is_mul, s0_out.fire)
+    val s1_mul_data_valid = RegInit(false.B)
+    val s1_mul_data = sext32to64(mul.io.out.bits)
+    when (s1_in.valid && s1_is_mul && mul.io.out.valid && io.blockIn) {
+        s1_mul_data_valid := true.B
+        s1_bits.dst_d := s1_mul_data
+    }.elsewhen(s1_in.ready) {
+        s1_mul_data_valid := false.B
+    }
 
-    val data_valid = !s1_is_mul || mul.io.out.valid
-    s1_in.ready := !s1_in.valid || data_valid
-    io.ex2wb.valid := s1_in.valid && data_valid
+    when (s1_is_mul && mul.io.out.valid && io.blockIn) {
+        s1_bits.dst_d := s1_mul_data
+    }
+
+    val data_valid = !s1_is_mul || mul.io.out.valid || s1_mul_data_valid
+    s1_in.ready := !s1_in.valid || data_valid && !io.blockIn
+    io.ex2wb.valid := s1_in.valid && data_valid && !io.blockIn
     io.ex2wb.bits := s1_in.bits
-    when (s1_is_mul) {
-        io.ex2wb.bits.dst_d := sext32to64(mul.io.out.bits)
+    when (s1_is_mul && mul.io.out.valid) {
+        io.ex2wb.bits.dst_d := s1_mul_data
     }
 
     // data forwarding

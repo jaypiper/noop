@@ -20,8 +20,6 @@ class Dispatch extends Module {
   val do_alu = io.df2dp.zip(is_alu).map{ case (v, alu) => v.valid && alu }
   val do_mem = io.df2dp.zip(is_alu).map{ case (v, alu) => v.valid && !alu }
 
-  // If port 0 is memory and port 1 is ALU, we have to delay the second-port ALU until not membusy
-  private def alu_order_violation(i: Int): Bool = do_mem(0)
   // When previous instructions are to mem as well, block it
   private def multiple_mem(i: Int): Bool = VecInit(do_mem.take(i)).asUInt.orR
   // When previous instructions are to ALU and may flush the pipeline, we should also block it
@@ -29,14 +27,14 @@ class Dispatch extends Module {
   val is_jmp = io.df2dp.map(in => in.valid && in.bits.jmp_type =/= NO_JMP)
   private def may_flush(i: Int): Bool = VecInit(is_jmp.take(i)).asUInt.orR
 
-  val block_alu = io.mem2df.membusy +: (1 until ISSUE_WIDTH).map(i => alu_order_violation(i) || io.mem2df.membusy)
+  val block_alu = io.mem2df.membusy
   val block_mem = false.B +: (1 until ISSUE_WIDTH).map(i => multiple_mem(i) || may_flush(i))
 
   for (i <- 0 until ISSUE_WIDTH) {
-    io.df2dp(i).ready := Mux(is_alu(i), io.df2ex(i).ready && !block_alu(i), io.df2mem.ready && !block_mem(i))
+    io.df2dp(i).ready := Mux(is_alu(i), io.df2ex(i).ready && !block_alu, io.df2mem.ready && !block_mem(i))
 
     io.df2ex(i).bits := io.df2dp(i).bits
-    io.df2ex(i).valid := do_alu(i) && !block_alu(i)
+    io.df2ex(i).valid := do_alu(i) && !block_alu
   }
 
   val to_mem = PriorityMux(do_mem, io.df2dp.map(_.bits))
@@ -70,9 +68,6 @@ class Dispatch extends Module {
     PerfAccumulate(s"dispatch_in_${i}_blocked", blocked)
     PerfAccumulate(s"dispatch_in_${i}_blocked_alu", blocked && is_alu(i))
     PerfAccumulate(s"dispatch_in_${i}_blocked_alu_membusy", blocked && is_alu(i) && io.mem2df.membusy)
-    if (i > 0) {
-      PerfAccumulate(s"dispatch_in_${i}_blocked_alu_alu_order", blocked && is_alu(i) && alu_order_violation(i))
-    }
     PerfAccumulate(s"dispatch_in_${i}_blocked_mem", blocked && !is_alu(i))
     PerfAccumulate(s"dispatch_in_${i}_blocked_mem_right_ready", blocked && !is_alu(i) && !io.df2mem.ready)
     if (i > 0) {

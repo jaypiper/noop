@@ -140,10 +140,13 @@ class CPU extends Module{
         dispatch.io.df2ex(i) <> execute(i).io.df2ex
         dispatch.io.df2mem <> memory.io.df2mem
         dispatch.io.mem2df := memory.io.mem2df
+        execute(i).io.blockIn := false.B
         execute(i).io.flushIn := false.B
         if (i > 0) {
+            execute(i).io.blockIn := memory.io.mem2df.membusy
             execute(i).io.flushIn := VecInit(execute.take(i).map(_.io.flushOut)).asUInt.orR
         }
+
     }
     val is_jmp = execute.map(_.io.updateBPU.valid)
     val is_mispred = execute.map(exe => RegNext(exe.io.flushOut, false.B))
