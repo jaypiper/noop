@@ -8,7 +8,6 @@ class MULIO extends Bundle{
     val a     = Input(UInt(DATA_WIDTH.W))
     val b     = Input(UInt(DATA_WIDTH.W))
     val en    = Input(Bool())
-    val ready = Output(Bool())
     val out   = Output(UInt(DATA_WIDTH.W))
     val valid = Output(Bool())
 }
@@ -22,7 +21,6 @@ class MUL extends Module{
     val valid_r     = RegInit(false.B)
     val sIdle :: sBusy :: Nil = Enum(2)
     val state = RegInit(sIdle)
-    io.ready := state === sIdle
     io.out := out_r
     io.valid := valid_r
     out_r := (val1 * val2)(31, 0)

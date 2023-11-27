@@ -10,7 +10,6 @@ class ALUIO extends Bundle{
     val val2    = Input(UInt(DATA_WIDTH.W))
     val alu64   = Input(Bool())
     val en      = Input(Bool())
-    val ready   = Output(Bool())
     val out     = Output(UInt(DATA_WIDTH.W))
     val valid   = Output(Bool())
 }
@@ -27,7 +26,6 @@ class ALU extends Module{
 
     io.valid := false.B
     io.out   := 0.U
-    io.ready := state === sIdle
     val alu_val = Mux1H(Seq(
         (io.alu_op === alu_NOP)     -> (0.U(DATA_WIDTH.W)),
         (io.alu_op === alu_MV1)     -> (io.val1),
