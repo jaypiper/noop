@@ -72,6 +72,15 @@ object PipelineNext {
   }
 
   def apply[T <: Data](
+    left: DecoupledIO[T],
+    isFlush: Bool
+  ): DecoupledIO[T] = {
+    val right = Wire(Decoupled(left.bits.cloneType))
+    PipelineConnect(left, right, right.ready, isFlush)
+    right
+  }
+
+  def apply[T <: Data](
     left: ValidIO[T]
   ): ValidIO[T] = {
     apply(left, false.B)
