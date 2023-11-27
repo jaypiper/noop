@@ -87,9 +87,6 @@ class Execute extends Module{
             branchMissCounter := branchMissCounter + 1.U
         }
     }
-    when (io.ex2wb.valid && io.ex2wb.bits.pc === "h80009780".U) {
-        // printf(p"branchNum: $branchCounter, branchMiss: $branchMissCounter\n")
-    }
 
     // data forwarding
     io.d_ex0.id := io.df2ex.bits.dst

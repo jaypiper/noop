@@ -5,7 +5,6 @@ import chisel3.util._
 import noop.bpu._
 import noop.bus._
 import noop.cache._
-import noop.datapath.DF2EX
 import noop.decode._
 import noop.dispatch.Dispatch
 import noop.execute._
@@ -13,7 +12,7 @@ import noop.fetch._
 import noop.memory._
 import noop.param.common._
 import noop.regs._
-import noop.utils.{PipelineAdjuster, PipelineConnect, PipelineNext, VecPipelineConnect}
+import noop.utils.{PerfAccumulate, PipelineNext, VecPipelineConnect}
 import noop.writeback._
 
 class CPU_AXI_IO extends Bundle{
@@ -130,6 +129,12 @@ class CPU extends Module{
         dispatch.io.df2mem <> memory.io.df2mem
         dispatch.io.mem2df := memory.io.mem2df
     }
+    val is_jmp = execute.map(_.io.updateBPU.valid)
+    val is_mispred = execute.map(exe => RegNext(exe.io.flush, false.B))
+    // Should only count the instructions before flush
+    private def is_counted_jmp(i: Int) = is_jmp(i) && !VecInit((false.B +: is_mispred).take(i + 1)).asUInt.orR
+    PerfAccumulate("branchNum_all", PopCount((0 until ISSUE_WIDTH).map(is_counted_jmp)))
+    PerfAccumulate("branchMiss_all", VecInit(is_mispred).asUInt.orR)
 
     // Writeback
     writeback.io.ex2wb.head := PipelineNext(execute.head.io.ex2wb)
