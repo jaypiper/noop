@@ -197,27 +197,24 @@ class IRAM extends Module {
         val cen = Input(Bool())
         val wen = Input(Bool())
         val addr = Input(UInt(ICACHE_IDX_WIDTH.W))
-        val wdata = Input(UInt(64.W))
-        val rdata = Output(UInt(64.W))
-        val wmask = Input(UInt(8.W))
+        val wdata = Input(UInt(32.W))
+        val rdata = Output(UInt(32.W))
+        val wmask = Input(UInt(4.W))
     })
 if(SRAM) {
-    val data = VecInit(Seq.fill(IRAM_NUM)(VecInit(Seq.fill(2)(Module(new RF1FCIC_1024X32M8WM8_SIM).io))))
-    val select = io.addr(ICACHE_IDX_WIDTH-1, ICACHE_IDX_WIDTH - log2Floor(IRAM_NUM))
+    val data = VecInit(Seq.fill(IRAM_NUM)(Module(new RF1FCIC_1024X32M8WM8_SIM).io))
+    val select = io.addr(ICACHE_IDX_WIDTH - 1, ICACHE_IDX_WIDTH - log2Floor(IRAM_NUM))
     val select_r = RegInit(0.U(log2Floor(IRAM_NUM).W))
     select_r := select
     for (i <- 0 until IRAM_NUM) {
-        for (j <- 0 until 2) {
-            data(i)(j).CLK := clock
-            data(i)(j).CEN := ~((select === i.U) & io.cen)
-            data(i)(j).GWEN := ~io.wen
-            data(i)(j).A := io.addr(9, 0)
-            data(i)(j).D := io.wdata(31 + j*32, j*32)
-            data(i)(j).WEN := ~io.wmask(3 + j*4, j*4)
-
-        }
+        data(i).CLK := clock
+        data(i).CEN := ~((select === i.U) & io.cen)
+        data(i).GWEN := ~io.wen
+        data(i).A := io.addr(9, 0)
+        data(i).D := io.wdata
+        data(i).WEN := ~io.wmask
     }
-    io.rdata := Cat(data(select_r)(1).Q, data(select_r)(0).Q)
+    io.rdata := data(select_r).Q
 } else {
     val data = Mem(32, UInt(64.W))
     val data_r = RegNext(data(io.addr(4,0)))

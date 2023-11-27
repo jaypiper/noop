@@ -17,23 +17,32 @@ class ICache extends Module{
     val s1_out = Wire(Decoupled()) // for instruction fetch only
     s1_out.valid := io.icPort.arvalid && !io.icMem.avalid
 
-    val iram = Module(new IRAM)
-    iram.io.cen := io.icPort.arvalid || io.icMem.avalid
-    iram.io.wen := io.icMem.wen && io.icMem.avalid
-    iram.io.addr := Mux(io.icMem.avalid, io.icMem.addr, io.icPort.addr)(ICACHE_IDX_START, ICACHE_IDX_END)
-
-    iram.io.wdata := MuxLookup(io.icMem.size, 0.U)(List(
+    // Each RAM has 32 bits. We use two RAMs to form the 64-bit cache data array.
+    val ram_en = io.icPort.arvalid || io.icMem.avalid
+    val ram_wen = io.icMem.wen && io.icMem.avalid
+    val ram_addr = Mux(io.icMem.avalid, io.icMem.addr, io.icPort.addr)
+    val ram_wdata = MuxLookup(io.icMem.size, 0.U)(List(
         0.U -> Fill(8, io.icMem.wdata(7, 0)),
         1.U -> Fill(4, io.icMem.wdata(15, 0)),
         2.U -> Fill(2, io.icMem.wdata(31, 0)),
         3.U -> io.icMem.wdata
     ))
-    iram.io.wmask := MuxLookup(io.icMem.size, 0.U)(List(
+    val ram_wmask = MuxLookup(io.icMem.size, 0.U)(List(
         0.U -> VecInit((0 to 7).map(i => (0x1 << i).U))(io.icMem.addr(2, 0)), // sb
         1.U -> VecInit((0 to 3).map(_ * 2).map(i => (0x3 << i).U))(io.icMem.addr(2, 1)), //sh
         2.U -> VecInit((0 to 1).map(_ * 4).map(i => (0xf << i).U))(io.icMem.addr(2)), // sw
         3.U -> Fill(8, 1.U(1.W))
     ))
+
+    val iram = Seq.fill(2)(Module(new IRAM))
+    for ((ram, i) <- iram.zipWithIndex) {
+        ram.io.cen := ram_en
+        ram.io.wen := ram_wen
+        ram.io.addr := ram_addr(ICACHE_IDX_START, ICACHE_IDX_END)
+        ram.io.wdata := ram_wdata(i * 32 + 31, i * 32)
+        ram.io.wmask := ram_wmask(i * 4 + 3, i * 4)
+    }
+    val ram_rdata = VecInit(iram.map(_.io.rdata)).asUInt
 
     io.icMem.ready := true.B
     io.icPort.ready := s1_out.ready && !io.icMem.avalid
@@ -54,7 +63,7 @@ class ICache extends Module{
         s2_data_valid := false.B
     }
     val s2_data_r = RegEnable(io.icMem.avalid, s2_in.valid && !s2_in.ready)
-    val s2_data = Mux(s2_data_valid, s2_data_r, iram.io.rdata)
+    val s2_data = Mux(s2_data_valid, s2_data_r, ram_rdata)
 
     val s2_out = Wire(Decoupled()) // for instruction fetch only
     s2_out.valid := s2_in.valid
