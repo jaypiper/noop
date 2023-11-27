@@ -6,6 +6,7 @@ import noop.param.common._
 import noop.bpu.bpu_config._
 import noop.datapath._
 import noop.param.regs_config._
+import noop.utils.ReplacementPolicy
 
 class BPUSearch extends Bundle{
     val vaddr       = Input(UInt(PADDR_WIDTH.W))
@@ -85,12 +86,16 @@ class SimpleBPU extends Module {
 }
 
 class SimpleBPU2 extends Module {
+    val usePLRU = true
+
     val io = IO(new Bundle {
         val predict = Vec(ISSUE_WIDTH, new PredictIO2)
         val update = Input(new UpdateIO2)
     })
     val btb = RegInit(VecInit(Seq.fill(BTB_ENTRY_NUM)(VecInit(Seq.fill(2)(0.U(PADDR_WIDTH.W)))))) // no valid
-    val btb_valid_idx = RegInit(0.U(log2Ceil(BTB_ENTRY_NUM).W))
+    val updatePtr = RegInit(0.U(log2Ceil(BTB_ENTRY_NUM).W))
+    val plru = ReplacementPolicy.fromString("plru", BTB_ENTRY_NUM)
+    val btb_valid_idx = if (usePLRU) plru.way else updatePtr
 
     for (predict <- io.predict) {
         val btb_hit_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === predict.pc))
@@ -98,6 +103,9 @@ class SimpleBPU2 extends Module {
         val btb_hit_idx = OHToUInt(btb_hit_vec)
         predict.jmp := btb_hit
         predict.target := btb(btb_hit_idx)(1)
+        when (predict.v && btb_hit) {
+            plru.access(btb_hit_idx)
+        }
     }
 
     val btb_update_vec = VecInit((0 until BTB_ENTRY_NUM).map(i => btb(i)(0) === io.update.pc))
@@ -105,13 +113,14 @@ class SimpleBPU2 extends Module {
     val btb_update_idx = OHToUInt(btb_update_vec)
     when (io.update.needUpdate) {
         when(btb_update_hit) {
+            plru.access(btb_update_idx)
             btb(btb_update_idx)(0) := io.update.pc
             btb(btb_update_idx)(1) := io.update.target
         }.otherwise {
-            btb_valid_idx := btb_valid_idx + 1.U
+            updatePtr := updatePtr + 1.U
+            plru.access(btb_valid_idx)
             btb(btb_valid_idx)(0) := io.update.pc
             btb(btb_valid_idx)(1) := io.update.target
-
         }
     }
 }

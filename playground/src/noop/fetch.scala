@@ -139,6 +139,7 @@ class FetchS1 extends Module {
     instRead.valid := state === sIdle && out.ready
 
     io.bp(0).pc := pc
+    io.bp.map(_.v := out.fire)
     io.bp(1).pc := out.bits.pc(1)
 
     PerfAccumulate("fetch_one", out.fire && !out.bits.fetch_two)

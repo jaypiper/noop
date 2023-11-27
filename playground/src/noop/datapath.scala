@@ -253,6 +253,7 @@ class PredictIO extends Bundle {
 }
 
 class PredictIO2 extends Bundle {
+    val v = Input(Bool())
     val pc = Input(UInt(PADDR_WIDTH.W))
     val target = Output(UInt(PADDR_WIDTH.W))
     val jmp = Output(Bool())
