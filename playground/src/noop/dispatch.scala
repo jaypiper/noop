@@ -67,4 +67,22 @@ class Dispatch extends Module {
       PerfAccumulate(s"dispatch_in_${i}_out_$j", num_in === i.U && num_out === j.U)
     }
   }
+  for (i <- 0 until ISSUE_WIDTH) {
+    val blocked = io.df2dp(i).valid && !io.df2dp(i).ready
+    PerfAccumulate(s"dispatch_in_${i}_blocked", blocked)
+    PerfAccumulate(s"dispatch_in_${i}_blocked_alu", blocked && is_alu(i))
+    PerfAccumulate(s"dispatch_in_${i}_blocked_alu_right_ready", blocked && is_alu(i) && !io.df2ex(i).ready)
+    PerfAccumulate(s"dispatch_in_${i}_blocked_alu_membusy", blocked && is_alu(i) && io.mem2df.membusy)
+    if (i > 0) {
+      PerfAccumulate(s"dispatch_in_${i}_blocked_alu_alu_order", blocked && is_alu(i) && alu_order_violation(i))
+      PerfAccumulate(s"dispatch_in_${i}_blocked_alu_instr_order", blocked && is_alu(i) && instr_order_violation(i))
+    }
+    PerfAccumulate(s"dispatch_in_${i}_blocked_mem", blocked && !is_alu(i))
+    PerfAccumulate(s"dispatch_in_${i}_blocked_mem_right_ready", blocked && !is_alu(i) && !io.df2mem.ready)
+    if (i > 0) {
+      PerfAccumulate(s"dispatch_in_${i}_blocked_mem_multiple", blocked && !is_alu(i) && multiple_mem(i))
+      PerfAccumulate(s"dispatch_in_${i}_blocked_mem_flush", blocked && !is_alu(i) && may_flush(i))
+      PerfAccumulate(s"dispatch_in_${i}_blocked_mem_instr_order", blocked && !is_alu(i) && instr_order_violation(i))
+    }
+  }
 }

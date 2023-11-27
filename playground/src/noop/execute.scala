@@ -22,15 +22,6 @@ class Execute extends Module{
 
     val alu     = Module(new ALU)
 
-    val sIdle :: sWaitAlu :: Nil = Enum(2)
-    val state = RegInit(sIdle)
-    when(io.df2ex.fire && !alu.io.valid) {
-        state := sWaitAlu
-    }.elsewhen(state === sWaitAlu && alu.io.valid) {
-        state := sIdle
-    }
-
-    val hs_in   = io.df2ex.ready && io.df2ex.valid
     val alu64 = io.df2ex.bits.ctrl.aluWidth === IS_ALU64
     val aluop  = io.df2ex.bits.ctrl.aluOp
 
@@ -41,7 +32,7 @@ class Execute extends Module{
     alu.io.val1     := val1
     alu.io.val2     := val2
     alu.io.alu64    := alu64
-    alu.io.en       := io.df2ex.valid && state === sIdle
+    alu.io.en       := io.df2ex.valid
     val alu_out = Mux(alu64, alu.io.out(63, 0), sext32to64(alu.io.out))
     val wdata   = PriorityMux(Seq(
         (io.df2ex.bits.ctrl.dcMode(DC_S_BIT),    io.df2ex.bits.dst_d),
@@ -99,7 +90,7 @@ class Execute extends Module{
     io.ex2wb.bits.csr_d := alu_out
     io.ex2wb.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
     io.ex2wb.bits.dst := io.df2ex.bits.dst
-    io.ex2wb.bits.dst_d := Mux(state === sWaitAlu && alu.io.valid, alu_out, wdata)
+    io.ex2wb.bits.dst_d := wdata
     io.ex2wb.bits.dst_en := io.df2ex.bits.ctrl.writeRegEn
     io.ex2wb.bits.rcsr_id := io.df2ex.bits.rcsr_id
     io.ex2wb.bits.is_mmio := false.B
