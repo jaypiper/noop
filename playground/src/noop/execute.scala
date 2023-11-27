@@ -16,6 +16,7 @@ class Execute extends Module{
         val flushOut    = Output(Bool())
         val ex2wb       = ValidIO(new MEM2RB)
         val d_ex0       = Output(new RegForward)
+        val d_ex1       = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
         val updateBPU = Output(new UpdateIO2)
     })
@@ -59,6 +60,7 @@ class Execute extends Module{
         (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
     ))
 
+    // pipeline
     val ex2wb = Wire(ValidIO(new MEM2RB))
     ex2wb.valid := io.df2ex.valid && alu.io.valid
     ex2wb.bits.inst := io.df2ex.bits.inst
@@ -76,6 +78,15 @@ class Execute extends Module{
     ex2wb.bits.is_mmio := false.B
     ex2wb.bits.recov := io.df2ex.bits.recov
 
+    // data forwarding
+    io.d_ex0.id := ex2wb.bits.dst
+    io.d_ex0.data := ex2wb.bits.dst_d
+    io.d_ex0.state := Mux(io.df2ex.valid && io.df2ex.bits.ctrl.writeRegEn,
+        Mux(alu.io.valid, d_valid, d_wait),
+        d_invalid
+    )
+
+    // flush
     val is_jmp = ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
     val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
     val jmp_target_r = RegEnable(real_target, is_jmp)
@@ -88,14 +99,11 @@ class Execute extends Module{
     io.ex2if.valid  := RegNext(io.flushOut)
     io.ex2if.seq_pc := jmp_target_r
 
-    // data forwarding
-    io.d_ex0.id := io.df2ex.bits.dst
-    io.d_ex0.data := wdata
-    io.d_ex0.state := Mux(io.df2ex.valid && io.df2ex.bits.ctrl.writeRegEn,
-        Mux(alu.io.valid, d_valid, d_wait),
-        d_invalid
-    )
-
     // out
     io.ex2wb := PipelineNext(ex2wb, io.flushIn)
+
+    // data forwarding
+    io.d_ex1.id := io.ex2wb.bits.dst
+    io.d_ex1.data := io.ex2wb.bits.dst_d
+    io.d_ex1.state := Mux(io.ex2wb.valid && io.ex2wb.bits.ctrl.writeRegEn, d_valid, d_invalid)
 }

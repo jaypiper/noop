@@ -125,7 +125,7 @@ class CPU extends Module{
     // Regfile and Forwarding
     val fwd_source = execute.map(_.io.d_ex0).reverse ++
       Seq(memory.io.d_mem0) ++
-      writeback.io.d_wb.reverse ++
+      execute.map(_.io.d_ex1).reverse ++
       Seq(memory.io.d_mem1)
     for (i <- 0 until ISSUE_WIDTH) {
         forwarding(i).io.fwd_source := forwarding.take(i).map(_.io.d_fd) ++ fwd_source

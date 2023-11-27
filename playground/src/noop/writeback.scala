@@ -12,7 +12,6 @@ class Writeback extends Module{
     val io = IO(new Bundle{
         val mem2wb  = Flipped(ValidIO(new MEM2RB))
         val ex2wb   = Vec(ISSUE_WIDTH, Flipped(ValidIO(new MEM2RB)))
-        val d_wb    = Vec(ISSUE_WIDTH, Output(new RegForward))
         val wReg    = Vec(ISSUE_WIDTH, Output(new RegWrite))
         val wCsr    = Flipped(new CSRWrite)
         val excep   = Output(new Exception)
@@ -34,13 +33,6 @@ class Writeback extends Module{
         VecInit(ports.map(_.valid)).asUInt.orR
     })
     val writebacks = writeback_ports.map(ports => Mux1H(ports.map(_.valid), ports.map(_.bits)))
-
-    // data forwarding
-    for ((d, w) <- io.d_wb.zip(io.ex2wb)) {
-        d.id := w.bits.dst
-        d.data := w.bits.dst_d
-        d.state := Mux(w.valid && w.bits.ctrl.writeRegEn, d_valid, d_invalid)
-    }
 
     // register file write
     for ((wReg, (v, wb)) <- io.wReg.zip(wb_valid.zip(writebacks))) {
