@@ -17,7 +17,7 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         val icRW    = Flipped(new DcacheRW)
     })
     val inp_mem     = (io.dataRW.addr >= "h8000d000".U) && (io.dataRW.addr < "h8000e000".U)
-    val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80008000".U
+    val inp_ic      = in_imem(io.dataRW.addr)
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
     io.mmio.wmask   := io.dataRW.wmask

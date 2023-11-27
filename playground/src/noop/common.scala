@@ -21,6 +21,10 @@ object common extends mem_access_mode{
     val PAGE_WIDTH  = 12
     val isSim = true
     val SRAM = true
+
+    val IMEM_BASE = "h80000000".U
+    val IMEM_HIGH = "h80008000".U
+    def in_imem(addr: UInt) = addr >= IMEM_BASE && addr < IMEM_HIGH
 }
 
 object cache_config{ // U S L WIDTH
