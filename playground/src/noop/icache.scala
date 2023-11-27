@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import noop.datapath._
 import noop.param.cache_config._
+import noop.param.common.PADDR_WIDTH
 import noop.utils.PipelineNext
 import ram._
 
@@ -34,6 +35,7 @@ class ICache extends Module{
         3.U -> Fill(8, 1.U(1.W))
     ))
 
+
     val iram = Seq.fill(2)(Module(new IRAM))
     for ((ram, i) <- iram.zipWithIndex) {
         ram.io.cen := ram_en
@@ -42,6 +44,12 @@ class ICache extends Module{
         ram.io.wdata := ram_wdata(i * 32 + 31, i * 32)
         ram.io.wmask := ram_wmask(i * 4 + 3, i * 4)
     }
+
+    // For instruction fetch, we allow the second 32-bit to be read from the next cache line.
+    when (s1_out.valid && io.icPort.addr(2)) {
+        iram(0).io.addr := io.icPort.addr(ICACHE_IDX_START, ICACHE_IDX_END) + 1.U
+    }
+
     val ram_rdata = VecInit(iram.map(_.io.rdata)).asUInt
 
     io.icMem.ready := true.B

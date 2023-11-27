@@ -104,7 +104,7 @@ class FetchS1 extends Module {
     }))
 
     val pc = RegInit(PC_START)
-    val fetch_two = !pc(2) && !io.bp(0).jmp
+    val fetch_two = (!pc(2) || in_imem(pc) && !pc(14, 2).andR) && !io.bp(0).jmp
     val pc_seq = Mux(fetch_two, pc + 8.U, pc + 4.U)
     val next_pc = PriorityMux(Seq(
         (io.reg2if.valid, io.reg2if.seq_pc),
@@ -181,6 +181,7 @@ class Fetch extends Module{
         assert(s2_in.valid, "response for what?")
     }
     val s2_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && s3_inst_valid)
+    val s2_pc1 = Cat(s2_in.bits.pc(PADDR_WIDTH - 1, 2) + 1.U, 0.U(2.W))
 
     // Stage 3
     val s3_valid = RegInit(VecInit.fill(ISSUE_WIDTH)(false.B))
@@ -198,6 +199,7 @@ class Fetch extends Module{
     s2_out.ready := !s3_valid.asUInt.orR || io.if2id(0).ready // Only use the head here. Assume all same
     val s3_bits = RegEnable(s2_out.bits, s2_out.fire)
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
+    val s3_pc1 = RegEnable(s2_pc1, s2_out.fire)
 
     val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && (!s3_inst_valid || s2_out.fire))
     io.instRead.rready := true.B
@@ -223,8 +225,8 @@ class Fetch extends Module{
     io.if2id(0).bits.recov := false.B  // TODO: remove
 
     io.if2id(1).valid := s3_valid(1) && s3_can_out && s3_bits.fetch_two
-    io.if2id(1).bits.pc := Cat(s3_bits.pc(PADDR_WIDTH - 1, 3), 4.U(3.W))
-    io.if2id(1).bits.inst := insts(1)
+    io.if2id(1).bits.pc := s3_pc1
+    io.if2id(1).bits.inst := insts(!io.if2id(0).bits.pc(2))
     io.if2id(1).bits.nextPC := s3_nextpc
     io.if2id(1).bits.recov := false.B
 }
