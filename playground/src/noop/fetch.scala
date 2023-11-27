@@ -7,7 +7,7 @@ import noop.param.decode_config._
 import noop.param.cache_config._
 import noop.bpu._
 import noop.datapath._
-import noop.utils.PipelineNext
+import noop.utils.{PerfAccumulate, PipelineNext}
 
 class FetchCrossBar extends Module{
     val io = IO(new Bundle{
@@ -139,6 +139,9 @@ class FetchS1 extends Module {
 
     io.bp(0).pc := pc
     io.bp(1).pc := Cat(pc(PADDR_WIDTH - 1, 3), 4.U(3.W))
+
+    PerfAccumulate("fetch_one", out.fire && !out.bits.fetch_two)
+    PerfAccumulate("fetch_two", out.fire && out.bits.fetch_two)
 }
 
 class Fetch extends Module{

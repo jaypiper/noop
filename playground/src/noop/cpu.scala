@@ -106,8 +106,20 @@ class CPU extends Module{
     forwarding.head.io.blockOut := false.B
     for (i <- 1 until ISSUE_WIDTH) {
         forwarding(i).io.blockOut := VecInit(forwarding.take(i).map(_.io.rightStall)).asUInt.orR
+        PerfAccumulate(s"forwarding_${i}_blocked", forwarding(i).io.id2df.valid && !forwarding(i).io.rightStall && forwarding(i).io.blockOut)
     }
     decode.io.idState := csrs.io.idState
+    val forwarding_allow_in = RegNext(VecInit(forwarding.map(_.io.id2df.ready)).asUInt.andR, false.B)
+    val forwarding_num_in = PopCount(forwarding.map(_.io.id2df.valid))
+    val forwarding_num_out = PopCount(forwarding.map(_.io.df2dp.fire))
+    for (i <- 0 until ISSUE_WIDTH + 1) {
+        PerfAccumulate(s"forwarding_in_fire_$i", forwarding_allow_in && forwarding_num_in === i.U)
+    }
+    for (i <- 0 until ISSUE_WIDTH + 1) {
+        for (j <- 0 until i + 1) {
+            PerfAccumulate(s"forwarding_in_${i}_out_$j", forwarding_num_in === i.U && forwarding_num_out === j.U)
+        }
+    }
 
 
     // Regfile and Forwarding

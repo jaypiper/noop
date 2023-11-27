@@ -6,6 +6,7 @@ import noop.datapath._
 import noop.param.cache_config._
 import noop.param.decode_config._
 import noop.param.common._
+import noop.utils.PerfAccumulate
 
 class Dispatch extends Module {
   val io = IO(new Bundle {
@@ -55,4 +56,15 @@ class Dispatch extends Module {
   io.df2mem.bits.recov := to_mem.recov
   io.df2mem.valid := VecInit(do_mem).asUInt.orR && !PriorityMux(do_mem, block_mem)
 
+  val allow_in = RegNext(VecInit(io.df2dp.map(_.ready)).asUInt.andR, false.B)
+  val num_in = PopCount(io.df2dp.map(_.valid))
+  val num_out = PopCount(io.df2ex.map(_.fire)) + io.df2mem.fire
+  for (i <- 0 until ISSUE_WIDTH + 1) {
+    PerfAccumulate(s"dispatch_in_fire_$i", allow_in && num_in === i.U)
+  }
+  for (i <- 0 until ISSUE_WIDTH + 1) {
+    for (j <- 0 until i + 1) {
+      PerfAccumulate(s"dispatch_in_${i}_out_$j", num_in === i.U && num_out === j.U)
+    }
+  }
 }
