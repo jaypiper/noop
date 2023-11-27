@@ -12,7 +12,7 @@ import noop.fetch._
 import noop.memory._
 import noop.param.common._
 import noop.regs._
-import noop.utils.{PerfAccumulate, PipelineNext, VecPipelineConnect}
+import noop.utils.{PerfAccumulate, VecPipelineConnect}
 import noop.writeback._
 
 class CPU_AXI_IO extends Bundle{
@@ -78,7 +78,7 @@ class CPU extends Module{
     val crossBar = Module(new CrossBar)
 
     // Flush
-    val execute_flush = VecInit(execute.map(_.io.flush)).asUInt.orR
+    val execute_flush = VecInit(execute.map(_.io.flushOut)).asUInt.orR
     val execute_flush_r = RegNext(execute_flush)
     val forward_flush = VecInit(forwarding.map(_.io.flush)).asUInt.orR || execute_flush_r
 
@@ -140,19 +140,20 @@ class CPU extends Module{
         dispatch.io.df2ex(i) <> execute(i).io.df2ex
         dispatch.io.df2mem <> memory.io.df2mem
         dispatch.io.mem2df := memory.io.mem2df
+        execute(i).io.flushIn := false.B
+        if (i > 0) {
+            execute(i).io.flushIn := VecInit(execute.take(i).map(_.io.flushOut)).asUInt.orR
+        }
     }
     val is_jmp = execute.map(_.io.updateBPU.valid)
-    val is_mispred = execute.map(exe => RegNext(exe.io.flush, false.B))
+    val is_mispred = execute.map(exe => RegNext(exe.io.flushOut, false.B))
     // Should only count the instructions before flush
     private def is_counted_jmp(i: Int) = is_jmp(i) && !VecInit((false.B +: is_mispred).take(i + 1)).asUInt.orR
     PerfAccumulate("branchNum_all", PopCount((0 until ISSUE_WIDTH).map(is_counted_jmp)))
     PerfAccumulate("branchMiss_all", VecInit(is_mispred).asUInt.orR)
 
     // Writeback
-    writeback.io.ex2wb.head := PipelineNext(execute.head.io.ex2wb)
-    (1 until ISSUE_WIDTH).foreach(i =>
-        writeback.io.ex2wb(i) := PipelineNext(execute(i).io.ex2wb, VecInit(execute.take(i).map(_.io.flush)).asUInt.orR)
-    )
+    writeback.io.ex2wb.zip(execute.map(_.io.ex2wb)).foreach(x => x._1 := x._2)
     bpu.io.update := PriorityMux(execute.map(_.io.updateBPU.needUpdate), execute.map(_.io.updateBPU))
     memory.io.mem2wb    <> writeback.io.mem2wb
     memory.io.dataRW    <> memCrossbar.io.dataRW

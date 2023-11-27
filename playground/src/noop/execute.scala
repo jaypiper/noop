@@ -2,18 +2,18 @@ package noop.execute
 
 import chisel3._
 import chisel3.util._
-import noop.param.common._
-import noop.param.noop_tools._
-import noop.param.decode_config._
-import noop.param.cache_config._
-import noop.datapath._
-import noop.bpu._
 import noop.alu._
+import noop.datapath._
+import noop.param.cache_config._
+import noop.param.decode_config._
+import noop.param.noop_tools._
+import noop.utils.PipelineNext
 
 class Execute extends Module{
     val io = IO(new Bundle{
         val df2ex       = Flipped(DecoupledIO(new DF2EX))
-        val flush       = Output(Bool())
+        val flushIn     = Input(Bool())
+        val flushOut    = Output(Bool())
         val ex2wb       = ValidIO(new MEM2RB)
         val d_ex0       = Output(new RegForward)
         val ex2if       = Output(new ForceJmp)
@@ -59,16 +59,33 @@ class Execute extends Module{
         (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
     ))
 
-    val is_jmp = io.ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
+    val ex2wb = Wire(ValidIO(new MEM2RB))
+    ex2wb.valid := io.df2ex.valid && alu.io.valid
+    ex2wb.bits.inst := io.df2ex.bits.inst
+    ex2wb.bits.pc := io.df2ex.bits.pc
+    ex2wb.bits.excep := io.df2ex.bits.excep
+    ex2wb.bits.excep.pc := Mux(io.df2ex.bits.excep.cause(63), io.df2ex.bits.nextPC, io.df2ex.bits.excep.pc)
+    ex2wb.bits.ctrl := io.df2ex.bits.ctrl
+    ex2wb.bits.csr_id := io.df2ex.bits.rs2
+    ex2wb.bits.csr_d := alu_out
+    ex2wb.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
+    ex2wb.bits.dst := io.df2ex.bits.dst
+    ex2wb.bits.dst_d := wdata
+    ex2wb.bits.dst_en := io.df2ex.bits.ctrl.writeRegEn
+    ex2wb.bits.rcsr_id := io.df2ex.bits.rcsr_id
+    ex2wb.bits.is_mmio := false.B
+    ex2wb.bits.recov := io.df2ex.bits.recov
+
+    val is_jmp = ex2wb.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
     val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.mispred := RegEnable(jmp_mispred, is_jmp)
-    io.updateBPU.pc := RegEnable(io.ex2wb.bits.pc, is_jmp)
+    io.updateBPU.pc := RegEnable(ex2wb.bits.pc, is_jmp)
     io.updateBPU.target := jmp_target_r
 
-    io.flush := is_jmp && jmp_mispred
-    io.ex2if.valid  := RegNext(io.flush)
+    io.flushOut := is_jmp && jmp_mispred
+    io.ex2if.valid  := RegNext(io.flushOut)
     io.ex2if.seq_pc := jmp_target_r
 
     // data forwarding
@@ -80,19 +97,5 @@ class Execute extends Module{
     )
 
     // out
-    io.ex2wb.valid := io.df2ex.valid && alu.io.valid
-    io.ex2wb.bits.inst := io.df2ex.bits.inst
-    io.ex2wb.bits.pc := io.df2ex.bits.pc
-    io.ex2wb.bits.excep := io.df2ex.bits.excep
-    io.ex2wb.bits.excep.pc := Mux(io.df2ex.bits.excep.cause(63), io.df2ex.bits.nextPC, io.df2ex.bits.excep.pc)
-    io.ex2wb.bits.ctrl := io.df2ex.bits.ctrl
-    io.ex2wb.bits.csr_id := io.df2ex.bits.rs2
-    io.ex2wb.bits.csr_d := alu_out
-    io.ex2wb.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
-    io.ex2wb.bits.dst := io.df2ex.bits.dst
-    io.ex2wb.bits.dst_d := wdata
-    io.ex2wb.bits.dst_en := io.df2ex.bits.ctrl.writeRegEn
-    io.ex2wb.bits.rcsr_id := io.df2ex.bits.rcsr_id
-    io.ex2wb.bits.is_mmio := false.B
-    io.ex2wb.bits.recov := io.df2ex.bits.recov
+    io.ex2wb := PipelineNext(ex2wb, io.flushIn)
 }
