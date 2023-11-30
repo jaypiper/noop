@@ -9,54 +9,63 @@ import noop.param.common._
 import noop.param.decode_config._
 import noop.utils.PipelineConnect
 
-class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
-    val io = IO(new Bundle{
-        val dataRW  = new DcacheRW
-        val mmio    = Flipped(new DcacheRW)
-        val dcRW    = Flipped(new DcacheRW)
-        val icRW    = Flipped(new DcacheRW)
+class DcacheBuffer extends Module {
+    val io = IO(new Bundle {
+        val in = new DcacheRW
+        val out = Flipped(new DcacheRW)
+        val t1_cancel = Input(Bool())
     })
-    val inp_mem     = (io.dataRW.req.bits.addr >= "h8000d000".U) && (io.dataRW.req.bits.addr < "h8000e000".U)
-    val inp_ic      = in_imem(io.dataRW.req.bits.addr)
 
-    io.mmio.req.bits := io.dataRW.req.bits
+    io.in <> io.out
+
+    // Req is buffered for one cycle with a cancel signal
+    val valid = RegInit(false.B)
+    val en = io.in.req.fire
+    io.out.req.bits := RegEnable(io.in.req.bits, en)
+    io.out.req.valid := valid && !io.t1_cancel
+    io.in.req.ready := !valid || io.out.req.ready
+
+    when (en) {
+        valid := true.B
+    }.elsewhen (RegNext(en) && io.t1_cancel || io.out.req.ready) {
+        valid := false.B
+    }
+}
+
+class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
+    val io = IO(new Bundle {
+        val dataRW = new DcacheRW
+        val mmio = Flipped(new DcacheRW)
+        val dcRW = Flipped(new DcacheRW)
+        val icRW = Flipped(new DcacheRW)
+    })
+    // dcRW is not buffered
+    // TODO: what is inp
+    val inp_mem = io.dataRW.req.bits.addr >= "h8000d000".U && io.dataRW.req.bits.addr < "h8000e000".U
+    io.dcRW.req.valid := io.dataRW.req.valid && inp_mem
     io.dcRW.req.bits := io.dataRW.req.bits
-    io.icRW.req.bits := io.dataRW.req.bits
 
-    io.mmio.req.valid := false.B
-    io.dcRW.req.valid := false.B
-    io.icRW.req.valid := false.B
-    io.dataRW.req.ready := false.B
+    val buffer = Module(new DcacheBuffer)
+    buffer.io.in <> io.dataRW
+    buffer.io.t1_cancel := RegNext(io.dataRW.req.fire && inp_mem)
 
-    when(inp_mem){
-        io.dcRW.req.valid := io.dataRW.req.valid
-        io.dataRW.req.ready := io.dcRW.req.ready
-    }.elsewhen(inp_ic){
-        io.icRW.req.valid := io.dataRW.req.valid
-        io.dataRW.req.ready := io.icRW.req.ready
-    }.otherwise{
-        io.mmio.req.valid := io.dataRW.req.valid
-        io.dataRW.req.ready := io.mmio.req.ready
-    }
+    io.dataRW.req.ready := Mux(inp_mem, io.dcRW.req.ready, buffer.io.in.req.ready)
 
-    val pre_type = RegInit(0.U(2.W))
-    when(io.dataRW.req.fire) {
-        pre_type := Mux(inp_mem, 1.U, Mux(inp_ic, 2.U, 0.U))
-    }
+    val addr_r = RegEnable(io.dataRW.req.bits.addr, io.dataRW.req.fire)
+    val inp_ic_r = in_imem(addr_r)
 
-    when(pre_type === 1.U){
-        io.dataRW.resp.bits := io.dcRW.resp.bits
-        io.dataRW.resp.valid := io.dcRW.resp.valid
-    }.elsewhen(pre_type === 0.U){
-        io.dataRW.resp.bits := io.mmio.resp.bits
-        io.dataRW.resp.valid := io.mmio.resp.valid
-    }.elsewhen(pre_type === 2.U) {
-        io.dataRW.resp.bits := io.icRW.resp.bits
-        io.dataRW.resp.valid := io.icRW.resp.valid
-    }.otherwise{
-        io.dataRW.resp.bits := 0.U
-        io.dataRW.resp.valid := false.B
-    }
+    io.icRW.req.valid := buffer.io.out.req.valid && inp_ic_r
+    io.icRW.req.bits := buffer.io.out.req.bits
+
+    io.mmio.req.valid := buffer.io.out.req.valid && !inp_ic_r
+    io.mmio.req.bits := buffer.io.out.req.bits
+
+    buffer.io.out.req.ready := Mux(inp_ic_r, io.icRW.req.ready, io.mmio.req.ready)
+    buffer.io.out.resp := DontCare
+
+    val inp_mem_r = RegEnable(inp_mem, io.dataRW.req.valid)
+    io.dataRW.resp.valid := Mux(inp_mem_r, io.dcRW.resp.valid, Mux(inp_ic_r, io.icRW.resp.valid, io.mmio.resp.valid))
+    io.dataRW.resp.bits := Mux(inp_mem_r, io.dcRW.resp.bits, Mux(inp_ic_r, io.icRW.resp.bits, io.mmio.resp.bits))
 }
 
 class Memory extends Module{
