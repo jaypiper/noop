@@ -33,18 +33,18 @@ class ToAXI extends Module{
     val rdataEn = RegInit(false.B)
     val rdata   = RegInit(0.U(DATA_WIDTH.W))
 
-    io.dataIO.ready := !valid_r
+    io.dataIO.req.ready := !valid_r
     val (sIdle:: sWaddr :: sWdata :: sWresp :: sRaddr :: sRdata :: sFinish :: Nil) = Enum(7)
     val state  = RegInit(sIdle)
 
-    when(io.dataIO.ready && io.dataIO.avalid) {
+    when(io.dataIO.req.fire) {
         valid_r := true.B
-        in_addr_r := io.dataIO.addr
-        in_rdata_r := io.dataIO.rdata
-        in_wdata_r := io.dataIO.wdata
-        in_wen_r := io.dataIO.wen
-        in_wmask_r := io.dataIO.wmask
-        in_size_r := io.dataIO.size
+        in_addr_r := io.dataIO.req.bits.addr
+        in_rdata_r := io.dataIO.resp.bits
+        in_wdata_r := io.dataIO.req.bits.wdata
+        in_wen_r := io.dataIO.req.bits.wen
+        in_wmask_r := io.dataIO.req.bits.wmask
+        in_size_r := io.dataIO.req.bits.size
     }
     //store
     switch(state){
@@ -127,8 +127,8 @@ class ToAXI extends Module{
     val out_valid = RegInit(false.B)
     out_valid := (state === sFinish) || (state === sWresp)
     out_rdata := rdata
-    io.dataIO.rvalid    := out_valid
-    io.dataIO.rdata     := out_rdata
+    io.dataIO.resp.valid := out_valid
+    io.dataIO.resp.bits := out_rdata
 
     io.outAxi.init()
     //wa

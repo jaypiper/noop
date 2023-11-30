@@ -77,17 +77,14 @@ class PlicRW extends DataRWD{
 }
 
 class DcacheRW extends Bundle{
-    val addr    = Input(UInt(PADDR_WIDTH.W))
-    val rdata   = Output(UInt(DATA_WIDTH.W))
-    val rvalid  = Output(Bool())
-    val wdata   = Input(UInt(DATA_WIDTH.W))
-    val wen     = Input(Bool())
-    val avalid  = Input(Bool())
-    // val dc_mode = Input(UInt(DC_MODE_WIDTH.W))
-    val wmask   = Input(UInt(DATA_WIDTH.W))
-    val size    = Input(UInt(3.W))
-    // val amo     = Input(UInt(AMO_WIDTH.W))
-    val ready   = Output(Bool())
+    val req = Flipped(DecoupledIO(new Bundle {
+        val addr    = Input(UInt(PADDR_WIDTH.W))
+        val wdata = Input(UInt(DATA_WIDTH.W))
+        val wen = Input(Bool())
+        val wmask = Input(UInt(DATA_WIDTH.W))
+        val size = Input(UInt(3.W))
+    }))
+    val resp = ValidIO(UInt(DATA_WIDTH.W))
 }
 
 class IcacheRead extends Bundle{

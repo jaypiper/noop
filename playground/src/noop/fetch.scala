@@ -21,12 +21,12 @@ class FetchCrossBar extends Module{
     val memNum = RegInit(0.U(2.W))
     val flashNum = RegInit(0.U(2.W))
     val inp_mem = in_imem(io.instIO.addr)
-    io.flashRead.addr   := io.instIO.addr
-    io.flashRead.wdata  := 0.U;
-    io.flashRead.wen    := false.B
-    io.flashRead.wmask  := 0.U
-    io.flashRead.size   := 3.U
-    io.flashRead.avalid := false.B
+    io.flashRead.req.bits.addr   := io.instIO.addr
+    io.flashRead.req.bits.wdata  := 0.U;
+    io.flashRead.req.bits.wen    := false.B
+    io.flashRead.req.bits.wmask  := 0.U
+    io.flashRead.req.bits.size   := 3.U
+    io.flashRead.req.valid := false.B
     io.icRead.addr      := io.instIO.addr
     io.icRead.arvalid   := false.B
     io.instIO.ready     := false.B
@@ -64,11 +64,11 @@ class FetchCrossBar extends Module{
                     state := sMem
                 }
             }.otherwise {
-                io.flashRead.avalid := io.instIO.arvalid
-                io.instIO.ready := io.flashRead.ready
+                io.flashRead.req.valid := io.instIO.arvalid
+                io.instIO.ready := io.flashRead.req.ready
             }
-            io.instIO.inst  := io.flashRead.rdata
-            io.instIO.rvalid := io.flashRead.rvalid
+            io.instIO.inst  := io.flashRead.resp.bits
+            io.instIO.rvalid := io.flashRead.resp.valid
         }
     }
 }
