@@ -12,7 +12,7 @@ import noop.fetch._
 import noop.memory._
 import noop.param.common._
 import noop.regs._
-import noop.utils.{PerfAccumulate, VecPipelineConnect}
+import noop.utils.{PerfAccumulate, VecDecoupledIO, VecPipelineConnect}
 import noop.writeback._
 
 class CPU_AXI_IO extends Bundle{
@@ -102,7 +102,7 @@ class CPU extends Module{
     fetch.io.recov := writeback.io.recov
 
     // Decode
-    VecPipelineConnect(decode.io.id2df, forwarding.map(_.io.id2df), forward_flush)
+    decode.io.id2df.connectNoPipe(forwarding.map(_.io.id2df), forward_flush)
     forwarding.head.io.blockOut := false.B
     for (i <- 1 until ISSUE_WIDTH) {
         forwarding(i).io.blockOut := VecInit(forwarding.take(i).map(_.io.rightStall)).asUInt.orR

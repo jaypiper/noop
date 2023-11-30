@@ -101,6 +101,23 @@ class VecDecoupledIO[T <: Data](val length: Int, gen: T) extends Bundle {
   val ready = Input(Bool())
   val valid = Output(Vec(length, Bool()))
   val bits = Output(Vec(length, gen))
+
+  def connectNoPipe(right: Seq[DecoupledIO[T]], flush: Bool): Unit = {
+    require(length == right.length, s"length of left($length) != right(${right.length})")
+    val is_out = RegInit(VecInit.fill(length)(false.B))
+    val is_fire = Wire(Vec(length, Bool()))
+    for (i <- 0 until length) {
+      right(i).valid := valid(i) && !is_out(i)
+      right(i).bits := bits(i)
+      is_fire(i) := is_out(i) || right(i).ready
+      when(ready || flush) {
+        is_out(i) := false.B
+      }.elsewhen(valid(i) && right(i).ready) {
+        is_out(i) := true.B
+      }
+    }
+    ready := is_fire.asUInt.andR
+  }
 }
 
 object VecDecoupledIO {
