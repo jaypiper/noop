@@ -94,7 +94,7 @@ class CPU extends Module{
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
     fetch.io.branchFail := PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
-    fetch.io.if2id <> decode.io.if2id
+    VecPipelineConnect(fetch.io.if2id, decode.io.if2id, Seq.fill(2)(decode.io.id2df.ready), fetch.io.flush)
     // branch mis-prediction has higher priority than decode stall
     fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush
     fetch.io.flush := forward_flush

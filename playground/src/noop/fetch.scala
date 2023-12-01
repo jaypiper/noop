@@ -169,10 +169,9 @@ class Fetch extends Module{
 
     // Stage 2
     val s2_in = PipelineNext(s1.out, flush_in)
-    val s2_out = WireInit(s2_in)
     val s2_nextpc = s1.out.bits.pc.head
     val s2_inst_valid = RegInit(false.B)
-    when(flush_in || s2_out.ready) {
+    when(flush_in || io.if2id.ready) {
         s2_inst_valid := false.B
     }.elsewhen(io.instRead.rvalid) {
         s2_inst_valid := true.B
@@ -181,37 +180,20 @@ class Fetch extends Module{
     val s2_inst = Mux(s2_inst_valid, RegEnable(io.instRead.inst, io.instRead.rvalid), io.instRead.inst)
 
     val s2_inst_ok = io.instRead.rvalid || s2_inst_valid
-    s2_out.valid := s2_in.valid && s2_inst_ok && !io.dec_flush.asUInt.orR
-    s2_in.ready := !s2_in.valid || s2_out.ready && s2_inst_ok
+    s2_in.ready := !s2_in.valid || io.if2id.ready && s2_inst_ok
     io.instRead.rready := true.B
 
-    // Stage 3
-    val s3_valid = RegInit(VecInit.fill(ISSUE_WIDTH)(false.B))
-    for ((v, i) <- s3_valid.zipWithIndex) {
-        when(io.flush ) {
-            v := false.B
-        }.elsewhen(s2_out.valid && s2_out.ready) {
-            v := true.B
-        }.elsewhen(io.if2id.ready) {
-            v := false.B
-        }
-    }
-    s2_out.ready := !s3_valid.asUInt.orR || io.if2id.ready // Only use the head here. Assume all same
-    val s3_bits = RegEnable(s2_out.bits, s2_out.fire)
-    val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
-    val s3_inst = RegEnable(s2_inst, s2_out.fire)
-
-    // When instRead returns, try bypass it to if2id.
-    val insts = s3_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
-    io.if2id.valid(0) := s3_valid(0)
-    io.if2id.bits(0).pc := s3_bits.pc(0)
+    val s2_out_valid = s2_in.valid && s2_inst_ok && !io.dec_flush.asUInt.orR
+    val insts = s2_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
+    io.if2id.valid(0) := s2_out_valid
+    io.if2id.bits(0).pc := s2_in.bits.pc(0)
     io.if2id.bits(0).inst := insts(io.if2id.bits(0).pc(2))
-    io.if2id.bits(0).nextPC := Mux(s3_bits.fetch_two, io.if2id.bits(1).pc, s3_nextpc)
+    io.if2id.bits(0).nextPC := Mux(s2_in.bits.fetch_two, io.if2id.bits(1).pc, s2_nextpc)
     io.if2id.bits(0).recov := false.B  // TODO: remove
 
-    io.if2id.valid(1) := s3_valid(1) && s3_bits.fetch_two
-    io.if2id.bits(1).pc := s3_bits.pc(1)
+    io.if2id.valid(1) := s2_out_valid && s2_in.bits.fetch_two
+    io.if2id.bits(1).pc := s2_in.bits.pc(1)
     io.if2id.bits(1).inst := insts(!io.if2id.bits(0).pc(2))
-    io.if2id.bits(1).nextPC := s3_nextpc
+    io.if2id.bits(1).nextPC := s2_nextpc
     io.if2id.bits(1).recov := false.B
 }
