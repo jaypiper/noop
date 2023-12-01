@@ -168,16 +168,14 @@ class Fetch extends Module{
     io.instRead.arvalid := s1.instRead.valid
 
     // Stage 2
-    val s2_out_ready = Wire(Bool())
-    val s2_in = PipelineNext(s1.out, s2_out_ready, flush_in)
+    val s2_in = PipelineNext(s1.out, flush_in)
     val s2_out = WireInit(s2_in)
     s2_out.valid := s2_in.valid && !io.dec_flush.asUInt.orR
-    s2_out_ready := s2_out.ready
     s2_in.ready := !s2_in.valid || s2_out.ready
     val s2_nextpc = s1.out.bits.pc.head
     val s2_inst_valid = RegInit(false.B)
     val s3_inst_valid = RegInit(false.B)
-    when(flush_in || s2_out_ready) {
+    when(flush_in || s2_out.ready) {
         s2_inst_valid := false.B
     }.elsewhen(io.instRead.rvalid && s3_inst_valid) {
         s2_inst_valid := true.B
@@ -192,7 +190,7 @@ class Fetch extends Module{
     for (((v, f), i) <- s3_valid.zip(s3_flush).zipWithIndex) {
         when(io.flush ) {
             v := false.B
-        }.elsewhen(s2_out.valid && s2_out_ready) {
+        }.elsewhen(s2_out.valid && s2_out.ready) {
             v := true.B
         }.elsewhen(io.if2id(0).ready && (s3_inst_valid || io.instRead.rvalid)) {
             v := false.B
