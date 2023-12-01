@@ -52,20 +52,6 @@ class Execute extends Module{
 
     io.df2ex.ready := !io.df2ex.valid || s0_out.ready
 
-    // branch & jmp
-    val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)
-    val real_is_target = MuxLookup(io.df2ex.bits.jmp_type, false.B, Seq(
-        JMP_PC  -> true.B,
-        JMP_REG  -> true.B,
-        JMP_COND -> branch_taken
-    ))
-    val real_target = PriorityMux(Seq(
-        (io.df2ex.bits.jmp_type === JMP_CSR,     io.df2ex.bits.rs2_d),
-        (!real_is_target,                   io.df2ex.bits.pc + 4.U),
-        (io.df2ex.bits.jmp_type === JMP_REG,  io.df2ex.bits.rs1_d + io.df2ex.bits.dst_d),
-        (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
-    ))
-
     // pipeline
     s0_out.valid := io.df2ex.valid
     s0_out.bits.inst := io.df2ex.bits.inst
@@ -91,9 +77,24 @@ class Execute extends Module{
         d_invalid
     )
 
-    // flush
-    val is_jmp = s0_out.valid && !io.df2ex.bits.excep.en && io.df2ex.bits.jmp_type =/= NO_JMP
-    val jmp_mispred = real_target =/= io.df2ex.bits.nextPC
+    // branch & jmp
+    val jmp_targets = Seq(
+        io.df2ex.bits.pc + io.df2ex.bits.dst_d,
+        io.df2ex.bits.pc + 4.U,
+        io.df2ex.bits.rs2_d,
+        io.df2ex.bits.rs1_d + io.df2ex.bits.dst_d,
+    )
+    val nextPC_is_different = jmp_targets.map(_ =/= io.df2ex.bits.nextPC)
+    val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)
+    val jmp_targets_valid = Seq(
+        io.df2ex.bits.jmp_type(1, 0) === JMP_PC(1, 0) || io.df2ex.bits.jmp_type(1, 0) === JMP_COND(1, 0) && branch_taken,
+        io.df2ex.bits.jmp_type(1, 0) === JMP_COND(1, 0) && !branch_taken,
+        io.df2ex.bits.jmp_type(1, 0) === JMP_CSR(1, 0),
+        io.df2ex.bits.jmp_type(1, 0) === JMP_REG(1, 0),
+    )
+    val is_jmp = s0_out.valid && !io.df2ex.bits.excep.en && !io.df2ex.bits.jmp_type(2)
+    val jmp_mispred = VecInit(nextPC_is_different.zip(jmp_targets_valid).map(x => x._1 && x._2)).asUInt.orR
+    val real_target = Mux1H(jmp_targets_valid, jmp_targets)
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.mispred := RegEnable(jmp_mispred, is_jmp)
