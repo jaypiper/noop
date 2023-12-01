@@ -57,13 +57,6 @@ class ICache extends Module{
 
     // stage 2
     val s2_in = PipelineNext(s1_out, false.B)
-    val s2_offset = Reg(UInt(ICACHE_OFFEST_WIDTH.W))
-    when (io.icMem.req.valid) {
-        s2_offset := io.icMem.req.bits.addr
-    }.elsewhen (s1_out.fire) {
-        s2_offset := io.icPort.addr
-    }
-    val s2_size = RegEnable(io.icMem.req.bits.size, s1_out.fire)
     val s2_data_valid = RegInit(false.B)
     when (s2_in.valid && !s2_in.ready) {
         s2_data_valid := true.B
