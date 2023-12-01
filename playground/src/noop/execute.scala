@@ -64,7 +64,7 @@ class Execute extends Module{
     ))
     val real_target = PriorityMux(Seq(
         (io.df2ex.bits.jmp_type === JMP_CSR,     io.df2ex.bits.rs2_d),
-        (!real_is_target,                   io.df2ex.bits.pc + Mux(io.df2ex.bits.inst(1,0) === 3.U, 4.U, 2.U)),
+        (!real_is_target,                   io.df2ex.bits.pc + 4.U),
         (io.df2ex.bits.jmp_type === JMP_REG,  io.df2ex.bits.rs1_d + io.df2ex.bits.dst_d),
         (true.B,                            io.df2ex.bits.pc + io.df2ex.bits.dst_d)
     ))
