@@ -39,20 +39,22 @@ class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
         val dcRW = Flipped(new DcacheRW)
         val icRW = Flipped(new DcacheRW)
     })
-    // dcRW is not buffered
+    val addr_r = RegEnable(io.dataRW.req.bits.addr, io.dataRW.req.fire)
+
+    // dcRW is not buffered and ready should be always true.B
     // TODO: what is inp
-    val inp_mem = in_dmem(io.dataRW.req.bits.addr)
-    io.dcRW.req.valid := io.dataRW.req.valid && inp_mem
-    io.dcRW.req_cancel := io.dataRW.req_cancel
+    val inp_mem_r = in_dmem(addr_r)
+    io.dcRW.req.valid := io.dataRW.req.valid
+    io.dcRW.req_cancel := io.dataRW.req_cancel || !inp_mem_r
     io.dcRW.req.bits := io.dataRW.req.bits
 
     val buffer = Module(new DcacheBuffer)
     buffer.io.in <> io.dataRW
-    buffer.io.in.req_cancel := io.dataRW.req_cancel || RegNext(io.dataRW.req.fire && inp_mem)
+    buffer.io.in.req_cancel := io.dataRW.req_cancel || inp_mem_r
 
-    io.dataRW.req.ready := Mux(inp_mem, io.dcRW.req.ready, buffer.io.in.req.ready)
+    // Note: we do not check the address here, and this may bring performance issue.
+    io.dataRW.req.ready := buffer.io.in.req.ready
 
-    val addr_r = RegEnable(io.dataRW.req.bits.addr, io.dataRW.req.fire)
     val inp_ic_r = in_imem(addr_r)
 
     io.icRW.req.valid := buffer.io.out.req.valid && inp_ic_r
@@ -66,7 +68,6 @@ class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
     buffer.io.out.req.ready := Mux(inp_ic_r, io.icRW.req.ready, io.mmio.req.ready)
     buffer.io.out.resp := DontCare
 
-    val inp_mem_r = RegEnable(inp_mem, io.dataRW.req.valid)
     io.dataRW.resp.valid := Mux(inp_mem_r, io.dcRW.resp.valid, Mux(inp_ic_r, io.icRW.resp.valid, io.mmio.resp.valid))
     io.dataRW.resp.bits := Mux(inp_mem_r, io.dcRW.resp.bits, Mux(inp_ic_r, io.icRW.resp.bits, io.mmio.resp.bits))
 }
