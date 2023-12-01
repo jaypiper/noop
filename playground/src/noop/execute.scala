@@ -53,14 +53,11 @@ class Execute extends Module{
     io.df2ex.ready := !io.df2ex.valid || s0_out.ready
 
     // branch & jmp
-    val branchAlu = Module(new BranchALU)
-    branchAlu.io.val1   := val1
-    branchAlu.io.val2   := val2
-    branchAlu.io.brType := io.df2ex.bits.ctrl.brType
+    val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)
     val real_is_target = MuxLookup(io.df2ex.bits.jmp_type, false.B, Seq(
         JMP_PC  -> true.B,
         JMP_REG  -> true.B,
-        JMP_COND    -> branchAlu.io.is_jmp
+        JMP_COND -> branch_taken
     ))
     val real_target = PriorityMux(Seq(
         (io.df2ex.bits.jmp_type === JMP_CSR,     io.df2ex.bits.rs2_d),

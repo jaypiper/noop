@@ -485,12 +485,23 @@ trait ALUOP{
 }
 
 trait BrType{
-    val bEQ  = 0.U(3.W)
-    val bNE  = 1.U(3.W)
-    val bLT  = 4.U(3.W)
-    val bGE  = 5.U(3.W)
-    val bLTU = 6.U(3.W)
-    val bGEU = 7.U(3.W)
+    // These constants are aligned with the RISC-V instruction definitions
+    val bEQ  = "b000".U(3.W)
+    val bNE  = "b001".U(3.W)
+    val bLT  = "b100".U(3.W)
+    val bGE  = "b101".U(3.W)
+    val bLTU = "b110".U(3.W)
+    val bGEU = "b111".U(3.W)
+
+    def brResult(brType: UInt, rs1: UInt, rs2: UInt): Bool = {
+        val results = VecInit(Seq(
+            rs1 === rs2,
+            rs1 < rs2, // This should be DontCare
+            rs1.asSInt < rs2.asSInt,
+            rs1 < rs2
+        ))
+        results(brType(2, 1)) ^ brType(0)
+    }
 }
 
 object decode_config extends DeType with ALUOP with BrType 

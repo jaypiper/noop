@@ -33,22 +33,3 @@ class ALU extends Module{
     ))
     io.out := alu_val
 }
-
-class BranchALUIO extends Bundle{
-    val val1    = Input(UInt(DATA_WIDTH.W))
-    val val2    = Input(UInt(DATA_WIDTH.W))
-    val brType  = Input(UInt(3.W))
-    val is_jmp  = Output(Bool())
-}
-
-class BranchALU extends Module{
-    val io = IO(new BranchALUIO)
-    io.is_jmp := MuxLookup(io.brType, false.B, Seq(
-        bEQ     -> (io.val1 === io.val2),
-        bNE     -> (io.val1 =/= io.val2),
-        bLT     -> (io.val1.asSInt < io.val2.asSInt),
-        bGE     -> (io.val1.asSInt >= io.val2.asSInt),
-        bLTU    -> (io.val1 < io.val2),
-        bGEU    -> (io.val1 >= io.val2)
-    ))
-}
