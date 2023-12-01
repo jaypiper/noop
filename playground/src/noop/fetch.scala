@@ -7,7 +7,7 @@ import noop.param.decode_config._
 import noop.param.cache_config._
 import noop.bpu._
 import noop.datapath._
-import noop.utils.{PerfAccumulate, PipelineNext}
+import noop.utils.{PerfAccumulate, PipelineNext, VecDecoupledIO}
 
 class FetchCrossBar extends Module{
     val io = IO(new Bundle{
@@ -81,7 +81,7 @@ class FetchIO extends Bundle{
     val recov       = Input(Bool())
     // val intr_in     = Input(new RaiseIntr)
     val branchFail  = Input(new ForceJmp)
-    val if2id       = Vec(ISSUE_WIDTH, DecoupledIO(new IF2ID))
+    val if2id       = VecDecoupledIO(ISSUE_WIDTH, new IF2ID)
     val stall       = Input(Bool())
     val flush       = Input(Bool())
     val dec_flush   = Vec(ISSUE_WIDTH, Input(Bool()))
@@ -192,26 +192,26 @@ class Fetch extends Module{
             v := false.B
         }.elsewhen(s2_out.valid && s2_out.ready) {
             v := true.B
-        }.elsewhen(io.if2id(0).ready) {
+        }.elsewhen(io.if2id.ready) {
             v := false.B
         }
     }
-    s2_out.ready := !s3_valid.asUInt.orR || io.if2id(0).ready // Only use the head here. Assume all same
+    s2_out.ready := !s3_valid.asUInt.orR || io.if2id.ready // Only use the head here. Assume all same
     val s3_bits = RegEnable(s2_out.bits, s2_out.fire)
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
     val s3_inst = RegEnable(s2_inst, s2_out.fire)
 
     // When instRead returns, try bypass it to if2id.
     val insts = s3_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
-    io.if2id(0).valid := s3_valid(0)
-    io.if2id(0).bits.pc := s3_bits.pc(0)
-    io.if2id(0).bits.inst := insts(io.if2id(0).bits.pc(2))
-    io.if2id(0).bits.nextPC := Mux(s3_bits.fetch_two, io.if2id(1).bits.pc, s3_nextpc)
-    io.if2id(0).bits.recov := false.B  // TODO: remove
+    io.if2id.valid(0) := s3_valid(0)
+    io.if2id.bits(0).pc := s3_bits.pc(0)
+    io.if2id.bits(0).inst := insts(io.if2id.bits(0).pc(2))
+    io.if2id.bits(0).nextPC := Mux(s3_bits.fetch_two, io.if2id.bits(1).pc, s3_nextpc)
+    io.if2id.bits(0).recov := false.B  // TODO: remove
 
-    io.if2id(1).valid := s3_valid(1) && s3_bits.fetch_two
-    io.if2id(1).bits.pc := s3_bits.pc(1)
-    io.if2id(1).bits.inst := insts(!io.if2id(0).bits.pc(2))
-    io.if2id(1).bits.nextPC := s3_nextpc
-    io.if2id(1).bits.recov := false.B
+    io.if2id.valid(1) := s3_valid(1) && s3_bits.fetch_two
+    io.if2id.bits(1).pc := s3_bits.pc(1)
+    io.if2id.bits(1).inst := insts(!io.if2id.bits(0).pc(2))
+    io.if2id.bits(1).nextPC := s3_nextpc
+    io.if2id.bits(1).recov := false.B
 }

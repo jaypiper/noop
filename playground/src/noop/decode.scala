@@ -126,27 +126,27 @@ class Decoder extends Module {
 
 class Decode extends Module{
     val io = IO(new Bundle{
-        val if2id   = Vec(ISSUE_WIDTH, Flipped(DecoupledIO(new IF2ID)))
+        val if2id   = Flipped(VecDecoupledIO(ISSUE_WIDTH, new IF2ID))
         val id2df   = VecDecoupledIO(ISSUE_WIDTH, new ID2DF)
         val stall   = Vec(ISSUE_WIDTH, Output(Bool()))
         val idState = Input(new IdState)
     })
     val decoder = Seq.fill(ISSUE_WIDTH)(Module(new Decoder))
 
-    val stall = io.if2id.zip(decoder).map{ case (in, dec) => in.valid && dec.io.stall }
+    val stall = io.if2id.valid.zip(decoder).map{ case (v, dec) => v && dec.io.stall }
 
-    for ((in, (dec, i)) <- io.if2id.zip(decoder.zipWithIndex)) {
-        dec.io.in := in.bits
+    for (((v, in), (dec, i)) <- io.if2id.valid.zip(io.if2id.bits).zip(decoder.zipWithIndex)) {
+        dec.io.in := in
 
-        in.ready := !in.valid || io.id2df.ready
-
-        io.id2df.valid(i) := in.valid
+        io.id2df.valid(i) := v
         if (i > 0) { // check whether flushed by previous instructions
-            io.id2df.valid(i) := io.if2id(i).valid && !VecInit(stall.take(i)).asUInt.orR
+            io.id2df.valid(i) := v && !VecInit(stall.take(i)).asUInt.orR
         }
         io.id2df.bits(i) := dec.io.out
         io.id2df.bits(i).recov := dec.io.stall
     }
+
+    io.if2id.ready := !io.if2id.valid.asUInt.orR || io.id2df.ready
 
     io.stall := stall
 }
