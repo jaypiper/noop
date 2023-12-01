@@ -22,9 +22,15 @@ object common extends mem_access_mode{
     val isSim = true
     val SRAM = true
 
+    // manually optimized
     val IMEM_BASE = "h80000000".U
     val IMEM_HIGH = "h80008000".U
-    def in_imem(addr: UInt) = addr >= IMEM_BASE && addr < IMEM_HIGH
+    def in_imem(addr: UInt) = addr(PADDR_WIDTH - 1, 15) === ("h80000000".U >> 15).asUInt
+
+    // manually optimized
+    val DMEM_BASE = "h8000d000".U
+    val DMEM_HIGH = "h8000e000".U
+    def in_dmem(addr: UInt): Bool = (addr(PADDR_WIDTH - 1, 14) === ("h8000d000".U >> 14).asUInt) && (addr(13) ^ addr(12))
 }
 
 object cache_config{ // U S L WIDTH

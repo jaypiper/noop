@@ -41,7 +41,7 @@ class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
     })
     // dcRW is not buffered
     // TODO: what is inp
-    val inp_mem = io.dataRW.req.bits.addr >= "h8000d000".U && io.dataRW.req.bits.addr < "h8000e000".U
+    val inp_mem = in_dmem(io.dataRW.req.bits.addr)
     io.dcRW.req.valid := io.dataRW.req.valid && inp_mem
     io.dcRW.req_cancel := io.dataRW.req_cancel
     io.dcRW.req.bits := io.dataRW.req.bits
