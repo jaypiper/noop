@@ -582,12 +582,11 @@ object decode_config extends DeType with ALUOP with BrType
         Insts.EBREAK    -> List(EMPTY, alu_NOP, IS_ALU64, mode_NOP, false.B, false.B, false.B, false.B)
     )
     val JMP_WIDTH = 3
-    val NO_JMP     = "b000".U(3.W)
+    val NO_JMP = "b100".U(3.W)
+    val JMP_COND = "b000".U(3.W)
     val JMP_PC = "b001".U(3.W)
-    val JMP_REG   = "b010".U(3.W)
-    val JMP_CSR    = "b011".U(3.W)
-    val JMP_COND   = "b100".U(3.W)
-
+    val JMP_REG = "b010".U(3.W)
+    val JMP_CSR = "b011".U(3.W)
 
     val SPECIAL_FENCE_I = 1.U(2.W)
     val SPECIAL_SFENCE_VMA = 2.U(2.W)
