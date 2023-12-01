@@ -22,13 +22,9 @@ class Dispatch extends Module {
 
   // When previous instructions are to mem as well, block it
   private def multiple_mem(i: Int): Bool = VecInit(do_mem.take(i)).asUInt.orR
-  // When previous instructions are to ALU and may flush the pipeline, we should also block it
-  // TODO: support flush in the memory pipeline and remove this constraint
-  val is_jmp = io.df2dp.map(in => in.valid && in.bits.jmp_type =/= NO_JMP)
-  private def may_flush(i: Int): Bool = VecInit(is_jmp.take(i)).asUInt.orR
 
   val block_alu = io.mem2df.membusy
-  val block_mem = false.B +: (1 until ISSUE_WIDTH).map(i => multiple_mem(i) || may_flush(i))
+  val block_mem = false.B +: (1 until ISSUE_WIDTH).map(i => multiple_mem(i))
 
   for (i <- 0 until ISSUE_WIDTH) {
     io.df2dp(i).ready := Mux(is_alu(i), io.df2ex(i).ready && !block_alu, io.df2mem.ready && !block_mem(i))
@@ -72,7 +68,6 @@ class Dispatch extends Module {
     PerfAccumulate(s"dispatch_in_${i}_blocked_mem_right_ready", blocked && !is_alu(i) && !io.df2mem.ready)
     if (i > 0) {
       PerfAccumulate(s"dispatch_in_${i}_blocked_mem_multiple", blocked && !is_alu(i) && multiple_mem(i))
-      PerfAccumulate(s"dispatch_in_${i}_blocked_mem_flush", blocked && !is_alu(i) && may_flush(i))
     }
   }
 }

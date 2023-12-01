@@ -148,6 +148,7 @@ class CPU extends Module{
         }
 
     }
+    memory.io.flushIn := execute(0).io.flushOut
     val is_jmp = execute.map(_.io.updateBPU.valid)
     val is_mispred = execute.map(exe => RegNext(exe.io.flushOut, false.B))
     // Should only count the instructions before flush

@@ -75,6 +75,7 @@ class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
 class Memory extends Module{
     val io = IO(new Bundle{
         val df2mem  = Flipped(DecoupledIO(new DF2MEM))
+        val flushIn = Input(Bool())
         val mem2df  = Output(new MEM2DF)
         val mem2wb  = ValidIO(new MEM2RB)
         val dataRW  = Flipped(new DcacheRW)
@@ -94,7 +95,7 @@ class Memory extends Module{
     io.dataRW.req.bits.wdata := io.df2mem.bits.mem_data
     io.dataRW.req.bits.wen   := io.df2mem.bits.ctrl.dcMode(DC_S_BIT)
     io.dataRW.req.valid := io.df2mem.valid && s1_out.ready && io.df2mem.bits.ctrl.dcMode =/= mode_NOP
-    io.dataRW.req_cancel := false.B
+    io.dataRW.req_cancel := RegNext(io.flushIn)
     io.dataRW.req.bits.wmask := wmask
     io.dataRW.req.bits.size := io.df2mem.bits.ctrl.dcMode(1,0)
     io.df2mem.ready := !io.df2mem.valid || io.dataRW.req.ready && s1_out.ready
@@ -103,7 +104,7 @@ class Memory extends Module{
     io.d_mem0.data := 0.U
     io.d_mem0.state := Mux(io.df2mem.valid && io.df2mem.bits.ctrl.dcMode(DC_L_BIT), d_wait, d_invalid)
 
-    s1_out.valid := io.df2mem.valid && io.dataRW.req.ready
+    s1_out.valid := io.df2mem.valid && io.dataRW.req.ready && !io.flushIn
     s1_out.bits.inst := io.df2mem.bits.inst
     s1_out.bits.pc := io.df2mem.bits.pc
     s1_out.bits.excep := io.df2mem.bits.excep
@@ -152,15 +153,12 @@ class Memory extends Module{
 
     if (isSim) {
         val difftest = DifftestModule(new DiffStoreEvent, dontCare = true, delay = 20)
-        val is_mem_store = io.dataRW.req.bits.wen && io.dataRW.req.bits.addr >= "h30000000".U
-        difftest.valid := io.dataRW.req.fire && is_mem_store
-        difftest.addr := Cat(io.dataRW.req.bits.addr(PADDR_WIDTH - 1, 3), 0.U(3.W))
-        difftest.data := (io.dataRW.req.bits.wdata & io.dataRW.req.bits.wmask) << Cat(io.dataRW.req.bits.addr(2, 0), 0.U(3.W))
-        difftest.mask := MuxLookup(io.df2mem.bits.ctrl.dcMode(1, 0), 0.U(8.W))(Seq(
-            0.U -> "h1".U(8.W),
-            1.U -> "h3".U(8.W),
-            2.U -> "hf".U(8.W),
-            3.U -> "hff".U(8.W)
-        )) << io.dataRW.req.bits.addr(2, 0)
+        val is_store = io.dataRW.req.fire && io.dataRW.req.bits.wen && io.dataRW.req.bits.addr >= "h30000000".U
+        val is_store_r = RegNext(is_store) && !io.dataRW.req_cancel
+        val store_req = RegEnable(io.dataRW.req.bits, is_store)
+        difftest.valid := is_store_r
+        difftest.addr := Cat(store_req.addr(PADDR_WIDTH - 1, 3), 0.U(3.W))
+        difftest.data := (store_req.wdata & store_req.wmask) << Cat(store_req.addr(2, 0), 0.U(3.W))
+        difftest.mask := VecInit.tabulate(8)(i => store_req.wmask(i * 8)).asUInt << store_req.addr(2, 0)
     }
 }
