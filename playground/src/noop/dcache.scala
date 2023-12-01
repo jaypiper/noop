@@ -14,12 +14,6 @@ class DCache extends Module{
     val io = IO(new Bundle{
         val dcPort        = new DcacheRW
     })
-    val valid_r = RegInit(false.B)
-    valid_r := io.dcPort.req.valid
-    val offset_r = RegInit(0.U(DCACHE_OFFEST_WIDTH.W))
-    val size_r = RegInit(0.U(2.W))
-    size_r := io.dcPort.req.bits.size
-    offset_r := io.dcPort.req.bits.addr(DCACHE_OFFEST_WIDTH-1, 0)
     val dram = Module(new DRAM)
     dram.io.cen := io.dcPort.req.valid
     dram.io.wen := io.dcPort.req.bits.wen
@@ -37,12 +31,15 @@ class DCache extends Module{
        3.U -> Fill(8, 1.U(1.W))
     ) )
 
-    io.dcPort.resp.valid := valid_r
+    val s1_valid = RegNext(io.dcPort.req.fire, false.B)
+    val s1_offset = RegEnable(io.dcPort.req.bits.addr(DCACHE_OFFEST_WIDTH - 1, 0), io.dcPort.req.fire)
+    val s1_size = RegEnable(io.dcPort.req.bits.size, io.dcPort.req.fire)
+    io.dcPort.resp.valid := s1_valid
     io.dcPort.req.ready := true.B
-    io.dcPort.resp.bits := MuxLookup(size_r, 0.U)(List(
-        0.U -> dram.io.rdata.asTypeOf(Vec(DCACHE_WIDTH/8, UInt(8.W)))(offset_r),
-        1.U -> dram.io.rdata.asTypeOf(Vec(DCACHE_WIDTH/16, UInt(16.W)))(offset_r(2,1)),
-        2.U -> dram.io.rdata.asTypeOf(Vec(DCACHE_WIDTH/32, UInt(32.W)))(offset_r(2)),
+    io.dcPort.resp.bits := MuxLookup(s1_size, 0.U)(List(
+        0.U -> dram.io.rdata.asTypeOf(Vec(DCACHE_WIDTH / 8, UInt(8.W)))(s1_offset),
+        1.U -> dram.io.rdata.asTypeOf(Vec(DCACHE_WIDTH / 16, UInt(16.W)))(s1_offset(2, 1)),
+        2.U -> dram.io.rdata.asTypeOf(Vec(DCACHE_WIDTH / 32, UInt(32.W)))(s1_offset(2)),
         3.U -> dram.io.rdata
     ))
 
