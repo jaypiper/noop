@@ -170,18 +170,20 @@ class Fetch extends Module{
     // Stage 2
     val s2_in = PipelineNext(s1.out, flush_in)
     val s2_out = WireInit(s2_in)
-    s2_out.valid := s2_in.valid && !io.dec_flush.asUInt.orR
-    s2_in.ready := !s2_in.valid || s2_out.ready
     val s2_nextpc = s1.out.bits.pc.head
     val s2_inst_valid = RegInit(false.B)
-    val s3_inst_valid = RegInit(false.B)
     when(flush_in || s2_out.ready) {
         s2_inst_valid := false.B
-    }.elsewhen(io.instRead.rvalid && s3_inst_valid) {
+    }.elsewhen(io.instRead.rvalid) {
         s2_inst_valid := true.B
         assert(s2_in.valid, "response for what?")
     }
-    val s2_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && s3_inst_valid)
+    val s2_inst = Mux(s2_inst_valid, RegEnable(io.instRead.inst, io.instRead.rvalid), io.instRead.inst)
+
+    val s2_inst_ok = io.instRead.rvalid || s2_inst_valid
+    s2_out.valid := s2_in.valid && s2_inst_ok && !io.dec_flush.asUInt.orR
+    s2_in.ready := !s2_in.valid || s2_out.ready && s2_inst_ok
+    io.instRead.rready := true.B
 
     // Stage 3
     val s3_valid = RegInit(VecInit.fill(ISSUE_WIDTH)(false.B))
@@ -192,38 +194,24 @@ class Fetch extends Module{
             v := false.B
         }.elsewhen(s2_out.valid && s2_out.ready) {
             v := true.B
-        }.elsewhen(io.if2id(0).ready && (s3_inst_valid || io.instRead.rvalid)) {
+        }.elsewhen(io.if2id(0).ready) {
             v := false.B
         }
     }
     s2_out.ready := !s3_valid.asUInt.orR || io.if2id(0).ready // Only use the head here. Assume all same
     val s3_bits = RegEnable(s2_out.bits, s2_out.fire)
     val s3_nextpc = RegEnable(s2_nextpc, s2_out.fire)
-
-    val s3_inst = RegEnable(io.instRead.inst, io.instRead.rvalid && (!s3_inst_valid || s2_out.fire))
-    io.instRead.rready := true.B
-    when(io.flush) {
-        s3_inst_valid := false.B
-    }.elsewhen(s2_inst_valid && s2_out.fire) {
-        s3_inst_valid := true.B
-        s3_inst := s2_inst
-    }.elsewhen(io.instRead.rvalid && !s3_inst_valid && !io.if2id(0).ready) {
-        s3_inst_valid := s3_valid.head
-    }.elsewhen(!io.instRead.rvalid && s3_inst_valid && io.if2id(0).ready) {
-        s3_inst_valid := false.B
-    }
+    val s3_inst = RegEnable(s2_inst, s2_out.fire)
 
     // When instRead returns, try bypass it to if2id.
-    val s3_can_out = s3_inst_valid || io.instRead.rvalid
-    val s3_out_inst = Mux(s3_inst_valid, s3_inst, io.instRead.inst)
-    val insts = s3_out_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
-    io.if2id(0).valid := s3_valid(0) && s3_can_out
+    val insts = s3_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
+    io.if2id(0).valid := s3_valid(0)
     io.if2id(0).bits.pc := s3_bits.pc(0)
     io.if2id(0).bits.inst := insts(io.if2id(0).bits.pc(2))
     io.if2id(0).bits.nextPC := Mux(s3_bits.fetch_two, io.if2id(1).bits.pc, s3_nextpc)
     io.if2id(0).bits.recov := false.B  // TODO: remove
 
-    io.if2id(1).valid := s3_valid(1) && s3_can_out && s3_bits.fetch_two
+    io.if2id(1).valid := s3_valid(1) && s3_bits.fetch_two
     io.if2id(1).bits.pc := s3_bits.pc(1)
     io.if2id(1).bits.inst := insts(!io.if2id(0).bits.pc(2))
     io.if2id(1).bits.nextPC := s3_nextpc

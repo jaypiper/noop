@@ -58,27 +58,18 @@ class ICache extends Module{
     // stage 2
     val s2_in = PipelineNext(s1_out, false.B)
     val s2_data_valid = RegInit(false.B)
-    when (s2_in.valid && !s2_in.ready) {
+    when (RegNext(s1_out.fire) && !s2_in.ready) {
         s2_data_valid := true.B
     }.elsewhen(s2_in.ready) {
         s2_data_valid := false.B
     }
-    val s2_data_r = RegEnable(io.icMem.req.valid, s2_in.valid && !s2_in.ready)
+    val s2_data_r = RegEnable(ram_rdata, RegNext(s1_out.fire) && !s2_in.ready)
     val s2_data = Mux(s2_data_valid, s2_data_r, ram_rdata)
 
-    val s2_out = Wire(Decoupled()) // for instruction fetch only
-    s2_out.valid := s2_in.valid
-    s2_in.ready := !s2_in.valid || s2_out.ready
+    io.icPort.rvalid := s2_in.valid
+    io.icPort.inst := s2_data
+    s2_in.ready := io.icPort.rready
 
     io.icMem.resp.valid := RegNext(io.icMem.req.valid)
     io.icMem.resp.bits := 0.U
-
-    // stage 3
-    val s3_in = PipelineNext(s2_out, false.B)
-    val s3_data = RegEnable(s2_data, s2_out.fire)
-
-    s3_in.ready := !s3_in.valid || io.icPort.rready
-
-    io.icPort.rvalid := s3_in.valid
-    io.icPort.inst := s3_data
 }
