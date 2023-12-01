@@ -79,8 +79,7 @@ class CPU extends Module{
 
     // Flush
     val execute_flush = VecInit(execute.map(_.io.flushOut)).asUInt.orR
-    val execute_flush_r = RegNext(execute_flush)
-    val forward_flush = VecInit(forwarding.map(_.io.flush)).asUInt.orR || execute_flush_r
+    val forward_flush = VecInit(forwarding.map(_.io.flush)).asUInt.orR || execute_flush
 
     // Fetch
     fetch.io.instRead <> fetchCrossbar.io.instIO
@@ -96,7 +95,7 @@ class CPU extends Module{
     fetch.io.branchFail := PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
     fetch.io.if2id <> decode.io.if2id
     // branch mis-prediction has higher priority than decode stall
-    fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush_r
+    fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush
     fetch.io.flush := forward_flush
     fetch.io.dec_flush := decode.io.stall
     fetch.io.recov := writeback.io.recov
@@ -135,7 +134,7 @@ class CPU extends Module{
     }
 
     // Dispatch arbiter and execution units
-    VecPipelineConnect(forwarding.map(_.io.df2dp), dispatch.io.df2dp, execute_flush || execute_flush_r)
+    VecPipelineConnect(forwarding.map(_.io.df2dp), dispatch.io.df2dp, execute_flush)
     for (i <- 0 until ISSUE_WIDTH) {
         dispatch.io.df2ex(i) <> execute(i).io.df2ex
         dispatch.io.df2mem <> memory.io.df2mem

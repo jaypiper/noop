@@ -104,8 +104,8 @@ class Execute extends Module{
     io.updateBPU.target := jmp_target_r
 
     io.flushOut := is_jmp && jmp_mispred
-    io.ex2if.valid  := RegNext(io.flushOut)
-    io.ex2if.seq_pc := jmp_target_r
+    io.ex2if.valid  := io.flushOut
+    io.ex2if.seq_pc := real_target
 
     // out
     val s1_in = Wire(DecoupledIO(new MEM2RB))
