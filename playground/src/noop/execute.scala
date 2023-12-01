@@ -76,7 +76,7 @@ class Execute extends Module{
     s0_out.bits.excep := io.df2ex.bits.excep
     s0_out.bits.excep.pc := Mux(io.df2ex.bits.excep.cause(63), io.df2ex.bits.nextPC, io.df2ex.bits.excep.pc)
     s0_out.bits.ctrl := io.df2ex.bits.ctrl
-    s0_out.bits.csr_id := io.df2ex.bits.rs2
+    s0_out.bits.csr_id := io.df2ex.bits.inst(31, 20)
     s0_out.bits.csr_d := alu_out
     s0_out.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
     s0_out.bits.dst := io.df2ex.bits.dst

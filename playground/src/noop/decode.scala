@@ -52,7 +52,7 @@ class Decoder extends Module {
     io.out.ctrl.writeCSREn := instType(6)
     io.out.rs1 := inst_in(19, 15)
     io.out.rrs1 := false.B
-    io.out.rs2 := Mux(rs2_is_csr, inst_in(31, 20), inst_in(24, 20))
+    io.out.rs2 := inst_in(24, 20)
     io.out.rrs2 := false.B
     io.out.dst := inst_in(11, 7)
     io.out.jmp_type := NO_JMP
@@ -120,7 +120,6 @@ class Decoder extends Module {
         io.out.excep.cause := 0.U
         io.out.excep.tval := 0.U
         io.out.jmp_type := JMP_CSR
-        io.out.rs2 := CSR_MEPC
         io.stall := true.B
     }
 }

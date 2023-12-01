@@ -47,8 +47,8 @@ class Forwarding(n_forward: Int) extends Module{
     io.id2df.ready := !io.id2df.valid || rs_ready && !io.blockOut && io.df2dp.ready
 
     io.rs1Read.id := io.id2df.bits.rs1
-    io.rs2Read.id := io.id2df.bits.rs2(4,0)
-    io.csrRead.id := io.id2df.bits.rs2//TODO
+    io.rs2Read.id := io.id2df.bits.rs2
+    io.csrRead.id := io.id2df.bits.inst(31, 20)
 
     io.df2dp.valid := io.id2df.valid && rs_ready && !io.blockOut
     io.df2dp.bits.inst := io.id2df.bits.inst
@@ -65,7 +65,7 @@ class Forwarding(n_forward: Int) extends Module{
     )
     io.df2dp.bits.dst := io.id2df.bits.dst
     io.df2dp.bits.dst_d := io.id2df.bits.dst_d
-    io.df2dp.bits.rcsr_id := Mux(io.id2df.bits.ctrl.writeCSREn, io.id2df.bits.rs2, 0.U)
+    io.df2dp.bits.rcsr_id := Mux(io.id2df.bits.ctrl.writeCSREn, io.csrRead.id, 0.U)
     io.df2dp.bits.jmp_type := io.id2df.bits.jmp_type
     io.df2dp.bits.recov := io.id2df.bits.recov
     when (io.id2df.bits.ctrl.writeCSREn && io.csrRead.is_err) { // illegal instruction

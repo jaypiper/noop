@@ -148,10 +148,10 @@ class ID2DF extends Bundle{
     val rs1     = UInt(REG_WIDTH.W)
     val rrs1    = Bool()
     val rs1_d   = UInt(DATA_WIDTH.W)
-    val rs2     = UInt(CSR_WIDTH.W)
+    val rs2     = UInt(REG_WIDTH.W)
     val rrs2    = Bool()
     val rs2_d   = UInt(DATA_WIDTH.W)
-    val dst     = UInt(REG_WIDTH.W) // if write-csr, the index is in rs2
+    val dst     = UInt(REG_WIDTH.W)
     val dst_d   = UInt(DATA_WIDTH.W)
     val jmp_type = UInt(JMP_WIDTH.W)
     val recov   = Bool()
@@ -175,7 +175,7 @@ class DF2EX extends Bundle{
     val ctrl    = new Ctrl
     val rs1     = UInt(REG_WIDTH.W)
     val rs1_d   = UInt(DATA_WIDTH.W)
-    val rs2     = UInt(CSR_WIDTH.W)
+    val rs2     = UInt(REG_WIDTH.W)
     val rs2_d   = UInt(DATA_WIDTH.W)
     val dst     = UInt(REG_WIDTH.W)
     val dst_d   = UInt(DATA_WIDTH.W)
