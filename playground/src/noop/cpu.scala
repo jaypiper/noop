@@ -11,6 +11,7 @@ import noop.execute._
 import noop.fetch._
 import noop.memory._
 import noop.param.common._
+import noop.param.decode_config._
 import noop.regs._
 import noop.utils.{PerfAccumulate, VecDecoupledIO, VecPipelineConnect}
 import noop.writeback._
@@ -154,6 +155,12 @@ class CPU extends Module{
     private def is_counted_jmp(i: Int) = is_jmp(i) && !VecInit((false.B +: is_mispred).take(i + 1)).asUInt.orR
     PerfAccumulate("branchNum_all", PopCount((0 until ISSUE_WIDTH).map(is_counted_jmp)))
     PerfAccumulate("branchMiss_all", VecInit(is_mispred).asUInt.orR)
+    val jmp_types = Seq((JMP_PC, "pc"), (JMP_REG, "reg"), (JMP_CSR, "csr"), (JMP_COND, "cond"))
+    for ((t, name) <- jmp_types) {
+        val is_t = execute.map(exe => RegNext(exe.io.df2ex.bits.jmp_type === t, false.B))
+        PerfAccumulate(s"branchNum_$name", PopCount((0 until ISSUE_WIDTH).map(i => is_counted_jmp(i) && is_t(i))))
+        PerfAccumulate(s"branchMiss_$name", VecInit(is_mispred.zip(is_t).map(x => x._1 && x._2)).asUInt.orR)
+    }
 
     // Writeback
     writeback.io.ex2wb.zip(execute.map(_.io.ex2wb)).foreach(x => x._1 := x._2)
