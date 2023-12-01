@@ -114,7 +114,6 @@ class SimpleBPU2 extends Module {
     when (io.update.needUpdate) {
         when(btb_update_hit) {
             plru.access(btb_update_idx)
-            btb(btb_update_idx)(0) := io.update.pc
             btb(btb_update_idx)(1) := io.update.target
         }.otherwise {
             updatePtr := updatePtr + 1.U
