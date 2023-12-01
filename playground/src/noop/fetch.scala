@@ -187,9 +187,7 @@ class Fetch extends Module{
 
     // Stage 3
     val s3_valid = RegInit(VecInit.fill(ISSUE_WIDTH)(false.B))
-    // The first instruction should not be flushed by the second one
-    val s3_flush = Seq(io.flush, io.flush || io.dec_flush.head)
-    for (((v, f), i) <- s3_valid.zip(s3_flush).zipWithIndex) {
+    for ((v, i) <- s3_valid.zipWithIndex) {
         when(io.flush ) {
             v := false.B
         }.elsewhen(s2_out.valid && s2_out.ready) {
