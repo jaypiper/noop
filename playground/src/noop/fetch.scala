@@ -27,6 +27,7 @@ class FetchCrossBar extends Module{
     io.flashRead.req.bits.wmask  := 0.U
     io.flashRead.req.bits.size   := 3.U
     io.flashRead.req.valid := false.B
+    io.flashRead.req_cancel := false.B
     io.icRead.addr      := io.instIO.addr
     io.icRead.arvalid   := false.B
     io.instIO.ready     := false.B

@@ -84,6 +84,7 @@ class DcacheRW extends Bundle{
         val wmask = UInt(DATA_WIDTH.W)
         val size = UInt(3.W)
     }))
+    val req_cancel = Input(Bool())
     val resp = ValidIO(UInt(DATA_WIDTH.W))
 }
 

@@ -13,7 +13,6 @@ class DcacheBuffer extends Module {
     val io = IO(new Bundle {
         val in = new DcacheRW
         val out = Flipped(new DcacheRW)
-        val t1_cancel = Input(Bool())
     })
 
     io.in <> io.out
@@ -22,12 +21,13 @@ class DcacheBuffer extends Module {
     val valid = RegInit(false.B)
     val en = io.in.req.fire
     io.out.req.bits := RegEnable(io.in.req.bits, en)
-    io.out.req.valid := valid && !io.t1_cancel
+    io.out.req.valid := valid && !io.in.req_cancel
+    io.out.req_cancel := false.B
     io.in.req.ready := !valid || io.out.req.ready
 
     when (en) {
         valid := true.B
-    }.elsewhen (RegNext(en) && io.t1_cancel || io.out.req.ready) {
+    }.elsewhen (RegNext(en) && io.in.req_cancel || io.out.req.ready) {
         valid := false.B
     }
 }
@@ -43,11 +43,12 @@ class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
     // TODO: what is inp
     val inp_mem = io.dataRW.req.bits.addr >= "h8000d000".U && io.dataRW.req.bits.addr < "h8000e000".U
     io.dcRW.req.valid := io.dataRW.req.valid && inp_mem
+    io.dcRW.req_cancel := io.dataRW.req_cancel
     io.dcRW.req.bits := io.dataRW.req.bits
 
     val buffer = Module(new DcacheBuffer)
     buffer.io.in <> io.dataRW
-    buffer.io.t1_cancel := RegNext(io.dataRW.req.fire && inp_mem)
+    buffer.io.in.req_cancel := io.dataRW.req_cancel || RegNext(io.dataRW.req.fire && inp_mem)
 
     io.dataRW.req.ready := Mux(inp_mem, io.dcRW.req.ready, buffer.io.in.req.ready)
 
@@ -55,9 +56,11 @@ class MemCrossBar extends Module { // mtime & mtimecmp can be accessed here
     val inp_ic_r = in_imem(addr_r)
 
     io.icRW.req.valid := buffer.io.out.req.valid && inp_ic_r
+    io.icRW.req_cancel := buffer.io.out.req_cancel
     io.icRW.req.bits := buffer.io.out.req.bits
 
     io.mmio.req.valid := buffer.io.out.req.valid && !inp_ic_r
+    io.mmio.req_cancel := buffer.io.out.req_cancel
     io.mmio.req.bits := buffer.io.out.req.bits
 
     buffer.io.out.req.ready := Mux(inp_ic_r, io.icRW.req.ready, io.mmio.req.ready)
@@ -90,6 +93,7 @@ class Memory extends Module{
     io.dataRW.req.bits.wdata := io.df2mem.bits.mem_data
     io.dataRW.req.bits.wen   := io.df2mem.bits.ctrl.dcMode(DC_S_BIT)
     io.dataRW.req.valid := io.df2mem.valid && s1_out.ready && io.df2mem.bits.ctrl.dcMode =/= mode_NOP
+    io.dataRW.req_cancel := false.B
     io.dataRW.req.bits.wmask := wmask
     io.dataRW.req.bits.size := io.df2mem.bits.ctrl.dcMode(1,0)
     io.df2mem.ready := !io.df2mem.valid || io.dataRW.req.ready && s1_out.ready
