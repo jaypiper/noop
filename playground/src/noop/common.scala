@@ -14,6 +14,9 @@ object common extends mem_access_mode{
         require(DATA_WIDTH % INST_WIDTH == 0, s"DATA_WIDTH($DATA_WIDTH) % INST_WIDTH($INST_WIDTH) != 0")
         DATA_WIDTH / INST_WIDTH
     }
+    val IBUF_SIZE = 8
+    val IBUF_INDEX = log2Ceil(IBUF_SIZE)
+
     val REG_WIDTH   = 5
     val CSR_WIDTH   = 12
     val PC_START    = "h30000000".U(PADDR_WIDTH.W)

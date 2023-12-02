@@ -84,7 +84,6 @@ class FetchIO extends Bundle{
     val if2id       = VecDecoupledIO(ISSUE_WIDTH, new IF2ID)
     val stall       = Input(Bool())
     val flush       = Input(Bool())
-    val dec_flush   = Vec(ISSUE_WIDTH, Input(Bool()))
     val bp          = Vec(ISSUE_WIDTH, Flipped(new PredictIO2))
 }
 
@@ -150,7 +149,7 @@ class FetchS1 extends Module {
 class Fetch extends Module{
     val io = IO(new FetchIO)
 
-    val flush_in = io.flush || io.dec_flush.asUInt.orR
+    val flush_in = io.flush
     val stall_in = io.stall
 
     // Stage 1
@@ -183,7 +182,7 @@ class Fetch extends Module{
     s2_in.ready := !s2_in.valid || io.if2id.ready && s2_inst_ok
     io.instRead.rready := true.B
 
-    val s2_out_valid = s2_in.valid && s2_inst_ok && !io.dec_flush.asUInt.orR
+    val s2_out_valid = s2_in.valid && s2_inst_ok
     val insts = s2_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
     io.if2id.valid(0) := s2_out_valid
     io.if2id.bits(0).pc := s2_in.bits.pc(0)

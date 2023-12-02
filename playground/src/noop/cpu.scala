@@ -9,6 +9,7 @@ import noop.decode._
 import noop.dispatch.Dispatch
 import noop.execute._
 import noop.fetch._
+import noop.ibuffer.IBuffer
 import noop.memory._
 import noop.param.common._
 import noop.param.decode_config._
@@ -59,6 +60,7 @@ class CPU extends Module{
     val io = IO(new CPUIO)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
+    val ibuffer     = Module(new IBuffer)
     val forwarding  = Seq.tabulate(2)(i => Module(new Forwarding(6 + i)))
     val dispatch    = Module(new Dispatch)
     val execute     = Seq.fill(2)(Module(new Execute))
@@ -94,12 +96,15 @@ class CPU extends Module{
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
     fetch.io.branchFail := PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
-    VecPipelineConnect(fetch.io.if2id, decode.io.if2id, Seq.fill(2)(decode.io.id2df.ready), fetch.io.flush)
     // branch mis-prediction has higher priority than decode stall
     fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush
-    fetch.io.flush := forward_flush
-    fetch.io.dec_flush := decode.io.stall
+    fetch.io.flush := forward_flush || decode.io.stall.asUInt.orR
     fetch.io.recov := writeback.io.recov
+
+    // Ibuffer
+    ibuffer.io.in <> fetch.io.if2id
+    ibuffer.io.out <> decode.io.if2id
+    ibuffer.io.flush := forward_flush || decode.io.stall.asUInt.orR && decode.io.id2df.ready
 
     // Decode
     decode.io.id2df.connectNoPipe(forwarding.map(_.io.id2df), forward_flush)
