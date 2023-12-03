@@ -68,6 +68,9 @@ class Execute extends Module{
     s0_out.bits.rcsr_id := io.df2ex.bits.rcsr_id
     s0_out.bits.is_mmio := false.B
     s0_out.bits.recov := io.df2ex.bits.recov
+    when(s0_out.bits.recov && !s0_out.bits.excep.en) {
+        s0_out.bits.excep.tval := s0_out.bits.pc + 4.U
+    }
 
     // data forwarding
     io.d_ex0.id := s0_out.bits.dst
@@ -126,9 +129,6 @@ class Execute extends Module{
     s1_in.ready := !s1_in.valid || data_valid && !io.blockIn
     io.ex2wb.valid := s1_in.valid && data_valid && !io.blockIn
     io.ex2wb.bits := s1_in.bits
-    when (io.ex2wb.bits.recov && !io.ex2wb.bits.excep.en) {
-        io.ex2wb.bits.excep.tval := io.ex2wb.bits.pc + 4.U
-    }
     when (s1_is_mul && mul.io.out.valid) {
         io.ex2wb.bits.dst_d := s1_mul_data
     }
