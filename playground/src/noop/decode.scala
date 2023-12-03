@@ -67,7 +67,8 @@ class Decoder extends Module {
     when(dType === INVALID) {
         io.out.excep.en := true.B
         io.out.excep.cause := CAUSE_ILLEGAL_INSTRUCTION.U
-        io.out.excep.tval := inst_in
+        // tval between ID/EXE is passed by nextPC
+        io.out.nextPC := inst_in
         io.out.excep.etype := 0.U
         io.stall := true.B
     }
@@ -120,7 +121,8 @@ class Decoder extends Module {
         io.out.excep.en := true.B
         io.out.excep.etype := ETYPE_MRET
         io.out.excep.cause := 0.U
-        io.out.excep.tval := 0.U
+        // tval between ID/EXE is passed by nextPC
+        io.out.nextPC := 0.U
         io.out.jmp_type := JMP_CSR
         io.stall := true.B
     }

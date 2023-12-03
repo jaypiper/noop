@@ -56,6 +56,8 @@ class Execute extends Module{
     s0_out.bits.inst := io.df2ex.bits.inst
     s0_out.bits.pc := io.df2ex.bits.pc
     s0_out.bits.excep := io.df2ex.bits.excep
+    // tval between ID/EXE is passed by nextPC
+    s0_out.bits.excep.tval := io.df2ex.bits.nextPC
     s0_out.bits.ctrl := io.df2ex.bits.ctrl
     // csr_id is passed by nextPC.
     s0_out.bits.csr_id := io.df2ex.bits.nextPC(11, 0)
