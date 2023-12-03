@@ -45,7 +45,6 @@ class Execute extends Module{
     mul.io.en := io.df2ex.valid && is_mul && s0_out.ready
 
     val wdata = PriorityMux(Seq(
-        (io.df2ex.bits.ctrl.dcMode(DC_S_BIT), io.df2ex.bits.dst_d),
         (io.df2ex.bits.ctrl.writeCSREn, io.df2ex.bits.rs2_d),
         (true.B, alu_out)
     ))
