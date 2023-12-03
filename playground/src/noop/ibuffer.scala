@@ -39,7 +39,7 @@ class IBuffer extends Module with HasCircularQueuePtrHelper {
     val flush = Input(Bool())
   })
 
-  val deqPtrVec = RegInit(VecInit.tabulate(ISSUE_WIDTH)(_.U.asTypeOf(new IBufPtr)))
+  val deqPtrVec = RegInit(VecInit.tabulate(2 * ISSUE_WIDTH)(_.U.asTypeOf(new IBufPtr)))
   val enqPtrVec = RegInit(VecInit.tabulate(ISSUE_WIDTH)(_.U.asTypeOf(new IBufPtr)))
   val data = Module(new IBufferData)
 
@@ -59,16 +59,34 @@ class IBuffer extends Module with HasCircularQueuePtrHelper {
   // Dequeue
   val deqData = Reg(Vec(ISSUE_WIDTH, new IF2ID))
   for (i <- 0 until ISSUE_WIDTH) {
-    data.io.read(i).addr := deqPtrVec(i).value
     io.out.valid(i) := validEntries > i.U
-    io.out.bits(i) := data.io.read(i).data
+    io.out.bits(i) := deqData(i)
   }
   when(io.out.ready && !io.flush) {
     deqPtrVec := deqPtrVec.map(_ + PopCount(io.out.valid))
   }
 
+  // Dequeue data. Read in the previous clock cycle.
+  val ptrMatch = new QPtrMatchMatrix(deqPtrVec, enqPtrVec)
+  val oldData = deqData ++ data.io.read.map(_.data)
+  val (enqBypassEn, enqBypassData, nextStepData) = oldData.zipWithIndex.map{ case (old_d, i) =>
+    val enqBypassEnVec = io.in.valid.zipWithIndex.map { case (v, j) => v && ptrMatch(i)(j) }
+    val enqBypassEn = io.in.ready && VecInit(enqBypassEnVec).asUInt.orR
+    val enqBypassData = Mux1H(enqBypassEnVec, io.in.bits)
+    (enqBypassEn, enqBypassData, Mux(enqBypassEn, enqBypassData, old_d))
+  }.unzip3
+  val deqEnable_n = io.out.valid.tail.map(v => !v) :+ true.B
+  for (i <- 0 until ISSUE_WIDTH) {
+    data.io.read(i).addr := deqPtrVec(i + ISSUE_WIDTH).value
+    when (io.out.ready && io.out.valid.head) {
+      deqData(i) := PriorityMux(deqEnable_n, nextStepData.drop(i + 1).take(ISSUE_WIDTH))
+    }.elsewhen (enqBypassEn(i)) {
+      deqData(i) := enqBypassData(i)
+    }
+  }
+
   // Flush
   when (io.flush) {
-    enqPtrVec := deqPtrVec
+    enqPtrVec := deqPtrVec.take(ISSUE_WIDTH)
   }
 }
