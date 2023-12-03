@@ -40,7 +40,7 @@ class IdState extends Bundle{
 }
 
 class Exception_BASIC extends Bundle{
-    val cause   = UInt(DATA_WIDTH.W)
+    val cause   = UInt(4.W) // TODO: no interrupt yet
     val tval    = UInt(Seq(PADDR_WIDTH, INST_WIDTH).max.W)
     val en      = Bool()
 }
