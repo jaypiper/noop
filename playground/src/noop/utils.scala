@@ -3,6 +3,7 @@ package noop.utils
 import chisel3._
 import chisel3.util._
 import difftest.common.LogPerfControl
+import noop.param.common.isSim
 
 class PipelineConnectPipe[T <: Data](gen: T) extends Module {
   val io = IO(new Bundle() {
@@ -258,7 +259,7 @@ object PipelineAdjuster {
 }
 
 object PerfAccumulate {
-  def apply(perfName: String, perfCnt: UInt) = {
+  def create(perfName: String, perfCnt: UInt): Unit = {
     val control = LogPerfControl()
 
     val counter = RegInit(0.U(64.W)).suggestName(perfName + "Counter")
@@ -268,6 +269,12 @@ object PerfAccumulate {
 
     when (control.dump && control.logEnable) {
       printf(p"[cycle=${control.timer}] $perfName: $next_counter\n")
+    }
+  }
+
+  def apply(perfName: String, perfCnt: UInt): Unit = {
+    if (isSim) {
+      create(perfName, perfCnt)
     }
   }
 }
