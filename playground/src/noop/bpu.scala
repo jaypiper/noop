@@ -23,7 +23,7 @@ class BPUUpdate extends Bundle{
 }
 
 object bpu_config{
-    val BTB_ENTRY_NUM = 16
+    val BTB_ENTRY_NUM = 32
     val INDEX_WIDTH = log2Ceil(BTB_ENTRY_NUM)
     val BTB_ADDR_WIDTH = 39
     val INST_ALIGN  = 2
