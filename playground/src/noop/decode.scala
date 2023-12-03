@@ -65,7 +65,6 @@ class Decoder extends Module {
         io.out.excep.en := true.B
         io.out.excep.cause := CAUSE_ILLEGAL_INSTRUCTION.U
         io.out.excep.tval := inst_in
-        io.out.excep.pc := io.in.pc
         io.out.excep.etype := 0.U
         io.stall := true.B
     }

@@ -53,6 +53,7 @@ class Writeback extends Module{
     val excep_wb = PriorityMux(excep_en, writebacks)
     io.excep := excep_wb.excep
     io.excep.en := VecInit(excep_en).asUInt.orR
+    io.excep.pc := excep_wb.dst_d
 
     val recov_en = wb_valid.zip(writebacks).map{ case (v, w) => v && w.recov }
     io.recov := RegNext(VecInit(recov_en).asUInt.orR, false.B)
@@ -82,7 +83,7 @@ class Writeback extends Module{
         difftest.valid := false.B
         difftest.interrupt := excep_wb.excep.etype === 0.U
         difftest.exception := excep_wb.excep.cause
-        difftest.exceptionPC := excep_wb.excep.pc
+        difftest.exceptionPC := io.excep.pc
     }
 
     if (isSim) {

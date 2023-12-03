@@ -45,7 +45,7 @@ class Execute extends Module{
     mul.io.en := io.df2ex.valid && is_mul && s0_out.ready
 
     val wdata = PriorityMux(Seq(
-        (io.df2ex.bits.ctrl.writeCSREn, io.df2ex.bits.rs2_d),
+        (io.df2ex.bits.ctrl.writeCSREn || io.df2ex.bits.excep.en, io.df2ex.bits.rs2_d),
         (true.B, alu_out)
     ))
 
@@ -56,7 +56,6 @@ class Execute extends Module{
     s0_out.bits.inst := io.df2ex.bits.inst
     s0_out.bits.pc := io.df2ex.bits.pc
     s0_out.bits.excep := io.df2ex.bits.excep
-    s0_out.bits.excep.pc := io.df2ex.bits.excep.pc
     s0_out.bits.ctrl := io.df2ex.bits.ctrl
     s0_out.bits.csr_id := io.df2ex.bits.inst(31, 20)
     s0_out.bits.csr_d := alu_out
