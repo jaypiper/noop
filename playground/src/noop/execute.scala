@@ -57,7 +57,8 @@ class Execute extends Module{
     s0_out.bits.pc := io.df2ex.bits.pc
     s0_out.bits.excep := io.df2ex.bits.excep
     s0_out.bits.ctrl := io.df2ex.bits.ctrl
-    s0_out.bits.csr_id := io.df2ex.bits.inst(31, 20)
+    // csr_id is passed by nextPC.
+    s0_out.bits.csr_id := io.df2ex.bits.nextPC(11, 0)
     s0_out.bits.csr_d := alu_out
     s0_out.bits.csr_en := io.df2ex.bits.ctrl.writeCSREn
     s0_out.bits.dst := io.df2ex.bits.dst

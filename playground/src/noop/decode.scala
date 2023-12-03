@@ -57,6 +57,9 @@ class Decoder extends Module {
     io.out.dst := inst_in(11, 7)
     io.out.jmp_type := NO_JMP
     io.out.nextPC := io.in.nextPC
+    when (io.out.ctrl.writeCSREn) {
+        io.out.nextPC := io.in.inst(31, 20)
+    }
 
     io.out.recov := io.in.recov // TODO: what's this
     io.stall := false.B
