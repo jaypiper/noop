@@ -5,6 +5,7 @@ import chisel3.util._
 import noop.alu._
 import noop.datapath._
 import noop.param.cache_config._
+import noop.param.common._
 import noop.param.decode_config._
 import noop.param.noop_tools._
 import noop.utils.PipelineConnect
@@ -82,11 +83,12 @@ class Execute extends Module{
     )
 
     // branch & jmp
+    val imm = io.df2ex.bits.dst_d(PADDR_WIDTH - 1, 0)
     val jmp_targets = Seq(
-        io.df2ex.bits.pc + io.df2ex.bits.dst_d,
+        io.df2ex.bits.pc + imm,
         io.df2ex.bits.pc + 4.U,
-        io.df2ex.bits.rs2_d,
-        io.df2ex.bits.rs1_d + io.df2ex.bits.dst_d,
+        io.df2ex.bits.rs2_d(PADDR_WIDTH - 1, 0),
+        io.df2ex.bits.rs1_d(PADDR_WIDTH - 1, 0) + imm,
     )
     val nextPC_is_different = jmp_targets.map(_ =/= io.df2ex.bits.nextPC)
     val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)
