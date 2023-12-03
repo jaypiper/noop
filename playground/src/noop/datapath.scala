@@ -41,7 +41,7 @@ class IdState extends Bundle{
 
 class Exception_BASIC extends Bundle{
     val cause   = UInt(DATA_WIDTH.W)
-    val tval    = UInt(DATA_WIDTH.W)
+    val tval    = UInt(Seq(PADDR_WIDTH, INST_WIDTH).max.W)
     val en      = Bool()
 }
 
