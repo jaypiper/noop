@@ -62,7 +62,7 @@ class Writeback extends Module{
     val wb2if_wb = PriorityMux(wb2if, writebacks)
     val wb2if_valid = VecInit(wb2if).asUInt.orR
     io.wb2if.valid := RegNext(wb2if_valid, false.B)
-    io.wb2if.seq_pc := RegEnable(wb2if_wb.pc + 4.U, wb2if_valid)
+    io.wb2if.seq_pc := RegEnable(wb2if_wb.excep.tval, wb2if_valid)
 
     if (isSim) {
         for (((v, wb), i) <- wb_valid.zip(writebacks).zipWithIndex) {

@@ -126,6 +126,9 @@ class Execute extends Module{
     s1_in.ready := !s1_in.valid || data_valid && !io.blockIn
     io.ex2wb.valid := s1_in.valid && data_valid && !io.blockIn
     io.ex2wb.bits := s1_in.bits
+    when (io.ex2wb.bits.recov && !io.ex2wb.bits.excep.en) {
+        io.ex2wb.bits.excep.tval := io.ex2wb.bits.pc + 4.U
+    }
     when (s1_is_mul && mul.io.out.valid) {
         io.ex2wb.bits.dst_d := s1_mul_data
     }
