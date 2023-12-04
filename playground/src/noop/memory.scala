@@ -152,9 +152,9 @@ class Memory extends Module{
     )
 
     if (isSim) {
-        val difftest = DifftestModule(new DiffStoreEvent, dontCare = true, delay = 20)
+        val difftest = DifftestModule(new DiffStoreEvent, dontCare = true, delay = 5)
         val is_store = io.dataRW.req.fire && io.dataRW.req.bits.wen && io.dataRW.req.bits.addr >= "h30000000".U
-        val is_store_r = RegNext(is_store) && !io.dataRW.req_cancel
+        val is_store_r = RegEnable(is_store, s1_out.fire) && io.mem2wb.fire
         val store_req = RegEnable(io.dataRW.req.bits, is_store)
         difftest.valid := is_store_r
         difftest.addr := Cat(store_req.addr(PADDR_WIDTH - 1, 3), 0.U(3.W))
