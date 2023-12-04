@@ -2,6 +2,7 @@ package sim
 
 import chisel3._
 import difftest.DifftestModule
+import noop.bus.AXIBuffer
 import noop.cpu._
 
 class SimTop extends Module{
@@ -12,7 +13,7 @@ class SimTop extends Module{
     val crossBar = Module(new SimCrossbar)
     val transAxi = Module(new TransAXI)
     cpu.io.master <> transAxi.io.raw_axi
-    transAxi.io.bun_axi <> crossBar.io.inAxi
+    AXIBuffer(transAxi.io.bun_axi, 50) <> crossBar.io.inAxi
     crossBar.io.mmioAxi <> mmio.io.mmioAxi
     crossBar.io.memAxi <> mem.io.memAxi
     // dma.io.dmaAxi <> cpu.io.slave

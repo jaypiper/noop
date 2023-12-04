@@ -1,12 +1,12 @@
 package noop.bus
 
-import chisel3._
-import chisel3.util._
-import noop.param.common._
-import noop.param.cache_config._
-import noop.datapath._
 import axi._
 import axi.axi_config._
+import chisel3._
+import chisel3.util._
+import noop.datapath._
+import noop.param.common._
+import noop.utils.PipelineConnect
 
 class ToAXI extends Module{
     val io = IO(new Bundle{
@@ -152,4 +152,29 @@ class ToAXI extends Module{
     io.outAxi.ra.bits.burst   := BURST_INCR
     //rd
     io.outAxi.rd.ready        := rdataEn
+}
+
+class AXIBuffer extends Module {
+    val io = IO(new Bundle {
+        val in = Flipped(new AxiMaster)
+        val out = new AxiMaster
+    })
+
+    PipelineConnect(io.in.wa, io.out.wa, io.out.wa.ready, false.B)
+    PipelineConnect(io.in.wd, io.out.wd, io.out.wd.ready, false.B)
+    PipelineConnect(io.out.wr, io.in.wr, io.in.wr.ready, false.B)
+    PipelineConnect(io.in.ra, io.out.ra, io.out.ra.ready, false.B)
+    PipelineConnect(io.out.rd, io.in.rd, io.in.rd.ready, false.B)
+}
+
+object AXIBuffer {
+    def apply(in: AxiMaster, n: Int = 1): AxiMaster = {
+        var result = in
+        for (i <- 0 until n) {
+            val buffer = Module(new AXIBuffer)
+            buffer.io.in <> result
+            result = buffer.io.out
+        }
+        result
+    }
 }
