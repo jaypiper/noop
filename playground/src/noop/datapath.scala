@@ -152,7 +152,7 @@ class ID2DF extends Bundle{
     val rrs2    = Bool()
     val rs2_d   = UInt(DATA_WIDTH.W)
     val dst     = UInt(REG_WIDTH.W)
-    val dst_d   = UInt(DATA_WIDTH.W)
+    val imm     = UInt(20.W)
     val jmp_type = UInt(JMP_WIDTH.W)
     val recov   = Bool()
 }

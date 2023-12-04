@@ -2,12 +2,11 @@ package noop.decode
 
 import chisel3._
 import chisel3.util._
+import noop.datapath._
 import noop.param._
 import noop.param.common._
 import noop.param.decode_config._
-import noop.datapath._
-import noop.param.Insts._
-import noop.utils.VecDecoupledIO
+import noop.utils.{SignExt, VecDecoupledIO}
 
 class Decoder extends Module {
     val io = IO(new Bundle {
@@ -21,23 +20,19 @@ class Decoder extends Module {
     val dType = instType(0)
     val jmp_indi = instType(5) === true.B
     val rs2_is_csr = instType(6) === true.B
-    val imm = Wire(SInt(DATA_WIDTH.W))
-    imm := 0.S
+    io.out.imm := DontCare
     switch(dType) {
         is(IType) {
-            imm := inst_in(31, 20).asSInt
+            io.out.imm := SignExt(inst_in(31, 20), 20)
         }
         is(SType) {
-            imm := Cat(inst_in(31, 25), inst_in(11, 7)).asSInt
+            io.out.imm := SignExt(Cat(inst_in(31, 25), inst_in(11, 7)), 20)
         }
         is(BType) {
-            imm := Cat(inst_in(31), inst_in(7), inst_in(30, 25), inst_in(11, 8), 0.U(1.W)).asSInt
-        }
-        is(UType) {
-            imm := Cat(inst_in(31, 12), 0.U(12.W)).asSInt
+            io.out.imm := SignExt(Cat(inst_in(31), inst_in(7), inst_in(30, 25), inst_in(11, 8)), 20)
         }
         is(JType) {
-            imm := Cat(inst_in(31), inst_in(19, 12), inst_in(20), inst_in(30, 21), 0.U(1.W)).asSInt
+            io.out.imm := Cat(inst_in(31), inst_in(19, 12), inst_in(20), inst_in(30, 21))
         }
     }
 
@@ -66,7 +61,6 @@ class Decoder extends Module {
     io.out.ctrl.brType := DontCare
     io.out.rs1_d := DontCare
     io.out.rs2_d := DontCare
-    io.out.dst_d := DontCare
     when(dType === INVALID) {
         io.out.excep.en := true.B
         io.out.excep.cause := CAUSE_ILLEGAL_INSTRUCTION.U
@@ -84,7 +78,6 @@ class Decoder extends Module {
             io.out.jmp_type := JMP_REG
             io.out.rrs1 := true.B
             io.out.rs2_d := io.in.pc + 4.U
-            io.out.dst_d := imm.asUInt
         }.elsewhen(rs2_is_csr) {
             io.out.rs1_d := inst_in(19, 15)
             io.out.rrs1 := true.B
@@ -92,30 +85,26 @@ class Decoder extends Module {
             io.stall := true.B
         }.otherwise {
             io.out.rrs1 := true.B
-            io.out.rs2_d := imm.asUInt
-            io.out.dst_d := imm.asUInt
+            io.out.rs2_d := SignExt(inst_in(31, 20), DATA_WIDTH)
         }
     }
     when(dType === SType) {
         io.out.rrs1 := true.B
         io.out.rrs2 := true.B
-        io.out.dst_d := imm.asUInt
     }
     when(dType === BType) {
         io.out.rrs1 := true.B
         io.out.rrs2 := true.B
-        io.out.dst_d := imm.asUInt
         io.out.ctrl.brType := inst_in(14, 12)
         io.out.jmp_type := JMP_COND
     }
     when(dType === UType) {
-        io.out.rs1_d := imm.asUInt
+        io.out.rs1_d := SignExt(Cat(inst_in(31, 12), 0.U(12.W)), DATA_WIDTH)
         io.out.rs2_d := io.in.pc
     }
     when(dType === JType) {
         io.out.rs1_d := io.in.pc
         io.out.rs2_d := io.in.pc + 4.U
-        io.out.dst_d := imm.asUInt
         io.out.jmp_type := JMP_PC
     }
 

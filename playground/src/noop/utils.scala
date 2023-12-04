@@ -546,3 +546,18 @@ class QPtrMatchMatrix[T <: CircularQueuePtr[T]](left: Seq[T], right: Seq[T]) {
   }
   def apply(leftIndex: Int): Seq[Bool] = right.indices.map(i => apply(leftIndex, i))
 }
+
+object SignExt {
+  def apply(a: UInt, len: Int): UInt = {
+    val aLen = a.getWidth
+    val signBit = a(aLen-1)
+    if (aLen >= len) a(len-1,0) else Cat(Fill(len - aLen, signBit), a)
+  }
+}
+
+object ZeroExt {
+  def apply(a: UInt, len: Int): UInt = {
+    val aLen = a.getWidth
+    if (aLen >= len) a(len-1,0) else Cat(0.U((len - aLen).W), a)
+  }
+}
