@@ -8,13 +8,13 @@ import axi.axi_config._
 
 class SimCrossbar extends Module{
     val io = IO(new Bundle{
-        val inAxi = new AxiSlave
+        val inAxi = Flipped(new AxiMaster)
         val memAxi = new AxiMaster
         val mmioAxi = new AxiMaster
     })
-    io.inAxi.init()
-    io.memAxi.init()
-    io.mmioAxi.init()
+    io.inAxi.initSlave()
+    io.memAxi.initMaster()
+    io.mmioAxi.initMaster()
     val sIdle :: sWaitMem :: sWaitMmio :: Nil = Enum(3)
     val state = RegInit(sIdle)
     switch(state){

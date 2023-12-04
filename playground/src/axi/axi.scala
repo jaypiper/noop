@@ -76,7 +76,7 @@ class AxiMaster extends Bundle{
     val ra = Decoupled(new AxiAddr(4, 1))
     val rd = Flipped(Decoupled(new AxiReadData(4, 1)))
 
-    def init() = {
+    def initMaster() = {
         wa.bits.init()
         wd.bits.init()
         ra.bits.init()
@@ -86,16 +86,8 @@ class AxiMaster extends Bundle{
         ra.valid := false.B 
         rd.ready := false.B
     }
-}
 
-class AxiSlave extends Bundle{
-    val wa = Flipped(Decoupled(new AxiAddr(4, 1)))
-    val wd = Flipped(Decoupled(new AxiWriteData(1)))
-    val wr = Decoupled(new AxiWriteResp(4, 1))
-    val ra = Flipped(Decoupled(new AxiAddr(4, 1)))
-    val rd = Decoupled(new AxiReadData(4, 1))
-
-    def init() = {
+    def initSlave() = {
         wr.bits.init()
         rd.bits.init()
         wa.ready := false.B

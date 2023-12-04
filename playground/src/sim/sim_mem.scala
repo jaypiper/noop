@@ -9,7 +9,7 @@ import chisel3.util.experimental.loadMemoryFromFile
 import noop.datapath._
 
 class SimMEMIO extends Bundle{
-    val memAxi = new AxiSlave
+    val memAxi = Flipped(new AxiMaster)
 }
 
 class SimMEM extends Module{
@@ -83,7 +83,7 @@ class SimMEM extends Module{
         }
     }
     // printf("expected: data: %x\n", Cat((0 until 8).reverse.map(i => ram("h106958".U + i.U))))
-    io.memAxi.init()
+    io.memAxi.initSlave()
     io.memAxi.wr.valid := true.B
     io.memAxi.wr.bits.resp := RESP_OKAY
     io.memAxi.wa.ready := waReady

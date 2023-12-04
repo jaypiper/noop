@@ -181,7 +181,7 @@ class ToAXI(with_req_cancel: Boolean) extends Module{
     in.resp.valid := out_valid
     in.resp.bits := out_rdata
 
-    io.outAxi.init()
+    io.outAxi.initMaster()
     //wa
     io.outAxi.wa.valid        := waddrEn
     io.outAxi.wa.bits.addr    := in_addr_r

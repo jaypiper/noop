@@ -38,7 +38,7 @@ object port{
 }
 
 class SimMMIOIO extends Bundle{
-    val mmioAxi = new AxiSlave
+    val mmioAxi = Flipped(new AxiMaster)
     // val int     = Output(Bool())
     val uart = new UARTIO
 }
@@ -211,7 +211,7 @@ class SimMMIO extends Module{
         }
     }
 
-    io.mmioAxi.init()
+    io.mmioAxi.initSlave()
     io.mmioAxi.wr.valid := true.B
     io.mmioAxi.wr.bits.resp := RESP_OKAY
     io.mmioAxi.wa.ready := waready

@@ -7,9 +7,9 @@ import axi._
 
 class CrossBarIO extends Bundle{
     // val icAxi       = new AxiSlave
-    val flashAxi    = new AxiSlave
+    val flashAxi    = Flipped(new AxiMaster)
     // val memAxi      = new AxiSlave
-    val mmioAxi     = new AxiSlave
+    val mmioAxi     = Flipped(new AxiMaster)
     val outAxi      = new AxiMaster
     // val selectMem   = Input(Bool())
 }
@@ -22,10 +22,10 @@ class CrossBar extends Module{
     // val selectMem_r = RegInit(false.B)
 
     // io.icAxi.init()
-    io.flashAxi.init()
+    io.flashAxi.initSlave()
     // io.memAxi.init()
-    io.mmioAxi.init()
-    io.outAxi.init()
+    io.mmioAxi.initSlave()
+    io.outAxi.initMaster()
     io.outAxi.wr.ready := true.B
 
     // val memTrans = (io.memAxi.ra.valid && io.memAxi.ra.ready) || (io.memAxi.wa.valid && io.memAxi.wa.ready)
