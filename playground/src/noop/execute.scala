@@ -195,4 +195,5 @@ class Execute extends Module{
     io.ex2wb.is_mmio   := false.B
     io.ex2wb.valid     := valid_r
     io.ex2wb.recov     := recov_r
+    io.ex2wb.mem_addr := 0.U
 }

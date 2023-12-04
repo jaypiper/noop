@@ -14,6 +14,7 @@ import noop.writeback._
 import noop.regs._
 import noop.clint._
 import noop.plic._
+import noop.datapath._
 
 class CPU_AXI_IO extends Bundle{
     val awready = Input(Bool())
@@ -45,27 +46,61 @@ class CPU_AXI_IO extends Bundle{
     val rdata   = Input(UInt(64.W))
     val rlast   = Input(Bool())
     val rid     = Input(UInt(4.W))
+    def init1() = {
+        awready := false.B
+        wready := false.B
+        bvalid := false.B
+        bresp := 0.U
+        bid := 0.U
+        arready := false.B
+        rvalid := false.B
+        rresp := 0.U
+        rdata := 0.U
+        rlast := false.B
+        rid := 0.U
+    }
+    def init2() = {
+        awvalid := 0.U
+        awaddr := 0.U
+        awid := 0.U
+        awlen := 0.U
+        awsize := 0.U
+        awburst := 0.U
+        wvalid := 0.U
+        wdata := 0.U
+        wstrb := 0.U
+        wlast := 0.U
+        bready := 0.U
+        arvalid := 0.U
+        araddr := 0.U
+        arid := 0.U
+        arlen := 0.U
+        arsize := 0.U
+        arburst := 0.U
+        rready := 0.U
+    }
 }
 
 class CPUIO extends Bundle{
     // val outAxi = new AxiMaster
     val master      = new CPU_AXI_IO
+    val shared      = Flipped(new DcacheRW)
     // val slave       = Flipped(new CPU_AXI_IO)
     // val interrupt   = Input(Bool())
 }
 
-class CPU extends Module{
+class CPU (val hartid : Int) extends Module{
     val io = IO(new CPUIO)
     dontTouch(io)
     val fetch       = Module(new Fetch)
     val decode      = Module(new Decode)
     val forwading   = Module(new Forwarding)
     val execute     = Module(new Execute)
-    val memory      = Module(new Memory)
-    val writeback   = Module(new Writeback)
+    val memory      = Module(new Memory(hartid))
+    val writeback   = Module(new Writeback(hartid))
 
-    val regs        = Module(new Regs)
-    val csrs        = Module(new Csrs)
+    val regs        = Module(new Regs(hartid))
+    val csrs        = Module(new Csrs(hartid))
     val icache      = Module(new ICache)
     val dcache      = Module(new DCache)
     val bpu         = Module(new SimpleBPU2)
@@ -73,10 +108,11 @@ class CPU extends Module{
     val mem2Axi     = Module(new ToAXI)
     val fetch2Axi   = Module(new ToAXI)
 
-    val memCrossbar = Module(new MemCrossBar)
+    val memCrossbar = Module(new MemCrossBar(hartid))
     val fetchCrossbar = Module(new FetchCrossBar)
     val crossBar = Module(new CrossBar)
 
+    memCrossbar.io.shared <> io.shared
     // fetch.io.instRead  <> icache.io.icPort
     fetch.io.instRead <> fetchCrossbar.io.instIO
     fetchCrossbar.io.icRead <> icache.io.icPort

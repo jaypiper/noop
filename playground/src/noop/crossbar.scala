@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import noop.param.common._
 import axi._
+import noop.cpu._
 
 class CrossBarIO extends Bundle{
     // val icAxi       = new AxiSlave
@@ -72,5 +73,66 @@ class CrossBar extends Module{
             }
         }
     }
+
+}
+
+
+class CPUCrossBar extends Module{
+    val io = IO(new Bundle {
+        val in1 = Flipped(new CPU_AXI_IO)
+        val in2 = Flipped(new CPU_AXI_IO)
+        val out = new CPU_AXI_IO
+    })
+    val (sIdle :: s1 :: s2 :: Nil) = Enum(3)
+    val state = RegInit(sIdle)
+
+    io.in1.init1()
+    io.in2.init1()
+    io.out.init2()
+
+    val transR1 = (io.in1.arvalid && io.in1.arready)
+    val transW1 = (io.in1.awvalid && io.in1.awready)
+    val doneR1 = (io.in1.rvalid && io.in1.rready && io.in1.rlast)
+    val doneW1 = (io.in1.wvalid && io.in1.wready && io.in1.wlast)
+    val doneB1 = io.in1.bready || io.in1.bvalid
+    val transR2 = (io.in2.arvalid && io.in2.arready)
+    val transW2 = (io.in2.awvalid && io.in2.awready)
+    val doneR2 = (io.in2.rvalid && io.in2.rready && io.in2.rlast)
+    val doneW2 = (io.in2.wvalid && io.in2.wready && io.in2.wlast)
+    val doneB2 = io.in2.bready || io.in2.bvalid
+
+    val dataFinish1 = RegInit(false.B)
+    val dataFinish2 = RegInit(false.B)
+
+    switch(state) {
+        is(sIdle) {
+            dataFinish1 := false.B
+            dataFinish2 := false.B
+            when(io.in1.arvalid || io.in1.awvalid){
+                state := s1
+            }.elsewhen(io.in2.arvalid || io.in2.awvalid){
+                state := s2
+            }
+        }
+        is(s1) {
+            io.out <> io.in1
+            when(doneR1 || ((doneW1 || dataFinish1) && doneB1)) {
+                state := sIdle
+            }
+            when(doneW1) {
+                dataFinish1 := true.B
+            }
+        }
+        is(s2) {
+            io.out <> io.in2
+            when(doneR2 || ((doneW2 || dataFinish2) && doneB2)) {
+                state := sIdle
+            }
+            when(doneW2) {
+                dataFinish2 := true.B
+            }
+        }
+    }
+
 
 }

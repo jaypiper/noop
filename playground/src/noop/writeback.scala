@@ -6,7 +6,7 @@ import noop.param.common._
 import noop.param.decode_config._
 import noop.datapath._
 
-class Writeback extends Module{
+class Writeback(val hartid : Int) extends Module{
     val io = IO(new Bundle{
         val mem2wb  = Flipped(new MEM2RB)
         val ex2wb  = Flipped(new MEM2RB)
@@ -27,6 +27,10 @@ class Writeback extends Module{
     val valid_r     = RegInit(false.B)
     val excep_r     = RegInit(0.U.asTypeOf(new Exception))
     val rcsr_id_r   = RegInit(0.U(CSR_WIDTH.W))
+    val isMem_r      = RegNext(io.mem2wb.valid)
+    val mem_addr_r   = RegNext(io.mem2wb.mem_addr)
+    dontTouch(isMem_r)
+    dontTouch(mem_addr_r)
     valid_r         := false.B
     tlb_r           := false.B
     cache_r         := false.B
@@ -95,6 +99,7 @@ class Writeback extends Module{
         instFinish.io.pc        := pc_r
         instFinish.io.inst      := inst_r
         instFinish.io.rcsr_id   := rcsr_id_r
+        instFinish.io.hartid    := hartid.U
 
         val transExcep = Module(new TransExcep)
         transExcep.io.clock     := clock
@@ -113,6 +118,7 @@ class InstFinish extends BlackBox with HasBlackBoxPath{
         val pc      = Input(UInt(PADDR_WIDTH.W))
         val inst    = Input(UInt(INST_WIDTH.W))
         val rcsr_id = Input(UInt(CSR_WIDTH.W))
+        val hartid  = Input(UInt(32.W))
     })
     addPath("playground/src/interface/InstFinish.v")
 }

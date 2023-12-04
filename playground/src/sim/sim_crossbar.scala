@@ -15,19 +15,25 @@ class SimCrossbar extends Module{
     io.inAxi.init()
     io.memAxi.init()
     io.mmioAxi.init()
-    val sIdle :: sWaitMem :: sWaitMmio :: Nil = Enum(3)
+    val sIdle :: sWaitMem :: sWaitMmio :: sWaitAXI :: Nil = Enum(4)
     val state = RegInit(sIdle)
+    val time = RegInit(0.U(32.W))
+    val nextState = RegInit(sIdle)
     switch(state){
         is(sIdle){
-            io.inAxi.ra.ready := true.B
-            io.inAxi.wa.ready := true.B
-            io.inAxi.wr.valid := true.B
             when((io.inAxi.ra.valid && (io.inAxi.ra.bits.addr > "h90000000".U(PADDR_WIDTH.W) || io.inAxi.ra.bits.addr < "h80000000".U(PADDR_WIDTH.W))) || (io.inAxi.wa.valid && (io.inAxi.wa.bits.addr > "h90000000".U(PADDR_WIDTH.W) || io.inAxi.wa.bits.addr < "h80000000".U(PADDR_WIDTH.W)))){
-                state := sWaitMmio
-                io.inAxi <> io.mmioAxi
+                state := sWaitAXI
+                nextState := sWaitMmio
             }.elsewhen(io.inAxi.ra.valid || io.inAxi.wa.valid){
-                state := sWaitMem
-                io.inAxi <> io.memAxi
+                state := sWaitAXI
+                nextState := sWaitMem
+            }
+            time := 0.U
+        }
+        is(sWaitAXI) {
+            time := time + 1.U
+            when(time === 50.U) {
+                state := nextState
             }
         }
         is(sWaitMem){

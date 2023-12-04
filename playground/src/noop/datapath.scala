@@ -245,6 +245,7 @@ class MEM2RB extends Bundle{
     val dst_en  = Output(Bool())
     val rcsr_id = Output(UInt(CSR_WIDTH.W))
     val is_mmio = Output(Bool())
+    val mem_addr = Output(UInt(PADDR_WIDTH.W))
     val stall   = Input(Bool())
     val recov   = Output(Bool())
     val valid   = Output(Bool())

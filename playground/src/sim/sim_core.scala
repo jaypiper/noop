@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 import noop.datapath._
 import noop.cpu._
+import noop.multicore._
 
 class SimCoreIO extends Bundle{
 
@@ -14,7 +15,7 @@ class newtop extends Module{
     
     val io = IO(new SimCoreIO)
 
-    val cpu = Module(new CPU)
+    val cpu = Module(new multicore)
     val mem = Module(new SimMEM)
     val mmio = Module(new SimMMIO)
     // val dma = Module(new SimDma)

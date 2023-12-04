@@ -6,7 +6,7 @@ import noop.param.common._
 import noop.param.regs_config._
 import noop.datapath._
 
-class Regs extends Module{
+class Regs (val hartid : Int) extends Module{
     val io = IO(new Bundle{
         val rs1 = new RegRead
         val rs2 = new RegRead
@@ -21,11 +21,12 @@ class Regs extends Module{
     if (isSim) {
         val updateRegs = Module(new UpdateRegs)
         updateRegs.io.regs_data := regs.asUInt
+        updateRegs.io.hartid := hartid.U
         updateRegs.io.clock := clock
     }
 }
 
-class Csrs extends Module{
+class Csrs (val hartid : Int) extends Module{
     val io = IO(new Bundle{
         val rs      = new CSRRead
         val rd      = new CSRWrite
@@ -99,15 +100,13 @@ class Csrs extends Module{
         io.rs.data := mcause
     }.elsewhen(io.rs.id === CSR_MCYCLE) {
         io.rs.data := mcycle
+    }.elsewhen(io.rs.id === CSR_MHARTID) {
+        io.rs.data := hartid.U
     }.otherwise{
         io.rs.data      := 0.U
         io.rs.is_err    := true.B
     }
     when(!io.rd.en){
-    }.elsewhen(io.rd.id === CSR_MSTATUS){
-        val new_mstatus = io.rd.data & MSTATUS_MASK
-        val sd          = Mux((io.rd.data(14,13) === 3.U) || (io.rd.data(16,15) === 3.U), MSTATUS64_SD, 0.U)
-        mstatus := set_partial_val(mstatus, MSTATUS_MASK | MSTATUS64_SD, new_mstatus | sd)
     }.elsewhen(io.rd.id === CSR_MEPC){
         mepc := io.rd.data
     }.elsewhen(io.rd.id === CSR_MTVAL){
@@ -136,7 +135,7 @@ class Csrs extends Module{
         updateCsrs.io.mtvec     := Cat(CSR_MTVEC,mtvec)
         updateCsrs.io.mie       := Cat(CSR_MIE,mie)
         updateCsrs.io.mip       := Cat(CSR_MIP,mip)
-
+        updateCsrs.io.hartid    := hartid.U
         updateCsrs.io.clock     := clock
     }
 }
@@ -144,6 +143,7 @@ class Csrs extends Module{
 class UpdateRegs extends BlackBox with HasBlackBoxPath{
     val io = IO(new Bundle{
         val regs_data   = Input(UInt((32*DATA_WIDTH).W))
+        val hartid      = Input(UInt(32.W))
         val clock       = Input(Clock())
 
     })
@@ -161,6 +161,7 @@ class UpdateCsrs extends BlackBox with HasBlackBoxPath{
         val mtvec       = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
         val mie         = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
         val mip         = Input(UInt((CSR_WIDTH+DATA_WIDTH).W))
+        val hartid      = Input(UInt(32.W))
         val clock       = Input(Clock())
 
     })

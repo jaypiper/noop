@@ -11,20 +11,23 @@ import noop.clint.clint_config._
 import noop.datapath._
 import noop.plic.plic_config._
 
-class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
+class MemCrossBar (val hartid : Int) extends Module{ // mtime & mtimecmp can be accessed here
     val io = IO(new Bundle{
         val dataRW  = new DcacheRW
         val mmio    = Flipped(new DcacheRW)
         val dcRW    = Flipped(new DcacheRW)
         val icRW    = Flipped(new DcacheRW)
+        val shared  = Flipped(new DcacheRW)
     })
     dontTouch(io.dataRW)
     dontTouch(io.mmio)
     dontTouch(io.dcRW)
     val pre_type    = RegInit(0.U(2.W))
     val data_r      = RegInit(0.U(DATA_WIDTH.W))
-    val inp_mem     = (io.dataRW.addr >= "h8000d000".U) && (io.dataRW.addr < "h8000e000".U)
+    val inp_mem     = if (hartid == 0) (io.dataRW.addr >= "h8000d000".U) && (io.dataRW.addr < "h8000e000".U)
+                      else (io.dataRW.addr >= "h8000e000".U) && (io.dataRW.addr < "h8000f000".U)
     val inp_ic      = io.dataRW.addr >= "h80000000".U && io.dataRW.addr < "h80008000".U
+    val inp_share   = io.dataRW.addr >= "h8000f000".U && io.dataRW.addr < "h80010000".U
     io.mmio.addr    := io.dataRW.addr
     io.mmio.wdata   := io.dataRW.wdata
     io.mmio.wmask   := io.dataRW.wmask
@@ -40,10 +43,16 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     io.icRW.wmask   := io.dataRW.wmask
     io.icRW.wen   := io.dataRW.wen
     io.icRW.size := io.dataRW.size
+    io.shared.addr    := io.dataRW.addr
+    io.shared.wdata   := io.dataRW.wdata
+    io.shared.wmask   := io.dataRW.wmask
+    io.shared.wen   := io.dataRW.wen
+    io.shared.size := io.dataRW.size
 
     io.dcRW.avalid := false.B
     io.icRW.avalid := false.B
     io.mmio.avalid := false.B
+    io.shared.avalid := false.B
 
     io.dataRW.ready := false.B
 
@@ -55,6 +64,10 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
         pre_type        := 2.U
         io.icRW.avalid := io.dataRW.avalid
         io.dataRW.ready := io.icRW.ready
+    }.elsewhen(inp_share) {
+        pre_type        := 3.U
+        io.shared.avalid := io.dataRW.avalid
+        io.dataRW.ready  := io.shared.ready
     }.otherwise{
         pre_type        := 0.U
         io.mmio.avalid := io.dataRW.avalid
@@ -70,13 +83,16 @@ class MemCrossBar extends Module{ // mtime & mtimecmp can be accessed here
     }.elsewhen(pre_type === 2.U) {
         io.dataRW.rdata     := io.icRW.rdata
         io.dataRW.rvalid    := io.icRW.rvalid
-    }.otherwise{
+    }.elsewhen(pre_type === 3.U) {
+        io.dataRW.rdata     := io.shared.rdata
+        io.dataRW.rvalid    := io.shared.rvalid
+    } .otherwise{
         io.dataRW.rdata     := 0.U
         io.dataRW.rvalid    := false.B
     }
 }
 
-class Memory extends Module{
+class Memory(val hartid : Int) extends Module{
     val io = IO(new Bundle{
         val df2mem  = Flipped(new DF2MEM)
         val mem2wb  = new MEM2RB
@@ -102,6 +118,7 @@ class Memory extends Module{
     val rcsr_id_r  = RegInit(0.U(CSR_WIDTH.W))
     val recov_r    = RegInit(false.B)
     val valid_r    = RegInit(false.B)
+    val transFinish = RegInit(false.B)
 
     val hs_in   = io.df2mem.ready && io.df2mem.valid
     val hs1     = Wire(Bool())
@@ -140,11 +157,16 @@ class Memory extends Module{
         valid_r := false.B
     }
 
+    when(hs1) {
+        transFinish := true.B
+    }.elsewhen(hs_in) {
+        transFinish := false.B
+    }
     io.dataRW.addr := Mux(hs_in, io.df2mem.mem_addr, mem_addr_r)
     val cur_mem_data = Mux(hs_in, io.df2mem.mem_data, mem_data_r)
     io.dataRW.wdata := cur_mem_data// Mux(io.dataRW.addr(PADDR_WIDTH-1), cur_mem_data  << Cat(io.dataRW.addr(ICACHE_OFFEST_WIDTH-1, 0), 0.U(3.W)), cur_mem_data)
     io.dataRW.wen   := curMode(DC_S_BIT)
-    io.dataRW.avalid := hs_in && curMode =/= mode_NOP
+    io.dataRW.avalid := (hs_in || (!transFinish && valid_r)) && curMode =/= mode_NOP
     io.dataRW.wmask := bitmap
     io.dataRW.size := curMode(1,0)
     io.df2mem.ready := false.B
@@ -184,6 +206,7 @@ class Memory extends Module{
     io.mem2wb.dst_en    := dst_en_r
     io.mem2wb.rcsr_id   := rcsr_id_r
     io.mem2wb.is_mmio   := mem_addr_r < "h30000000".U
+    io.mem2wb.mem_addr  := mem_addr_r
     io.mem2wb.recov     := recov_r
     io.mem2wb.valid     := valid_r && io.dataRW.rvalid
 }

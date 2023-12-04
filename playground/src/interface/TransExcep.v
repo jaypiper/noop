@@ -5,10 +5,10 @@ module TransExcep(
     input [31:0]    pc
 );
 
-import "DPI-C" function void update_excep(bit intr, longint cause, int pc);
+import "DPI-C" function void update_excep(int hartid, bit intr, longint cause, int pc);
 
 always @(posedge clock) begin
-    update_excep(intr, cause, pc);
+    update_excep(0, intr, cause, pc);
 end
 
 endmodule
