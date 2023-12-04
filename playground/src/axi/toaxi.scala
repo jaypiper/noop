@@ -8,11 +8,62 @@ import noop.datapath._
 import axi._
 import axi.axi_config._
 
-class ToAXI extends Module{
+class RemoveReqCancel extends Module {
+    val io = IO(new Bundle {
+        val in = new DcacheRW
+        val out = Flipped(new DcacheRW)
+    })
+
+    val req_valid = RegInit(false.B)
+    val is_cancelled = RegNext(io.in.req.fire) && io.in.req_cancel
+    val req_bits = RegEnable(io.in.req.bits, io.in.req.fire)
+    when (io.in.req.fire) {
+        req_valid := true.B
+        printf(p"req_in: ${Hexadecimal(io.in.req.bits.addr)}\n")
+    }.elsewhen (is_cancelled || io.out.req.ready) {
+        req_valid := false.B
+        when (is_cancelled) {
+            printf(p"cancelled: ${Hexadecimal(req_bits.addr)}\n")
+        }
+    }
+
+    io.out.req.valid := req_valid && !is_cancelled
+    io.out.req.bits := req_bits
+    io.out.req_cancel := false.B
+    io.in.req.ready := !req_valid || io.out.req.ready
+
+    io.in.resp := io.out.resp
+    when(io.out.req.fire) {
+        printf(p"out req: ${Hexadecimal(io.out.req.bits.addr)}\n")
+    }
+    when(is_cancelled) {
+        printf(p"cancelled: ${Hexadecimal(req_bits.addr)}\n")
+    }
+    when (io.in.resp.valid) {
+        printf(p"resp: ${Hexadecimal(io.in.resp.bits)}\n")
+    }
+}
+
+object RemoveReqCancel {
+    def apply(in: DcacheRW): DcacheRW = {
+        val remover = Module(new RemoveReqCancel)
+        remover.io.in <> in
+        remover.io.out
+    }
+}
+
+class ToAXI(with_req_cancel: Boolean) extends Module{
     val io = IO(new Bundle{
         val dataIO = new DcacheRW
         val outAxi = new AxiMaster
     })
+
+    val in = if (with_req_cancel) {
+        RemoveReqCancel(io.dataIO)
+    } else {
+        assert(!RegNext(io.dataIO.req.fire, false.B) || !io.dataIO.req_cancel)
+        io.dataIO
+    }
 
     val valid_r = RegInit(false.B)
     val in_addr_r   = RegInit(0.U(PADDR_WIDTH.W))
@@ -33,18 +84,18 @@ class ToAXI extends Module{
     val rdataEn = RegInit(false.B)
     val rdata   = RegInit(0.U(DATA_WIDTH.W))
 
-    io.dataIO.req.ready := !valid_r
+    in.req.ready := !valid_r
     val (sIdle:: sWaddr :: sWdata :: sWresp :: sRaddr :: sRdata :: sFinish :: Nil) = Enum(7)
     val state  = RegInit(sIdle)
 
-    when(io.dataIO.req.fire) {
+    when(in.req.fire) {
         valid_r := true.B
-        in_addr_r := io.dataIO.req.bits.addr
-        in_rdata_r := io.dataIO.resp.bits
-        in_wdata_r := io.dataIO.req.bits.wdata
-        in_wen_r := io.dataIO.req.bits.wen
-        in_wmask_r := io.dataIO.req.bits.wmask
-        in_size_r := io.dataIO.req.bits.size
+        in_addr_r := in.req.bits.addr
+        in_rdata_r := in.resp.bits
+        in_wdata_r := in.req.bits.wdata
+        in_wen_r := in.req.bits.wen
+        in_wmask_r := in.req.bits.wmask
+        in_size_r := in.req.bits.size
     }
     //store
     switch(state){
@@ -127,8 +178,8 @@ class ToAXI extends Module{
     val out_valid = RegInit(false.B)
     out_valid := (state === sFinish) || (state === sWresp)
     out_rdata := rdata
-    io.dataIO.resp.valid := out_valid
-    io.dataIO.resp.bits := out_rdata
+    in.resp.valid := out_valid
+    in.resp.bits := out_rdata
 
     io.outAxi.init()
     //wa
