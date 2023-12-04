@@ -6,7 +6,7 @@ import noop.datapath._
 import noop.param.cache_config._
 import noop.param.decode_config._
 import noop.param.common._
-import noop.utils.PerfAccumulate
+import noop.utils.{PerfAccumulate, SignExt}
 
 class Dispatch extends Module {
   val io = IO(new Bundle {
@@ -38,7 +38,7 @@ class Dispatch extends Module {
   io.df2mem.bits.pc := to_mem.pc
   io.df2mem.bits.excep := 0.U.asTypeOf(new Exception) // TODO: remove
   io.df2mem.bits.ctrl := to_mem.ctrl
-  io.df2mem.bits.mem_addr := to_mem.rs1_d + to_mem.dst_d
+  io.df2mem.bits.mem_addr := to_mem.rs1_d + SignExt(to_mem.imm, DATA_WIDTH)
   io.df2mem.bits.mem_data := to_mem.rs2_d
   io.df2mem.bits.csr_id := 0.U
   io.df2mem.bits.csr_d := 0.U

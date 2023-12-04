@@ -65,10 +65,7 @@ class Forwarding(n_forward: Int) extends Module{
         Mux(io.id2df.bits.rrs2, rs2_data, io.id2df.bits.rs2_d)
     )
     io.df2dp.bits.dst := io.id2df.bits.dst
-    io.df2dp.bits.dst_d := Mux(io.df2dp.bits.jmp_type === JMP_PC || io.df2dp.bits.jmp_type === JMP_COND,
-        SignExt(Cat(io.id2df.bits.imm, 0.U(1.W)), DATA_WIDTH),
-        SignExt(io.id2df.bits.imm, DATA_WIDTH)
-    )
+    io.df2dp.bits.imm := io.id2df.bits.imm
 
     io.df2dp.bits.rcsr_id := Mux(io.id2df.bits.ctrl.writeCSREn, io.csrRead.id, 0.U)
     io.df2dp.bits.jmp_type := io.id2df.bits.jmp_type

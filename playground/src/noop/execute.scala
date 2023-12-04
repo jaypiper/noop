@@ -8,7 +8,7 @@ import noop.param.cache_config._
 import noop.param.common._
 import noop.param.decode_config._
 import noop.param.noop_tools._
-import noop.utils.PipelineConnect
+import noop.utils.{PipelineConnect, SignExt}
 
 class Execute extends Module{
     val io = IO(new Bundle{
@@ -83,12 +83,11 @@ class Execute extends Module{
     )
 
     // branch & jmp
-    val imm = io.df2ex.bits.dst_d(PADDR_WIDTH - 1, 0)
     val jmp_targets = Seq(
-        io.df2ex.bits.pc + imm,
+        io.df2ex.bits.pc + SignExt(Cat(io.df2ex.bits.imm, 0.U(1.W)), DATA_WIDTH),
         io.df2ex.bits.pc + 4.U,
         io.df2ex.bits.rs2_d(PADDR_WIDTH - 1, 0),
-        io.df2ex.bits.rs1_d(PADDR_WIDTH - 1, 0) + imm,
+        io.df2ex.bits.rs1_d(PADDR_WIDTH - 1, 0) + SignExt(io.df2ex.bits.imm, DATA_WIDTH),
     )
     val nextPC_is_different = jmp_targets.map(_ =/= io.df2ex.bits.nextPC)
     val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)

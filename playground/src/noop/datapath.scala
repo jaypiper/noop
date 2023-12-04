@@ -178,7 +178,7 @@ class DF2EX extends Bundle{
     val rs2     = UInt(REG_WIDTH.W)
     val rs2_d   = UInt(DATA_WIDTH.W)
     val dst     = UInt(REG_WIDTH.W)
-    val dst_d   = UInt(DATA_WIDTH.W)
+    val imm     = UInt(20.W)
     val rcsr_id = UInt(CSR_WIDTH.W)
     val jmp_type = UInt(JMP_WIDTH.W)
     val recov   = Bool()
