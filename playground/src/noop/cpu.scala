@@ -73,8 +73,8 @@ class CPU extends Module{
     val dcache      = Module(new DCache)
     val bpu         = Module(new SimpleBPU2)
 
-    val mem2Axi     = Module(new ToAXI(true))
-    val fetch2Axi   = Module(new ToAXI(false))
+    val mem2Axi     = Module(new ToAXI)
+    val fetch2Axi   = Module(new ToAXI)
 
     val memCrossbar = Module(new MemCrossBar)
     val fetchCrossbar = Module(new FetchCrossBar)
