@@ -17,7 +17,7 @@ jobs:
 
       - name: CoreMark
         run: |
-          ./build/emu -F ./bin/coremark.bin --diff ./bin/riscv64-nemu-interpreter-so | tee coremark.log
+          ./build/emu -F ./bin/coremark-100.bin --diff ./bin/riscv64-nemu-interpreter-so | tee coremark.log
 
       - name: Release
         run: |
