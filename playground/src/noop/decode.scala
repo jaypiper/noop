@@ -41,7 +41,6 @@ class Decoder extends Module {
         }
     }
 
-    io.out := DontCare
     io.out.inst := io.in.inst
     io.out.pc := io.in.pc
     io.out.excep := 0.U.asTypeOf(new Exception)
@@ -64,6 +63,10 @@ class Decoder extends Module {
     io.out.recov := io.in.recov // TODO: what's this
     io.stall := false.B
 
+    io.out.ctrl.brType := DontCare
+    io.out.rs1_d := DontCare
+    io.out.rs2_d := DontCare
+    io.out.dst_d := DontCare
     when(dType === INVALID) {
         io.out.excep.en := true.B
         io.out.excep.cause := CAUSE_ILLEGAL_INSTRUCTION.U
