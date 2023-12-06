@@ -88,7 +88,7 @@ class SimpleBPU extends Module {
 class BTBEntry extends Bundle {
     // no valid
     val pc = UInt(PADDR_WIDTH.W)
-    val target = UInt(PADDR_WIDTH.W)
+    val target = UInt(16.W)
 }
 
 class SimpleBPU2 extends Module {
@@ -108,7 +108,7 @@ class SimpleBPU2 extends Module {
         val btb_hit = btb_hit_vec.asUInt.orR
         val btb_hit_idx = OHToUInt(btb_hit_vec)
         predict.jmp := btb_hit
-        predict.target := btb(btb_hit_idx).target
+        predict.target := Cat(predict.pc(PADDR_WIDTH - 1, 16), btb(btb_hit_idx).target)
         when (predict.v && btb_hit) {
             plru.access(btb_hit_idx)
         }
