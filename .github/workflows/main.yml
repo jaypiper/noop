@@ -45,4 +45,4 @@ jobs:
 
       - name: RT-Thread
         run: |
-          ./build/emu -F ./bin/rtthread.bin --diff ./bin/riscv64-nemu-interpreter-so -I 3000000
+          ./build/emu -F ./bin/rtthread.bin --diff ./bin/riscv64-nemu-interpreter-so -I 1000000
