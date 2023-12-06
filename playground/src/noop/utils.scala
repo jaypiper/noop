@@ -561,3 +561,12 @@ object ZeroExt {
     if (aLen >= len) a(len-1,0) else Cat(0.U((len - aLen).W), a)
   }
 }
+
+object XORFold {
+  def apply(input: UInt, resWidth: Int): UInt = {
+    require(resWidth > 0)
+    val fold_range = (input.getWidth + resWidth - 1) / resWidth
+    val value = ZeroExt(input, fold_range * resWidth)
+    Seq.tabulate(fold_range)(i => value(i*resWidth+resWidth-1, i*resWidth)).reduce(_ ^ _)
+  }
+}
