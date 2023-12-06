@@ -101,6 +101,7 @@ class FetchS1 extends Module {
     val out = IO(DecoupledIO(new Bundle {
         val pc = Vec(2, UInt(PADDR_WIDTH.W))
         val fetch_two = Bool()
+        val is_jmp = Vec(2, Bool())
     }))
 
     val pc = RegInit(PC_START)
@@ -135,6 +136,7 @@ class FetchS1 extends Module {
     out.bits.pc(0) := pc
     out.bits.pc(1) := Cat(pc(PADDR_WIDTH - 1, 2) + 1.U, 0.U(2.W))
     out.bits.fetch_two := fetch_two
+    out.bits.is_jmp := io.bp.map(_.jmp)
 
     instRead.valid := state === sIdle && out.ready
 
@@ -189,10 +191,12 @@ class Fetch extends Module{
     io.if2id.bits(0).inst := insts(io.if2id.bits(0).pc(2))
     io.if2id.bits(0).nextPC := Mux(s2_in.bits.fetch_two, io.if2id.bits(1).pc, s2_nextpc)
     io.if2id.bits(0).recov := false.B  // TODO: remove
+    io.if2id.bits(0).is_jmp := s2_in.bits.is_jmp(0)
 
     io.if2id.valid(1) := s2_out_valid && s2_in.bits.fetch_two
     io.if2id.bits(1).pc := s2_in.bits.pc(1)
     io.if2id.bits(1).inst := insts(!io.if2id.bits(0).pc(2))
     io.if2id.bits(1).nextPC := s2_nextpc
     io.if2id.bits(1).recov := false.B
+    io.if2id.bits(1).is_jmp := s2_in.bits.is_jmp(1)
 }

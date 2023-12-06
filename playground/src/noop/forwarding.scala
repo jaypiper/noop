@@ -14,6 +14,7 @@ class Forwarding(n_forward: Int) extends Module{
         val rightStall = Output(Bool())
         val flush = Output(Bool())
         val blockOut = Input(Bool())
+        val maskOut = Input(Bool())
         val fwd_source = Vec(n_forward, Input(new RegForward))
         val d_fd = Output(new RegForward)
         val rs1Read = Flipped(new RegRead)
@@ -51,7 +52,7 @@ class Forwarding(n_forward: Int) extends Module{
     io.rs2Read.id := io.id2df.bits.rs2
     io.csrRead.id := io.id2df.bits.inst(31, 20)
 
-    io.df2dp.valid := io.id2df.valid && rs_ready && !io.blockOut
+    io.df2dp.valid := io.id2df.valid && rs_ready && !io.blockOut && !io.maskOut
     io.df2dp.bits.inst := io.id2df.bits.inst
     io.df2dp.bits.pc := io.id2df.bits.pc
     io.df2dp.bits.nextPC := io.id2df.bits.nextPC

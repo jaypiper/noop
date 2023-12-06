@@ -81,8 +81,16 @@ class CPU extends Module{
     val crossBar = Module(new CrossBar)
 
     // Flush
+    val decode_no_jump_flush = VecInit.tabulate(ISSUE_WIDTH)(i => {
+        val fetch_is_jmp = decode.io.if2id.bits(i).is_jmp
+        val decode_is_not_jump = decode.io.id2df.bits(i).jmp_type === NO_JMP
+        decode.io.if2id.valid(i) && fetch_is_jmp && decode_is_not_jump
+    })
+    val decode_flush_out = (decode.io.stall.asUInt.orR || decode_no_jump_flush.asUInt.orR) && decode.io.id2df.ready
+
     val execute_flush = VecInit(execute.map(_.io.flushOut)).asUInt.orR
     val forward_flush = VecInit(forwarding.map(_.io.flush)).asUInt.orR || execute_flush
+    val fetch_flush = forward_flush || decode_flush_out
 
     // Fetch
     fetch.io.instRead <> fetchCrossbar.io.instIO
@@ -95,23 +103,31 @@ class CPU extends Module{
 
     fetch.io.reg2if     <> csrs.io.reg2if
     fetch.io.wb2if      <> writeback.io.wb2if
-    fetch.io.branchFail := PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
+    val execute_branch_flush = PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
+    // use branchFail for both execute and decode stage
+    fetch.io.branchFail.valid := execute_branch_flush.valid || decode_no_jump_flush.asUInt.orR && decode.io.id2df.ready
+    fetch.io.branchFail.seq_pc := Mux(execute_branch_flush.valid,
+        execute_branch_flush.seq_pc,
+        PriorityMux(decode_no_jump_flush, decode.io.if2id.bits.map(_.pc + 4.U))
+    )
     // branch mis-prediction has higher priority than decode stall
     fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush
-    fetch.io.flush := forward_flush || decode.io.stall.asUInt.orR
+    fetch.io.flush := fetch_flush
     fetch.io.recov := writeback.io.recov
 
     // Ibuffer
     ibuffer.io.in <> fetch.io.if2id
     ibuffer.io.out <> decode.io.if2id
-    ibuffer.io.flush := forward_flush || decode.io.stall.asUInt.orR && decode.io.id2df.ready
+    ibuffer.io.flush := fetch_flush
 
     // Decode
     decode.io.id2df.connectNoPipe(forwarding.map(_.io.id2df), forward_flush)
     forwarding.head.io.blockOut := false.B
+    forwarding.head.io.maskOut := false.B
     for (i <- 1 until ISSUE_WIDTH) {
         forwarding(i).io.blockOut := VecInit(forwarding.take(i).map(_.io.rightStall)).asUInt.orR
         PerfAccumulate(s"forwarding_${i}_blocked", forwarding(i).io.id2df.valid && !forwarding(i).io.rightStall && forwarding(i).io.blockOut)
+        forwarding(i).io.maskOut := VecInit(decode_no_jump_flush.take(i)).asUInt.orR
     }
     decode.io.idState := RegNext(csrs.io.idState)
     val forwarding_allow_in = RegNext(VecInit(forwarding.map(_.io.id2df.ready)).asUInt.andR, false.B)

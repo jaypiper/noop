@@ -122,6 +122,7 @@ class IF2ID extends Bundle{
     val pc      = UInt(PADDR_WIDTH.W)
     val nextPC  = UInt(PADDR_WIDTH.W)
     val recov   = Bool()
+    val is_jmp  = Bool()
 }
 
 class PipelineBackCtrl extends Bundle{
