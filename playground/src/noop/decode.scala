@@ -61,7 +61,6 @@ class Decoder extends Module {
 
     io.out.ctrl.brType := DontCare
     io.out.rs1_d := DontCare
-    io.out.rs2_d := DontCare
     when(dType === INVALID) {
         io.out.excep.en := true.B
         io.out.excep.cause := CAUSE_ILLEGAL_INSTRUCTION.U
@@ -78,7 +77,6 @@ class Decoder extends Module {
         when(jmp_indi) {
             io.out.jmp_type := JMP_REG
             io.out.rrs1 := true.B
-            io.out.rs2_d := io.in.pc + 4.U
         }.elsewhen(rs2_is_csr) {
             io.out.rs1_d := inst_in(19, 15)
             io.out.rrs1 := true.B
@@ -86,7 +84,6 @@ class Decoder extends Module {
             io.stall := true.B
         }.otherwise {
             io.out.rrs1 := true.B
-            io.out.rs2_d := SignExt(inst_in(31, 20), DATA_WIDTH)
         }
     }
     when(dType === SType) {
@@ -101,13 +98,15 @@ class Decoder extends Module {
     }
     when(dType === UType) {
         io.out.rs1_d := SignExt(Cat(inst_in(31, 12), 0.U(12.W)), DATA_WIDTH)
-        io.out.rs2_d := io.in.pc
     }
     when(dType === JType) {
         io.out.rs1_d := io.in.pc
-        io.out.rs2_d := io.in.pc + 4.U
         io.out.jmp_type := JMP_PC
     }
+    io.out.rs2_d := Mux(dType === JType || dType === IType && jmp_indi,
+        io.in.pc + 4.U,
+        Mux(dType === UType, io.in.pc, SignExt(inst_in(31, 20), DATA_WIDTH))
+    )
 
     val is_mret = inst_in === Insts.MRET
     val is_ecall = inst_in === Insts.ECALL
