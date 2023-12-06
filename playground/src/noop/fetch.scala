@@ -104,7 +104,9 @@ class FetchS1 extends Module {
         val is_jmp = Vec(2, Bool())
     }))
 
-    val pc = RegInit(PC_START)
+    val pc_r = RegInit((PC_START >> 2).asTypeOf(UInt((PADDR_WIDTH - 2).W)))
+    val pc = Cat(pc_r, 0.U(2.W))
+
     val fetch_two = (!pc(2) || in_imem(pc) && !pc(14, 2).andR) && !io.bp(0).jmp
     val pc_seq = Mux(fetch_two, pc + 8.U, pc + 4.U)
     val next_pc = PriorityMux(Seq(
@@ -115,7 +117,7 @@ class FetchS1 extends Module {
         (fetch_two && io.bp(1).jmp && out.fire, io.bp(1).target),
         (out.fire, pc_seq),
         (true.B, pc)))
-    pc := next_pc
+    pc_r := next_pc(PADDR_WIDTH - 1, 2)
 
     val sIdle :: sStall :: Nil = Enum(2)
     val state = RegInit(sIdle)
