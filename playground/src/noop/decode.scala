@@ -11,6 +11,7 @@ import noop.utils.{SignExt, VecDecoupledIO}
 class Decoder extends Module {
     val io = IO(new Bundle {
         val in = Input(new IF2ID)
+        val idState = Input(new IdState)
         val out = Output(new ID2DF)
         val stall = Output(Bool())
     })
@@ -108,11 +109,13 @@ class Decoder extends Module {
         io.out.jmp_type := JMP_PC
     }
 
-    when(inst_in === Insts.MRET) {
+    val is_mret = inst_in === Insts.MRET
+    val is_ecall = inst_in === Insts.ECALL
+    when(is_mret || is_ecall) {
         io.out.excep.pc := io.in.pc
         io.out.excep.en := true.B
-        io.out.excep.etype := ETYPE_MRET
-        io.out.excep.cause := 0.U
+        io.out.excep.etype := Mux(is_mret, ETYPE_MRET, ETYPE_ECALL)
+        io.out.excep.cause := Mux(is_mret, 0.U, io.idState.priv + 8.U(4.W))
         // tval between ID/EXE is passed by nextPC
         io.out.nextPC := 0.U
         io.out.jmp_type := JMP_CSR
@@ -133,6 +136,7 @@ class Decode extends Module{
 
     for (((v, in), (dec, i)) <- io.if2id.valid.zip(io.if2id.bits).zip(decoder.zipWithIndex)) {
         dec.io.in := in
+        dec.io.idState := io.idState
 
         io.id2df.valid(i) := v
         if (i > 0) { // check whether flushed by previous instructions
