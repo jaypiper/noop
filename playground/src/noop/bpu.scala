@@ -88,7 +88,7 @@ class SimpleBPU extends Module {
 class BTBEntry extends Bundle {
     // no valid
     val pc = UInt(15.W)
-    val target = UInt(16.W)
+    val target = UInt(15.W)
 }
 
 class SimpleBPU2 extends Module {
@@ -104,13 +104,15 @@ class SimpleBPU2 extends Module {
     val btb_valid_idx = if (usePLRU) plru.way else updatePtr
 
     def pcHash(pc: UInt): UInt = XORFold(pc(PADDR_WIDTH - 1, 2), 15)
+    def makeTarget(pc: UInt): UInt = pc(2 + 15 - 1, 2)
+    def makePC(pc: UInt, target: UInt): UInt = Cat(pc(PADDR_WIDTH - 1, 17), target, 0.U(2.W))
 
     for (predict <- io.predict) {
         val btb_hit_vec = VecInit(btb.map(_.pc === pcHash(predict.pc)))
         val btb_hit = btb_hit_vec.asUInt.orR
         val btb_hit_idx = OHToUInt(btb_hit_vec)
         predict.jmp := btb_hit
-        predict.target := Cat(predict.pc(PADDR_WIDTH - 1, 16), btb(btb_hit_idx).target)
+        predict.target := makePC(predict.pc, btb(btb_hit_idx).target)
         when (predict.v && btb_hit) {
             plru.access(btb_hit_idx)
         }
@@ -122,12 +124,12 @@ class SimpleBPU2 extends Module {
     when (io.update.needUpdate) {
         when(btb_update_hit) {
             plru.access(btb_update_idx)
-            btb(btb_update_idx).target := io.update.target
+            btb(btb_update_idx).target := makeTarget(io.update.target)
         }.otherwise {
             updatePtr := updatePtr + 1.U
             plru.access(btb_valid_idx)
             btb(btb_valid_idx).pc := pcHash(io.update.pc)
-            btb(btb_valid_idx).target := io.update.target
+            btb(btb_valid_idx).target := makeTarget(io.update.target)
         }
     }
 }
