@@ -20,7 +20,6 @@ class Decoder extends Module {
     val instType = ListLookup(inst_in, decodeDefault, decodeTable)
     val dType = instType(0)
     val jmp_indi = instType(5) === true.B
-    val rs2_is_csr = instType(6) === true.B
     io.out.imm := DontCare
     switch(dType) {
         is(IType) {
@@ -53,6 +52,8 @@ class Decoder extends Module {
     io.out.jmp_type := NO_JMP
     io.out.nextPC := io.in.nextPC
     when (io.out.ctrl.writeCSREn) {
+        io.out.rs1_d := inst_in(19, 15)
+        io.stall := true.B
         io.out.nextPC := io.in.inst(31, 20)
     }
 
@@ -72,10 +73,6 @@ class Decoder extends Module {
     when(dType === IType) {
         when(jmp_indi) {
             io.out.jmp_type := JMP_REG
-        }.elsewhen(rs2_is_csr) {
-            io.out.rs1_d := inst_in(19, 15)
-            io.stall := true.B
-        }.otherwise {
         }
     }
     when(dType === BType) {
