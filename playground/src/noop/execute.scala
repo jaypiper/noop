@@ -103,8 +103,8 @@ class Execute extends Module{
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.mispred := RegEnable(jmp_mispred, is_jmp)
-    io.updateBPU.pc := RegEnable(s0_out.bits.pc, is_jmp)
-    io.updateBPU.target := jmp_target_r
+    io.updateBPU.pc := RegEnable(s0_out.bits.pc(PADDR_WIDTH - 1, 2), is_jmp)
+    io.updateBPU.target := jmp_target_r(PADDR_WIDTH - 1, 2)
 
     io.flushOut := is_jmp && jmp_mispred
     io.ex2if.valid  := io.flushOut

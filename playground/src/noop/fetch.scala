@@ -113,8 +113,8 @@ class FetchS1 extends Module {
         (io.reg2if.valid, io.reg2if.seq_pc),
         (io.wb2if.valid, io.wb2if.seq_pc),
         (io.branchFail.valid, io.branchFail.seq_pc),
-        (io.bp(0).jmp && out.fire, io.bp(0).target),
-        (fetch_two && io.bp(1).jmp && out.fire, io.bp(1).target),
+        (io.bp(0).jmp && out.fire, Cat(io.bp(0).target, 0.U(2.W))),
+        (fetch_two && io.bp(1).jmp && out.fire, Cat(io.bp(1).target, 0.U(2.W))),
         (out.fire, pc_seq),
         (true.B, pc)))
     pc_r := next_pc(PADDR_WIDTH - 1, 2)
@@ -142,9 +142,9 @@ class FetchS1 extends Module {
 
     instRead.valid := state === sIdle && out.ready
 
-    io.bp(0).pc := pc
+    io.bp(0).pc := pc(PADDR_WIDTH - 1, 2)
     io.bp.map(_.v := out.fire)
-    io.bp(1).pc := out.bits.pc(1)
+    io.bp(1).pc := out.bits.pc(1)(PADDR_WIDTH - 1, 2)
 
     PerfAccumulate("fetch_one", out.fire && !out.bits.fetch_two)
     PerfAccumulate("fetch_two", out.fire && out.bits.fetch_two)

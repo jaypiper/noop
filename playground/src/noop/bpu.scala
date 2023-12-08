@@ -103,9 +103,9 @@ class SimpleBPU2 extends Module {
     val plru = ReplacementPolicy.fromString("plru", BTB_ENTRY_NUM)
     val btb_valid_idx = if (usePLRU) plru.way else updatePtr
 
-    def pcHash(pc: UInt): UInt = XORFold(pc(PADDR_WIDTH - 1, 2), 15)
-    def makeTarget(pc: UInt): UInt = pc(2 + 15 - 1, 2)
-    def makePC(pc: UInt, target: UInt): UInt = Cat(pc(PADDR_WIDTH - 1, 17), target, 0.U(2.W))
+    def pcHash(pc: UInt): UInt = XORFold(pc, 15)
+    def makeTarget(pc: UInt): UInt = pc(14, 0)
+    def makePC(pc: UInt, target: UInt): UInt = Cat(pc(pc.getWidth - 1, 15), target)
 
     for (predict <- io.predict) {
         val btb_hit_vec = VecInit(btb.map(_.pc === pcHash(predict.pc)))
