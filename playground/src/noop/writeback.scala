@@ -50,7 +50,7 @@ class Writeback extends Module{
 
     val excep_en = io.ex2wb.map(wb => wb.valid && wb.bits.excep.en)
     assert(PopCount(excep_en) <= 1.U, "do not allow simultaneous excep_en now")
-    val excep_wb = PriorityMux(excep_en, writebacks)
+    val excep_wb = PriorityMux(excep_en, io.ex2wb.map(_.bits))
     io.excep := excep_wb.excep
     io.excep.en := VecInit(excep_en).asUInt.orR
     io.excep.pc := excep_wb.dst_d
