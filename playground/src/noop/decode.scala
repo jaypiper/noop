@@ -8,6 +8,12 @@ import noop.param.common._
 import noop.param.decode_config._
 import noop.utils.{SignExt, VecDecoupledIO}
 
+class FieldDecoder(inst: UInt, table: Array[(BitPat, List[UInt])], default: List[UInt]) {
+    val results = ListLookup(inst, default, table)
+
+    def apply(i: Int): UInt = results(i)
+}
+
 class Decoder extends Module {
     val io = IO(new Bundle {
         val in = Input(new IF2ID)
@@ -17,7 +23,7 @@ class Decoder extends Module {
     })
 
     val inst_in = io.in.inst
-    val instType = ListLookup(inst_in, decodeDefault, decodeTable)
+    val instType = new FieldDecoder(inst_in, decodeTable, decodeDefault)
     val dType = instType(0)
     val jmp_indi = instType(5) === true.B
     io.out.imm := DontCare
