@@ -87,7 +87,7 @@ class Execute extends Module{
         io.df2ex.bits.pc + SignExt(io.df2ex.bits.imm(19, 1), PC_WIDTH),
         io.df2ex.bits.pc + 1.U,
         io.df2ex.bits.rs2_d(PC_WIDTH + 1, 2),
-        io.df2ex.bits.rs1_d(PC_WIDTH + 1, 2) + SignExt(io.df2ex.bits.imm, PC_WIDTH),
+        io.df2ex.bits.rs1_d(PC_WIDTH + 1, 2) + SignExt(io.df2ex.bits.imm(19, 2), PC_WIDTH),
     )
     val nextPC_is_different = jmp_targets.map(_ =/= io.df2ex.bits.nextPC)
     val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)
