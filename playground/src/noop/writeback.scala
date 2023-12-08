@@ -48,7 +48,7 @@ class Writeback extends Module{
     io.wCsr.data := csr_wb.csr_d
     io.wCsr.en := VecInit(csr_wen).asUInt.orR
 
-    val excep_en = wb_valid.zip(writebacks).map{ case (v, w) => v && w.excep.en }
+    val excep_en = io.ex2wb.map(wb => wb.valid && wb.bits.excep.en)
     assert(PopCount(excep_en) <= 1.U, "do not allow simultaneous excep_en now")
     val excep_wb = PriorityMux(excep_en, writebacks)
     io.excep := excep_wb.excep
