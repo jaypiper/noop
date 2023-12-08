@@ -97,7 +97,7 @@ class FetchS1 extends Module {
         val flush = Input(Bool())
         val bp = Vec(ISSUE_WIDTH, Flipped(new PredictIO2))
     })
-    val instRead = IO(DecoupledIO())
+    val instRead = IO(DecoupledIO(UInt(PC_WIDTH.W)))
     val out = IO(DecoupledIO(new Bundle {
         val pc = Vec(2, UInt(PC_WIDTH.W))
         val fetch_two = Bool()
@@ -140,6 +140,7 @@ class FetchS1 extends Module {
     out.bits.is_jmp := io.bp.map(_.jmp)
 
     instRead.valid := state === sIdle && out.ready
+    instRead.bits := pc
 
     io.bp(0).pc := pc
     io.bp.map(_.v := out.fire)
@@ -166,7 +167,7 @@ class Fetch extends Module{
     s1.io.bp <> io.bp
 
     s1.instRead.ready := io.instRead.ready
-    io.instRead.addr := s1.out.bits.pc.head << 2
+    io.instRead.addr := s1.instRead.bits << 2
     io.instRead.arvalid := s1.instRead.valid
 
     // Stage 2
