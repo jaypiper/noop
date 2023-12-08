@@ -9,9 +9,12 @@ import noop.param.decode_config._
 import noop.utils.{SignExt, VecDecoupledIO}
 
 class FieldDecoder(inst: UInt, table: Array[(BitPat, List[UInt])], default: List[UInt]) {
-    val results = ListLookup(inst, default, table)
-
-    def apply(i: Int): UInt = results(i)
+    def apply(i: Int): UInt = {
+        val target_vals = table.map(_._1).zip(table.map(entry => BitPat(entry._2(i))))
+        val default_val = if (i == 0) BitPat(default(i)) else BitPat.dontCare(default(i).getWidth)
+        val truthTable = util.experimental.decode.TruthTable(target_vals, default_val)
+        util.experimental.decode.decoder.qmc(inst, truthTable)
+    }
 }
 
 class Decoder extends Module {
