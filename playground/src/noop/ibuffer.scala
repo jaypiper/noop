@@ -62,7 +62,9 @@ class IBuffer extends Module with HasCircularQueuePtrHelper {
     io.out.valid(i) := validEntries > i.U
     io.out.bits(i) := deqData(i)
   }
-  when(io.out.ready && !io.flush) {
+  when (io.flush) {
+    deqPtrVec := deqPtrVec
+  }.elsewhen (io.out.ready) {
     deqPtrVec := deqPtrVec.map(_ + PopCount(io.out.valid))
   }
 
