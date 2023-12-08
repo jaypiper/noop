@@ -50,7 +50,7 @@ class IBuffer extends Module with HasCircularQueuePtrHelper {
   for (i <- 0 until ISSUE_WIDTH) {
     data.io.write(i).addr := enqPtrVec(i).value
     data.io.write(i).data := io.in.bits(i)
-    data.io.write(i).en := io.in.valid(i) && io.in.ready && !io.flush
+    data.io.write(i).en := io.in.valid(i) && io.in.ready
   }
   when(io.in.ready) {
     enqPtrVec := VecInit(enqPtrVec.map(_ + PopCount(io.in.valid)))
