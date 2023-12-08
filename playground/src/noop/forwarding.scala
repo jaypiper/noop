@@ -28,10 +28,8 @@ class Forwarding(n_forward: Int) extends Module{
         val timer = RegInit(0.U(64.W))
         timer := timer + 1.U
         for ((s, i) <- source.reverse.zipWithIndex) {
-            when (rs === s.id && s.state =/= d_invalid) {
-                valid := s.state === d_valid
-            }
-            when (rs === s.id && s.state === d_valid) {
+            when (rs === s.id && d_state_is_valid(s.state)) {
+                valid := d_data_is_valid(s.state)
                 data := s.data
             }
         }

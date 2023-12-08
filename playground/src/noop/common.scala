@@ -153,8 +153,11 @@ trait satp_mode{
 
 trait dataForw{
     val d_invalid   = 0.U(2.W)
-    val d_valid     = 1.U(2.W)
     val d_wait      = 2.U(2.W)
+    val d_valid     = 3.U(2.W)
+
+    def d_state_is_valid(state: UInt): Bool = state(1)
+    def d_data_is_valid(state: UInt): Bool = state(0)
 }
 
 trait priv_encoding{
