@@ -46,7 +46,7 @@ class Decoder extends Module {
     io.out.ctrl.writeRegEn := instType(4) & (inst_in(11, 7) =/= 0.U)
     io.out.ctrl.writeCSREn := instType(6)
     io.out.rs1 := inst_in(19, 15)
-    io.out.rrs1 := false.B
+    io.out.rrs1 := is_rrs1(dType)
     io.out.rs2 := inst_in(24, 20)
     io.out.rrs2 := false.B
     io.out.dst := inst_in(11, 7)
@@ -70,28 +70,22 @@ class Decoder extends Module {
         io.stall := true.B
     }
     when(dType === RType) {
-        io.out.rrs1 := true.B
         io.out.rrs2 := true.B
     }
     when(dType === IType) {
         when(jmp_indi) {
             io.out.jmp_type := JMP_REG
-            io.out.rrs1 := true.B
         }.elsewhen(rs2_is_csr) {
             io.out.rs1_d := inst_in(19, 15)
-            io.out.rrs1 := true.B
             io.out.rrs2 := true.B
             io.stall := true.B
         }.otherwise {
-            io.out.rrs1 := true.B
         }
     }
     when(dType === SType) {
-        io.out.rrs1 := true.B
         io.out.rrs2 := true.B
     }
     when(dType === BType) {
-        io.out.rrs1 := true.B
         io.out.rrs2 := true.B
         io.out.ctrl.brType := inst_in(14, 12)
         io.out.jmp_type := JMP_COND

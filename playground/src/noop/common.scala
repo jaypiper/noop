@@ -468,14 +468,16 @@ object Insts{
 }
 
 trait DeType{
-    val EMPTY = 0.U(3.W)
-    val RType = 1.U(3.W)
-    val IType = 2.U(3.W)
-    val SType = 3.U(3.W)
-    val BType = 4.U(3.W)
-    val UType = 5.U(3.W)
-    val JType = 6.U(3.W)
-    val INVALID  = 7.U(3.W)
+    val RType = 0.U(3.W)
+    val IType = 1.U(3.W)
+    val SType = 2.U(3.W)
+    val BType = 3.U(3.W)
+    val UType = 4.U(3.W)
+    val JType = 5.U(3.W)
+    val EMPTY = 6.U(3.W)
+    val INVALID = 7.U(3.W)
+
+    def is_rrs1(deType: UInt): Bool = !deType(2)
 }
 
 trait ALUOP{
