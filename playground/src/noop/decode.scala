@@ -96,7 +96,7 @@ class Decoder extends Module {
         io.out.jmp_type := JMP_PC
     }
     io.out.rs2_d := Mux(dType === JType || dType === IType && jmp_indi,
-        io.in.pc + 4.U,
+        Cat(io.in.pc(PADDR_WIDTH - 1, 2) + 1.U, 0.U(2.W)),
         Mux(dType === UType, io.in.pc, SignExt(inst_in(31, 20), DATA_WIDTH))
     )
 
