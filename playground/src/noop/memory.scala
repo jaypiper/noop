@@ -142,12 +142,9 @@ class Memory extends Module{
 
     // Data forwarding
     io.d_mem1.id := io.mem2wb.bits.dst
-    io.d_mem1.data := Mux(io.mem2wb.bits.ctrl.dcMode(DC_L_BIT), read_data, io.mem2wb.bits.dst_d)
-    io.d_mem1.state := Mux(mem2wb.valid,
-        Mux(io.mem2wb.bits.ctrl.dcMode(DC_L_BIT),
-            Mux(io.dataRW.resp.valid, d_valid, d_wait),
-            Mux(io.mem2wb.bits.ctrl.dcMode === mode_NOP && io.mem2wb.bits.ctrl.writeRegEn, d_valid, d_invalid)
-        ),
+    io.d_mem1.data := read_data
+    io.d_mem1.state := Mux(mem2wb.valid && io.mem2wb.bits.ctrl.dcMode(DC_L_BIT),
+        Mux(io.dataRW.resp.valid, d_valid, d_wait),
         d_invalid
     )
 
