@@ -77,7 +77,6 @@ class Decoder extends Module {
             io.out.jmp_type := JMP_REG
         }.elsewhen(rs2_is_csr) {
             io.out.rs1_d := inst_in(19, 15)
-            io.out.rrs2 := true.B
             io.stall := true.B
         }.otherwise {
         }
