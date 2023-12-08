@@ -61,7 +61,7 @@ class Csrs extends Module{
     val priv        = RegInit(PRV_M)
     // val misa        = RegInit("h800000000014112d".U(DATA_WIDTH.W))
     val mstatus     = RegInit("ha00000000".U(DATA_WIDTH.W))
-    val mepc        = RegInit(0.U(DATA_WIDTH.W))
+    val mepc        = RegInit(0.U(PC_WIDTH.W))
     val mtval       = RegInit(0.U(DATA_WIDTH.W))
     val mscratch    = RegInit(0.U(DATA_WIDTH.W))
     val mcause      = RegInit(0.U(DATA_WIDTH.W))
@@ -87,7 +87,7 @@ class Csrs extends Module{
             mstatus         := new_mstatus
         }.otherwise{
             // exceptions & interruptions & ecall
-            val seq_pc      = mtvec + Mux(mtvec(1), cause << 2.U, 0.U)
+            val seq_pc      = mtvec(PC_WIDTH + 1, 2) + Mux(mtvec(1), cause, 0.U)
             forceJmp.seq_pc := seq_pc
             forceJmp.valid  := true.B
             mcause          := cause
@@ -107,7 +107,7 @@ class Csrs extends Module{
         when(rs.id === CSR_MSTATUS) {
             rs.data := mstatus
         }.elsewhen(rs.id === CSR_MEPC) {
-            rs.data := mepc
+            rs.data := mepc << 2
         }.elsewhen(rs.id === CSR_MTVAL) {
             rs.data := mtval
         }.elsewhen(rs.id === CSR_MSCRATCH) {
@@ -134,7 +134,7 @@ class Csrs extends Module{
         val sd          = Mux((io.rd.data(14,13) === 3.U) || (io.rd.data(16,15) === 3.U), MSTATUS64_SD, 0.U)
         mstatus := set_partial_val(mstatus, MSTATUS_MASK | MSTATUS64_SD, new_mstatus | sd)
     }.elsewhen(io.rd.id === CSR_MEPC){
-        mepc := io.rd.data
+        mepc := io.rd.data >> 2
     }.elsewhen(io.rd.id === CSR_MTVAL){
         mtval := io.rd.data
     }.elsewhen(io.rd.id === CSR_MSCRATCH){
@@ -169,7 +169,7 @@ class Csrs extends Module{
         val difftest = DifftestModule(new DiffCSRState, dontCare = true)
         difftest.priviledgeMode := priv
         difftest.mstatus := mstatus
-        difftest.mepc := mepc
+        difftest.mepc := mepc << 2
         difftest.mtval := mtval
         difftest.mscratch := mscratch
         difftest.mcause := mcause

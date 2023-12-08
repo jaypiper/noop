@@ -73,7 +73,7 @@ class Writeback extends Module{
             difftest.skip := wb.is_mmio || wb.rcsr_id === CSR_MCYCLE
             difftest.rfwen := wb.dst_en
             difftest.wdest := wb.dst
-            difftest.pc := wb.pc
+            difftest.pc := wb.pc << 2
             difftest.instr := wb.inst
         }
     }

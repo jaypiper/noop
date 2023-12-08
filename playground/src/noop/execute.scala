@@ -71,7 +71,7 @@ class Execute extends Module{
     s0_out.bits.is_mmio := false.B
     s0_out.bits.recov := io.df2ex.bits.recov
     when(s0_out.bits.recov && !s0_out.bits.excep.en) {
-        s0_out.bits.excep.tval := s0_out.bits.pc + 4.U
+        s0_out.bits.excep.tval := s0_out.bits.pc + 1.U
     }
 
     // data forwarding
@@ -84,10 +84,10 @@ class Execute extends Module{
 
     // branch & jmp
     val jmp_targets = Seq(
-        io.df2ex.bits.pc + SignExt(Cat(io.df2ex.bits.imm, 0.U(1.W)), DATA_WIDTH),
-        io.df2ex.bits.pc + 4.U,
-        io.df2ex.bits.rs2_d(PADDR_WIDTH - 1, 0),
-        io.df2ex.bits.rs1_d(PADDR_WIDTH - 1, 0) + SignExt(io.df2ex.bits.imm, DATA_WIDTH),
+        io.df2ex.bits.pc + SignExt(io.df2ex.bits.imm(19, 1), PC_WIDTH),
+        io.df2ex.bits.pc + 1.U,
+        io.df2ex.bits.rs2_d(PC_WIDTH + 1, 2),
+        io.df2ex.bits.rs1_d(PC_WIDTH + 1, 2) + SignExt(io.df2ex.bits.imm, PC_WIDTH),
     )
     val nextPC_is_different = jmp_targets.map(_ =/= io.df2ex.bits.nextPC)
     val branch_taken = brResult(io.df2ex.bits.ctrl.brType, val1, val2)
@@ -103,8 +103,8 @@ class Execute extends Module{
     val jmp_target_r = RegEnable(real_target, is_jmp)
     io.updateBPU.valid := RegNext(is_jmp)
     io.updateBPU.mispred := RegEnable(jmp_mispred, is_jmp)
-    io.updateBPU.pc := RegEnable(s0_out.bits.pc(PADDR_WIDTH - 1, 2), is_jmp)
-    io.updateBPU.target := jmp_target_r(PADDR_WIDTH - 1, 2)
+    io.updateBPU.pc := RegEnable(s0_out.bits.pc, is_jmp)
+    io.updateBPU.target := jmp_target_r
 
     io.flushOut := is_jmp && jmp_mispred
     io.ex2if.valid  := io.flushOut

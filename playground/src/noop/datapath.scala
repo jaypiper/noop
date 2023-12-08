@@ -46,7 +46,7 @@ class Exception_BASIC extends Bundle{
 }
 
 class Exception extends Exception_BASIC{
-    val pc      = UInt(PADDR_WIDTH.W)
+    val pc      = UInt(PC_WIDTH.W)
     val etype   = UInt(2.W)
 }
 
@@ -108,19 +108,19 @@ class Intr extends Bundle{
 }
 
 class BranchInfo extends Bundle{
-    val seq_pc = Output(UInt(PADDR_WIDTH.W))
+    val seq_pc = Output(UInt(PC_WIDTH.W))
     val is_jmp = Output(Bool())
 }
 
 class ForceJmp extends Bundle{
-    val seq_pc = UInt(PADDR_WIDTH.W)
+    val seq_pc = UInt(PC_WIDTH.W)
     val valid  = Bool()
 }
 
 class IF2ID extends Bundle{
     val inst    = UInt(INST_WIDTH.W)
-    val pc      = UInt(PADDR_WIDTH.W)
-    val nextPC  = UInt(PADDR_WIDTH.W)
+    val pc      = UInt(PC_WIDTH.W)
+    val nextPC  = UInt(PC_WIDTH.W)
     val recov   = Bool()
     val is_jmp  = Bool()
 }
@@ -142,8 +142,8 @@ class Ctrl extends Bundle{
 
 class ID2DF extends Bundle{
     val inst    = UInt(INST_WIDTH.W)
-    val pc      = UInt(PADDR_WIDTH.W)
-    val nextPC  = UInt(PADDR_WIDTH.W)
+    val pc      = UInt(PC_WIDTH.W)
+    val nextPC  = UInt(PC_WIDTH.W)
     val excep   = new Exception
     val ctrl    = new Ctrl
     val rs1     = UInt(REG_WIDTH.W)
@@ -170,8 +170,8 @@ class DF2RR extends ID2DF{
 
 class DF2EX extends Bundle{
     val inst    = UInt(INST_WIDTH.W)
-    val pc      = UInt(PADDR_WIDTH.W)
-    val nextPC  = UInt(PADDR_WIDTH.W)
+    val pc      = UInt(PC_WIDTH.W)
+    val nextPC  = UInt(PC_WIDTH.W)
     val excep   = new Exception
     val ctrl    = new Ctrl
     val rs1     = UInt(REG_WIDTH.W)
@@ -191,7 +191,7 @@ class EX2DF extends Bundle {
 
 class EX2MEM extends Bundle{
     val inst    = Output(UInt(INST_WIDTH.W))
-    val pc      = Output(UInt(PADDR_WIDTH.W))
+    val pc      = Output(UInt(PC_WIDTH.W))
     val excep   = Output(new Exception)
     val ctrl    = Output(new Ctrl)
     val mem_addr = Output(UInt(PADDR_WIDTH.W))
@@ -210,7 +210,7 @@ class EX2MEM extends Bundle{
 
 class DF2MEM extends Bundle{
     val inst    = UInt(INST_WIDTH.W)
-    val pc      = UInt(PADDR_WIDTH.W)
+    val pc      = UInt(PC_WIDTH.W)
     val excep   = new Exception
     val ctrl    = new Ctrl
     val mem_addr = UInt(PADDR_WIDTH.W)
@@ -229,7 +229,7 @@ class MEM2DF extends Bundle {
 
 class MEM2RB extends Bundle{
     val inst    = UInt(INST_WIDTH.W)
-    val pc      = UInt(PADDR_WIDTH.W)
+    val pc      = UInt(PC_WIDTH.W)
     val excep   = new Exception
     val ctrl    = new Ctrl
     val csr_id  = UInt(CSR_WIDTH.W)

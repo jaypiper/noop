@@ -92,12 +92,12 @@ class Decoder extends Module {
         io.out.rs1_d := SignExt(Cat(inst_in(31, 12), 0.U(12.W)), DATA_WIDTH)
     }
     when(dType === JType) {
-        io.out.rs1_d := io.in.pc
+        io.out.rs1_d := io.in.pc << 2
         io.out.jmp_type := JMP_PC
     }
     io.out.rs2_d := Mux(dType === JType || dType === IType && jmp_indi,
-        Cat(io.in.pc(PADDR_WIDTH - 1, 2) + 1.U, 0.U(2.W)),
-        Mux(dType === UType, io.in.pc, SignExt(inst_in(31, 20), DATA_WIDTH))
+        Cat(io.in.pc + 1.U, 0.U(2.W)),
+        Mux(dType === UType, io.in.pc << 2, SignExt(inst_in(31, 20), DATA_WIDTH))
     )
 
     val is_mret = inst_in === Insts.MRET

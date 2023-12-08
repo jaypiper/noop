@@ -99,25 +99,24 @@ class FetchS1 extends Module {
     })
     val instRead = IO(DecoupledIO())
     val out = IO(DecoupledIO(new Bundle {
-        val pc = Vec(2, UInt(PADDR_WIDTH.W))
+        val pc = Vec(2, UInt(PC_WIDTH.W))
         val fetch_two = Bool()
         val is_jmp = Vec(2, Bool())
     }))
 
-    val pc_r = RegInit((PC_START >> 2).asTypeOf(UInt(PC_WIDTH.W)))
-    val pc = Cat(pc_r, 0.U(2.W))
+    val pc = RegInit((PC_START >> 2).asTypeOf(UInt(PC_WIDTH.W)))
 
-    val fetch_two = (!pc(2) || in_imem(pc) && !pc(14, 2).andR) && !io.bp(0).jmp
-    val pc_seq = Mux(fetch_two, pc + 8.U, pc + 4.U)
+    val fetch_two = (!pc(0) || in_imem((pc << 2).asUInt) && !pc(12, 0).andR) && !io.bp(0).jmp
+    val pc_seq = Mux(fetch_two, pc + 2.U, pc + 1.U)
     val next_pc = PriorityMux(Seq(
         (io.reg2if.valid, io.reg2if.seq_pc),
         (io.wb2if.valid, io.wb2if.seq_pc),
         (io.branchFail.valid, io.branchFail.seq_pc),
-        (io.bp(0).jmp && out.fire, Cat(io.bp(0).target, 0.U(2.W))),
-        (fetch_two && io.bp(1).jmp && out.fire, Cat(io.bp(1).target, 0.U(2.W))),
+        (io.bp(0).jmp && out.fire, io.bp(0).target),
+        (fetch_two && io.bp(1).jmp && out.fire, io.bp(1).target),
         (out.fire, pc_seq),
         (true.B, pc)))
-    pc_r := next_pc(PADDR_WIDTH - 1, 2)
+    pc := next_pc
 
     val sIdle :: sStall :: Nil = Enum(2)
     val state = RegInit(sIdle)
@@ -136,15 +135,15 @@ class FetchS1 extends Module {
 
     out.valid := state === sIdle && instRead.ready
     out.bits.pc(0) := pc
-    out.bits.pc(1) := Cat(pc(PADDR_WIDTH - 1, 2) + 1.U, 0.U(2.W))
+    out.bits.pc(1) := pc + 1.U
     out.bits.fetch_two := fetch_two
     out.bits.is_jmp := io.bp.map(_.jmp)
 
     instRead.valid := state === sIdle && out.ready
 
-    io.bp(0).pc := pc(PADDR_WIDTH - 1, 2)
+    io.bp(0).pc := pc
     io.bp.map(_.v := out.fire)
-    io.bp(1).pc := out.bits.pc(1)(PADDR_WIDTH - 1, 2)
+    io.bp(1).pc := out.bits.pc(1)
 
     PerfAccumulate("fetch_one", out.fire && !out.bits.fetch_two)
     PerfAccumulate("fetch_two", out.fire && out.bits.fetch_two)
@@ -167,7 +166,7 @@ class Fetch extends Module{
     s1.io.bp <> io.bp
 
     s1.instRead.ready := io.instRead.ready
-    io.instRead.addr := s1.out.bits.pc.head
+    io.instRead.addr := s1.out.bits.pc.head << 2
     io.instRead.arvalid := s1.instRead.valid
 
     // Stage 2
@@ -190,14 +189,14 @@ class Fetch extends Module{
     val insts = s2_inst.asTypeOf(Vec(ISSUE_WIDTH, UInt(INST_WIDTH.W)))
     io.if2id.valid(0) := s2_out_valid
     io.if2id.bits(0).pc := s2_in.bits.pc(0)
-    io.if2id.bits(0).inst := insts(io.if2id.bits(0).pc(2))
+    io.if2id.bits(0).inst := insts(io.if2id.bits(0).pc(0))
     io.if2id.bits(0).nextPC := Mux(s2_in.bits.fetch_two, io.if2id.bits(1).pc, s2_nextpc)
     io.if2id.bits(0).recov := false.B  // TODO: remove
     io.if2id.bits(0).is_jmp := s2_in.bits.is_jmp(0)
 
     io.if2id.valid(1) := s2_out_valid && s2_in.bits.fetch_two
     io.if2id.bits(1).pc := s2_in.bits.pc(1)
-    io.if2id.bits(1).inst := insts(!io.if2id.bits(0).pc(2))
+    io.if2id.bits(1).inst := insts(!io.if2id.bits(0).pc(0))
     io.if2id.bits(1).nextPC := s2_nextpc
     io.if2id.bits(1).recov := false.B
     io.if2id.bits(1).is_jmp := s2_in.bits.is_jmp(1)
