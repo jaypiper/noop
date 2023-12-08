@@ -59,8 +59,8 @@ class Forwarding(n_forward: Int) extends Module{
     io.df2dp.bits.rs1 := io.id2df.bits.rs1
     io.df2dp.bits.rs1_d := Mux(io.id2df.bits.rrs1, rs1_data, io.id2df.bits.rs1_d)
     io.df2dp.bits.rs2 := io.id2df.bits.rs2
-    io.df2dp.bits.rs2_d := Mux(io.id2df.bits.ctrl.writeCSREn || io.df2dp.bits.excep.en,
-        Mux(io.df2dp.bits.excep.en, io.id2df.bits.pc, io.csrRead.data),
+    io.df2dp.bits.rs2_d := Mux(io.id2df.bits.ctrl.writeCSREn || io.id2df.bits.excep.en,
+        Mux(!io.csrRead.is_err, io.csrRead.data, io.id2df.bits.pc),
         Mux(io.id2df.bits.rrs2, rs2_data, io.id2df.bits.rs2_d)
     )
     io.df2dp.bits.dst := io.id2df.bits.dst
