@@ -82,9 +82,9 @@ class CPU extends Module{
 
     // Flush
     val decode_no_jump_flush = VecInit.tabulate(ISSUE_WIDTH)(i => {
-        val fetch_is_jmp = decode.io.if2id.bits(i).is_jmp
+        val fetch_is_jmp = ibuffer.io.out.bits(i).is_jmp
         val decode_is_not_jump = decode.io.id2df.bits(i).jmp_type === NO_JMP
-        decode.io.if2id.valid(i) && fetch_is_jmp && decode_is_not_jump
+        ibuffer.io.out.valid(i) && fetch_is_jmp && decode_is_not_jump
     })
     val decode_flush_out = (decode.io.stall.asUInt.orR || decode_no_jump_flush.asUInt.orR) && decode.io.id2df.ready
 
@@ -105,10 +105,10 @@ class CPU extends Module{
     fetch.io.wb2if      <> writeback.io.wb2if
     val execute_branch_flush = PriorityMux(execute.map(_.io.ex2if.valid), execute.map(_.io.ex2if))
     // use branchFail for both execute and decode stage
-    fetch.io.branchFail.valid := execute_branch_flush.valid || decode_no_jump_flush.asUInt.orR && decode.io.id2df.ready
+    fetch.io.branchFail.valid := execute_branch_flush.valid || decode_no_jump_flush.asUInt.orR && ibuffer.io.out.ready
     fetch.io.branchFail.seq_pc := Mux(execute_branch_flush.valid,
         execute_branch_flush.seq_pc,
-        PriorityMux(decode_no_jump_flush, decode.io.if2id.bits.map(_.pc + 1.U))
+        PriorityMux(decode_no_jump_flush, ibuffer.io.out.bits.map(_.pc + 1.U))
     )
     // branch mis-prediction has higher priority than decode stall
     fetch.io.stall := decode.io.stall.asUInt.orR && !execute_flush
