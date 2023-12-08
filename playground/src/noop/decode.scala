@@ -48,7 +48,7 @@ class Decoder extends Module {
     io.out.rs1 := inst_in(19, 15)
     io.out.rrs1 := is_rrs1(dType)
     io.out.rs2 := inst_in(24, 20)
-    io.out.rrs2 := false.B
+    io.out.rrs2 := is_rrs2(dType)
     io.out.dst := inst_in(11, 7)
     io.out.jmp_type := NO_JMP
     io.out.nextPC := io.in.nextPC
@@ -69,9 +69,6 @@ class Decoder extends Module {
         io.out.excep.etype := 0.U
         io.stall := true.B
     }
-    when(dType === RType) {
-        io.out.rrs2 := true.B
-    }
     when(dType === IType) {
         when(jmp_indi) {
             io.out.jmp_type := JMP_REG
@@ -81,11 +78,7 @@ class Decoder extends Module {
         }.otherwise {
         }
     }
-    when(dType === SType) {
-        io.out.rrs2 := true.B
-    }
     when(dType === BType) {
-        io.out.rrs2 := true.B
         io.out.ctrl.brType := inst_in(14, 12)
         io.out.jmp_type := JMP_COND
     }
