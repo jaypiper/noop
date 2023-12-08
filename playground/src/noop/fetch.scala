@@ -104,7 +104,7 @@ class FetchS1 extends Module {
         val is_jmp = Vec(2, Bool())
     }))
 
-    val pc_r = RegInit((PC_START >> 2).asTypeOf(UInt((PADDR_WIDTH - 2).W)))
+    val pc_r = RegInit((PC_START >> 2).asTypeOf(UInt(PC_WIDTH.W)))
     val pc = Cat(pc_r, 0.U(2.W))
 
     val fetch_two = (!pc(2) || in_imem(pc) && !pc(14, 2).andR) && !io.bp(0).jmp

@@ -253,16 +253,16 @@ class PredictIO extends Bundle {
 
 class PredictIO2 extends Bundle {
     val v = Input(Bool())
-    val pc = Input(UInt((PADDR_WIDTH - 2).W))
-    val target = Output(UInt((PADDR_WIDTH - 2).W))
+    val pc = Input(UInt(PC_WIDTH.W))
+    val target = Output(UInt(PC_WIDTH.W))
     val jmp = Output(Bool())
 }
 
 class UpdateIO2 extends Bundle {
-    val pc = UInt((PADDR_WIDTH - 2).W)
+    val pc = UInt(PC_WIDTH.W)
     val valid = Bool()
     val mispred = Bool()
-    val target = UInt((PADDR_WIDTH - 2).W)
+    val target = UInt(PC_WIDTH.W)
 
     def needUpdate: Bool = valid && mispred
 }
