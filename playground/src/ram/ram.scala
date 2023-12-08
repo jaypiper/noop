@@ -203,18 +203,17 @@ class IRAM extends Module {
     })
 if(SRAM) {
     val data = VecInit(Seq.fill(IRAM_NUM)(Module(new RF1FCIC_1024X32M8WM8_SIM).io))
-    val select = io.addr(ICACHE_IDX_WIDTH - 1, ICACHE_IDX_WIDTH - log2Floor(IRAM_NUM))
-    val select_r = RegInit(0.U(log2Floor(IRAM_NUM).W))
-    select_r := select
+    val select = UIntToOH(io.addr(ICACHE_IDX_WIDTH - 1, ICACHE_IDX_WIDTH - log2Floor(IRAM_NUM)))
     for (i <- 0 until IRAM_NUM) {
         data(i).CLK := clock
-        data(i).CEN := ~((select === i.U) & io.cen)
+        data(i).CEN := ~(select(i) & io.cen)
         data(i).GWEN := ~io.wen
         data(i).A := io.addr(9, 0)
         data(i).D := io.wdata
         data(i).WEN := ~io.wmask
     }
-    io.rdata := data(select_r).Q
+    val select_r = RegNext(select)
+    io.rdata := Mux1H(select_r, data.map(_.Q))
 } else {
     val data = Mem(32, UInt(64.W))
     val data_r = RegNext(data(io.addr(4,0)))
