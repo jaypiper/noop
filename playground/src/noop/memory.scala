@@ -109,15 +109,15 @@ class Memory extends Module{
     s1_out.bits.pc := io.df2mem.bits.pc
     s1_out.bits.excep := io.df2mem.bits.excep
     s1_out.bits.ctrl := io.df2mem.bits.ctrl
-    s1_out.bits.csr_id := io.df2mem.bits.csr_id
-    s1_out.bits.csr_d := io.df2mem.bits.csr_d
-    s1_out.bits.csr_en := io.df2mem.bits.ctrl.writeCSREn
+    s1_out.bits.csr_id := DontCare
+    s1_out.bits.csr_d := DontCare
+    s1_out.bits.csr_en := false.B
     s1_out.bits.dst := io.df2mem.bits.dst
     s1_out.bits.dst_d := io.df2mem.bits.dst_d
     s1_out.bits.dst_en := io.df2mem.bits.ctrl.writeRegEn
     s1_out.bits.rcsr_id := io.df2mem.bits.rcsr_id
     s1_out.bits.is_mmio := io.df2mem.bits.mem_addr < "h30000000".U
-    s1_out.bits.recov := io.df2mem.bits.recov
+    s1_out.bits.recov := false.B
 
     // stage 2
     val mem2wb = Wire(Decoupled(new MEM2RB))
