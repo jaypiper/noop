@@ -58,7 +58,7 @@ $(RELEASE_V): clean
 	@mv .__out__ $@
 	@rm .__head__ .__diff__
 	sed -i 's/val isSim = false/val isSim = true/' playground/src/noop/common.scala
-	cat build/*.v > CPU.v
+	cp build/CPU.v CPU.v
 
 release: clean $(RELEASE_V)
 
